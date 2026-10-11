@@ -61,3 +61,9 @@ No email templates or URL settings are needed: the app signs in with email + pas
 - **Is the anon key secret?** No. It is designed to be public and is visible in the app's code. Access is protected by the database's row-level security, which allows only the accounts listed as caregivers.
 - **This repository is public.** The code and design doc are visible to anyone; your data is not (it lives only in Supabase).
 - **Free-tier pause:** Supabase pauses a free project after 7 days with no use. Daily logging prevents this. If it ever happens, open the Supabase dashboard and click **Restore**; no data is lost.
+- **Forgotten password:** in the Supabase **SQL Editor**, run (with the real email and a new password):
+  ```sql
+  update auth.users
+     set encrypted_password = extensions.crypt('NEW-PASSWORD', extensions.gen_salt('bf'))
+   where email = 'you@example.com';
+  ```

@@ -455,7 +455,7 @@ The baby's name and birth date are entered in the app at first run.
 | Vendor dependency | Plain Postgres schema; `pg_dump` migrates to any Postgres or self-host. |
 | Phone clock skew | Android NTP sync keeps it to well under a second; acceptable for this domain. |
 | Accidental deletes | Soft delete plus undo toast. |
-| Forgotten password | Reset from the Supabase dashboard (Users → user → reset), or set a new one there. |
+| Forgotten password | Set a new one with one SQL statement in the Supabase SQL editor (SETUP.md, Notes). No email needed. |
 
 ### 7.3 Things deliberately left simple
 
