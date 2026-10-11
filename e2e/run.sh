@@ -9,7 +9,7 @@ SECRET=local-test-secret-local-test-secret-123
 dropdb --if-exists "$DB"
 createdb "$DB"
 psql -q -v ON_ERROR_STOP=1 -d "$DB" \
-  -f supabase/tests/supabase_stub.sql -f supabase/migrations/0001_init.sql \
+  -f supabase/tests/supabase_stub.sql -f supabase/migrations/0001_init.sql -f supabase/migrations/0002_reports.sql \
   -f supabase/tests/post_grants.sql -f e2e/seed.sql
 
 PGRST_DB_URI="postgres://authenticator:auth@${PGHOST:-localhost}:${PGPORT:-5432}/$DB" \

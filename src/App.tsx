@@ -4,6 +4,7 @@ import {
 } from '@ionic/react';
 import { IonReactHashRouter } from '@ionic/react-router';
 import { barChart, home, list, settings as settingsIcon } from 'ionicons/icons';
+import { useEffect, useState } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { DataProvider } from './lib/data';
 import { HouseholdProvider, useHousehold } from './lib/household';
@@ -12,7 +13,8 @@ import History from './pages/History';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
-import Placeholder from './pages/Placeholder';
+import PrintReport from './pages/PrintReport';
+import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
 setupIonicReact();
@@ -24,9 +26,7 @@ function Tabs() {
         <IonRouterOutlet>
           <Route exact path="/home" component={Home} />
           <Route exact path="/history" component={History} />
-          <Route exact path="/reports">
-            <Placeholder title="Reports" text="Charts and exports for the pediatrician will appear here." />
-          </Route>
+          <Route exact path="/reports" component={Reports} />
           <Route exact path="/settings" component={Settings} />
           <Route exact path="/"><Redirect to="/home" /></Route>
         </IonRouterOutlet>
@@ -59,11 +59,24 @@ function Gate() {
 
 function SignedIn() {
   const [toast] = useIonToast();
+  const hash = useHash();
+  const print = /^#\/print/.test(hash);
+  const days = Number(new URLSearchParams(hash.split('?')[1] ?? '').get('days')) || 14;
   return (
     <DataProvider onError={(message) => void toast({ message, color: 'danger', duration: 4000 })}>
-      <Tabs />
+      {print ? <PrintReport days={days} /> : <Tabs />}
     </DataProvider>
   );
+}
+
+function useHash(): string {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const on = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  return hash;
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

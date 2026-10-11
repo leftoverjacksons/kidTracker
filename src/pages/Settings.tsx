@@ -75,6 +75,15 @@ export default function Settings() {
             <IonInput label="Birth date" labelPlacement="stacked" type="date" value={birthDate}
               onIonInput={(e) => setBirthDate(e.detail.value ?? '')} onIonBlur={saveBaby} />
           </IonItem>
+          <IonItem>
+            <IonSelect label="Sex (for WHO growth percentiles)" value={baby?.sex ?? null} interface="action-sheet"
+              placeholder="Not set"
+              onIonChange={(e) => supabase && baby && e.detail.value !== (baby.sex ?? null) &&
+                run(supabase.from('babies').update({ sex: e.detail.value }).eq('id', baby.id))}>
+              <IonSelectOption value="female">Female</IonSelectOption>
+              <IonSelectOption value="male">Male</IonSelectOption>
+            </IonSelect>
+          </IonItem>
         </IonList>
 
         <IonList inset>

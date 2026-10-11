@@ -254,5 +254,48 @@ await shot(A, 'history-filtered');
 const nonDiaper = await A.locator('.ion-page:not(.ion-page-hidden)').last().locator('ion-item').filter({ hasNotText: 'Diaper' }).count();
 if (nonDiaper) problems.push(`history filter shows ${nonDiaper} non-diaper rows`);
 
+// ── Settings: set sex for growth percentiles
+await A.locator('ion-tab-button[tab="settings"]').click(); await wait(A, 800);
+await A.locator('ion-select', { hasText: 'Sex' }).click(); await wait(A, 600);
+await A.locator('ion-action-sheet button', { hasText: 'Female' }).click(); await wait(A, 1200);
+
+// ── Reports
+await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 2000);
+const reports = A.locator('.ion-page:not(.ion-page-hidden)').last();
+await expectText(A, 'Daily average');
+await expectText(A, 'Sleep map');
+const canvases = await reports.locator('canvas').count();
+if (canvases < 5) problems.push(`expected >= 5 charts on Reports, saw ${canvases}`);
+await expectText(A, 'th pct');
+await shot(A, 'reports-top');
+await reports.locator('ion-content').evaluate((el) => el.scrollToPoint(0, 1400, 0));
+await wait(A, 500);
+await shot(A, 'reports-growth');
+
+// CSV export
+const [dl] = await Promise.all([
+  A.waitForEvent('download', { timeout: 5000 }),
+  reports.locator('ion-item', { hasText: 'Daily summary (CSV)' }).click(),
+]);
+const csv = fs.readFileSync(await dl.path(), 'utf8');
+const today = new Date();
+const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+if (!csv.startsWith('date,sleep_hours')) problems.push(`daily CSV header wrong: ${csv.slice(0, 60)}`);
+if (!csv.includes(todayIso)) problems.push('daily CSV has no row for today');
+const [dl2] = await Promise.all([
+  A.waitForEvent('download', { timeout: 5000 }),
+  reports.locator('ion-item', { hasText: 'Feeds (CSV)' }).click(),
+]);
+const feeds = fs.readFileSync(await dl2.path(), 'utf8');
+if (!/,bottle,,,4,breast milk,/.test(feeds)) problems.push(`feeds CSV missing 4 oz bottle row:\n${feeds}`);
+
+// Pediatrician summary
+await reports.locator('ion-item', { hasText: 'Pediatrician summary' }).click(); await wait(A, 1500);
+await expectText(A, 'By day');
+await expectText(A, 'Medicine given');
+await A.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-print.png`, fullPage: true });
+await A.getByRole('button', { name: /back/i }).click(); await wait(A, 1000);
+await expectText(A, 'Daily average');
+
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'E2E OK');
 await browser.close(); srv.close();

@@ -119,3 +119,31 @@
 .chips { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 0; }
 .chips ion-chip { flex-shrink: 0; }
 .field-label { font-size: 13px; opacity: 0.7; padding-top: 8px; }
+
+/* ── Reports ── */
+.summary-row-3 { grid-template-columns: repeat(3, 1fr); row-gap: 8px; }
+.chart-card { margin: 20px 0 0; padding: 12px 12px 8px; border-radius: 16px; background: var(--ion-item-background, var(--ion-background-color)); }
+.chart-title { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+.chart-box { position: relative; height: 180px; }
+.chart-box-tall { height: 240px; }
+.chart-note { font-size: 12px; opacity: 0.65; margin-top: 4px; }
+
+/* ── Pediatrician summary (print) ── */
+body.print-mode { position: static; overflow: auto; height: auto; max-height: none; transform: none; background: #fff; }
+.print-page { color: #111; background: #fff; max-width: 820px; margin: 0 auto; padding: 16px; font-size: 13px; }
+.print-page h1 { font-size: 22px; margin: 8px 0 2px; }
+.print-page h2 { font-size: 15px; margin: 18px 0 6px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }
+.print-page .meta { color: #555; font-size: 12px; }
+.print-page table { width: 100%; border-collapse: collapse; }
+.print-page th, .print-page td { text-align: left; padding: 3px 6px; border-bottom: 1px solid #e5e5e5; font-variant-numeric: tabular-nums; }
+.print-page thead th { font-weight: 600; background: #f3f3f3; }
+.print-page table.kv th { font-weight: 500; color: #555; width: 18%; }
+.print-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.print-actions button { font: inherit; padding: 10px 16px; border-radius: 10px; border: 1px solid #bbb; background: #fff; color: #111; }
+.print-actions button.primary { background: #3d5a99; color: #fff; border-color: #3d5a99; }
+@media print {
+  .no-print { display: none !important; }
+  .print-page { padding: 0; max-width: none; }
+  @page { margin: 14mm; }
+}
+.print-page .nowrap { white-space: nowrap; }

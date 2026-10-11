@@ -1,6 +1,6 @@
 # kidTracker — Design Document
 
-Status: **v0.4**. Phases 0–2 implemented (logging, shared timers, history); decisions recorded in §7.1.
+Status: **v0.5**. Phases 0–2 and 4 implemented (logging, shared timers, history, reports/export, backups); Phase 3 (offline queue) pending. Decisions recorded in §7.1.
 Last updated: 2026-10-11
 
 ---
@@ -415,7 +415,16 @@ longest sleep stretch) are defined once, in the views.
 - **CSV** per category and one combined file, for any date range, in display units with ISO-8601 local timestamps. Opens directly in Excel or Google Sheets.
 - **Pediatrician summary**: a one-page printable view (browser *Print → Save as PDF*) for a chosen range. It shows daily averages for sleep, feeds, oz, and diapers; the growth table; and the medication and temperature log.
 
-Charting library: to be chosen at that phase (e.g. Chart.js or Recharts).
+**Implementation (Phase 4):**
+
+- Views live in `supabase/migrations/0002_reports.sql`: `v_daily_summary`, `v_sleep`, `v_feeds`, `v_diapers`, `v_pumps`, `v_meds`, `v_temps`, `v_growth`. They are `security_invoker`, so row-level security applies to them.
+- Days are split in the household time zone (`household_settings.timezone`), which the app keeps equal to the phone's zone. Sleep and tummy-time minutes are split at local midnight.
+- Nap vs. night is one SQL function, `sleep_kind()`. The current rule: a sleep that starts between 19:00 and 05:59 counts as night. Changing the function re-classifies all history.
+- Averages and the pediatrician summary ignore the days in the range before the first entry.
+- Growth percentiles use the WHO LMS tables (0–24 months; data from CDC/NCHS), interpolated to the exact age. They need the baby's birth date and sex.
+- Charts use Chart.js, plus a hand-drawn SVG sleep map. Two-series charts use the validated categorical slots blue and orange (checked for colorblind separation and contrast on both themes); WHO curves are gray reference lines.
+- The pediatrician summary is a plain HTML page (`#/print`) printed with the browser's *Print → Save as PDF*.
+- **Backups:** `.github/workflows/backup.yml` runs a nightly `pg_dump` of the `public` schema, encrypted with AES-256 (gpg symmetric). It is kept as a 90-day workflow artifact. The daily connection also keeps the free project from pausing.
 
 ---
 
@@ -481,7 +490,7 @@ a Capacitor wrapper with a native foreground notification (Phase 5).
 | **1. Core logging** | Home tiles, diaper, bottle, medicine (catalog + dose), temperature, growth, bath, manual entry for all types, edit/delete, timeline | A full day can be logged by both parents |
 | **2. Shared timers** | Sleep, tummy time, and pump timers; nursing L/R with segments; realtime sync; conflict handling | Start on one phone, stop on the other, verified under simultaneous taps |
 | **3. Offline + polish** | Outbox, PWA install, dark mode, undo, daily summary, unit setting | Works in airplane mode and syncs on reconnect |
-| **4. Analytics + export** | SQL views, Reports dashboard, WHO growth percentiles, CSV export, pediatrician summary | A two-week report can be exported and printed |
+| **4. Analytics + export** ✅ | SQL views, Reports dashboard, WHO growth percentiles, CSV export, pediatrician summary, encrypted backups | A two-week report can be exported and printed |
 | **5. Optional** | Reminders, solids, milk stash, Capacitor wrapper (persistent timer notification) | As chosen |
 
 ### Testing strategy

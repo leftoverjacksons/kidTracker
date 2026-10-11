@@ -12,6 +12,8 @@ export interface Baby {
   id: string;
   name: string;
   birth_date: string | null; // YYYY-MM-DD
+  /** Needed for WHO growth percentiles; absent until migration 0002 is applied. */
+  sex?: 'female' | 'male' | null;
 }
 
 export interface HouseholdSettings {
@@ -19,6 +21,8 @@ export interface HouseholdSettings {
   temp_unit: 'F' | 'C';
   weight_unit: 'lb_oz' | 'kg';
   length_unit: 'in' | 'cm';
+  /** IANA zone used by the report views to split days; absent until migration 0002. */
+  timezone?: string;
 }
 
 export const DEFAULT_SETTINGS: HouseholdSettings = {

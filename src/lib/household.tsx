@@ -40,13 +40,18 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     if (!supabase || !userId) return;
     const [meRes, babyRes, settingsRes] = await Promise.all([
       supabase.from('caregivers').select('id,email,display_name').eq('id', userId).maybeSingle(),
-      supabase.from('babies').select('id,name,birth_date').order('created_at').limit(1).maybeSingle(),
-      supabase.from('household_settings').select('volume_unit,temp_unit,weight_unit,length_unit').maybeSingle(),
+      supabase.from('babies').select('*').order('created_at').limit(1).maybeSingle(),
+      supabase.from('household_settings').select('*').maybeSingle(),
     ]);
     setMe(meRes.data ?? null);
     setBaby(babyRes.data ?? null);
     setSettings(settingsRes.data ?? DEFAULT_SETTINGS);
     setDataReady(true);
+    // Report views split days in the household's time zone; keep it in step with the phone.
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (settingsRes.data && 'timezone' in settingsRes.data && tz && settingsRes.data.timezone !== tz) {
+      await supabase.from('household_settings').update({ timezone: tz }).eq('id', true);
+    }
   }, [userId]);
 
   useEffect(() => {

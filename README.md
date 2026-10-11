@@ -7,7 +7,7 @@ A minimal shared baby tracker for two caregivers: sleep, nursing, bottle, diaper
 
 ## Status
 
-Logging for all categories, shared timers (sleep, nursing, pumping, tummy time), History with edit/delete, and live sync between phones are working. Next: offline queue and polish (Phase 3), then Reports/export (Phase 4).
+Working: logging for all categories, shared timers (sleep, nursing, pumping, tummy time), History with edit/delete, live sync between phones, Reports (charts, WHO growth percentiles, CSV, printable pediatrician summary), and encrypted nightly backups. Next: offline queue (Phase 3) and polish from real use.
 
 ## Development
 
