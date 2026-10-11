@@ -386,7 +386,7 @@ true time. `created_at`/`updated_at` are server-assigned.
 - Public sign-up is disabled. The two accounts are created in the Supabase dashboard; a database trigger adds each new auth user to `caregivers`.
 - Row-Level Security: every table allows access only when `auth.uid()` is in `caregivers`, so a signed-in account not on that list sees nothing.
 - The public anon key in the front end is safe under RLS. The service-role key is never shipped to the client.
-- Backups: Supabase free tier has no point-in-time recovery. Mitigation: a nightly GitHub Action running `pg_dump` to a private location.
+- Backups: Supabase free tier has no point-in-time recovery. Mitigation: nightly snapshots to the owner's Google Drive (§5.7).
 
 ### 5.6 Data access for you
 
@@ -424,7 +424,7 @@ longest sleep stretch) are defined once, in the views.
 - Growth percentiles use the WHO LMS tables (0–24 months; data from CDC/NCHS), interpolated to the exact age. They need the baby's birth date and sex.
 - Charts use Chart.js, plus a hand-drawn SVG sleep map. Two-series charts use the validated categorical slots blue and orange (checked for colorblind separation and contrast on both themes); WHO curves are gray reference lines.
 - The pediatrician summary is a plain HTML page (`#/print`) printed with the browser's *Print → Save as PDF*.
-- **Backups:** `.github/workflows/backup.yml` runs a nightly `pg_dump` of the `public` schema, encrypted with AES-256 (gpg symmetric). It is kept as a 90-day workflow artifact. The daily connection also keeps the free project from pausing.
+- **Backups (revised):** a Google Apps Script (`backup/Code.gs`) runs in the owner's Google account each night. It signs in to Supabase as a dedicated backup login and saves a JSON snapshot of every table (soft-deleted rows included) to a Drive folder, pruning snapshots after 365 days. It also rewrites a Google Sheet mirror with one tab per category, in display units. The nightly sign-in keeps the free project from pausing. Restore: `restore.html` (served with the app) converts a snapshot into SQL in the browser, which is run in the SQL editor. This replaced an earlier GitHub Actions `pg_dump` job; GitHub artifacts on a public repo needed encryption, expire after 90 days, and need command-line tools to restore. A round-trip test (`backup/test/`) runs the script with Google services stubbed against a local database, restores the snapshot into a fresh one, and checks it.
 
 ---
 
@@ -461,7 +461,7 @@ The baby's name and birth date are entered in the app at first run.
 
 | Risk | Mitigation |
 |---|---|
-| Supabase free project pauses after 7 days idle | Daily use prevents it; a weekly keep-alive ping from GitHub Actions as a backstop. |
+| Supabase free project pauses after 7 days idle | Daily use prevents it; the nightly Drive backup signs in every day as a backstop. |
 | Vendor dependency | Plain Postgres schema; `pg_dump` migrates to any Postgres or self-host. |
 | Phone clock skew | Android NTP sync keeps it to well under a second; acceptable for this domain. |
 | Accidental deletes | Soft delete plus undo toast. |

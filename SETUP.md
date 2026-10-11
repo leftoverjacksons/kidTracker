@@ -57,21 +57,51 @@ No email templates or URL settings are needed: the app signs in with email + pas
 3. The first person to sign in adds the baby's name and birth date.
 4. Chrome menu **⋮ → Add to Home screen** (or **Install app**). From then on, open it from the home-screen icon. You stay signed in.
 
-## 6. Nightly backups (do this once real data exists)
+## 6. Nightly backups to Google Drive (about 10 minutes)
 
-Backups are encrypted, because files produced by GitHub Actions on a public repository can be downloaded by any GitHub user.
+A small script in your own Google account runs every night around 3 am. It:
 
-1. In Supabase, click **Connect** (top of the project) and copy the **Session pooler** connection string. Replace `[YOUR-PASSWORD]` in it with the database password from step 1.
-2. In GitHub: **Settings → Secrets and variables → Actions → Secrets tab → New repository secret**:
-   - `SUPABASE_DB_URL` = that connection string
-   - `BACKUP_PASSPHRASE` = a long passphrase. **Store it in your password manager.** Without it, nobody can open the backups, including you.
-3. **Actions → Nightly backup → Run workflow** once to check it. A green tick means it worked. After that it runs every night and keeps 90 days of backups.
+- saves a complete snapshot (`kidtracker-YYYY-MM-DD.json`) in a Drive folder called **kidTracker backups**, keeping the last 365 days;
+- rewrites a Google Sheet called **kidTracker data** (in the same folder) with one tab per category, in your units;
+- keeps the free Supabase project from pausing, because it signs in every night.
 
-**To restore** (rarely needed): download a `backup-YYYY-MM-DD` artifact from the workflow run, then
-```bash
-gpg -d kidtracker-YYYY-MM-DD.sql.gpg > kidtracker.sql   # asks for the passphrase
-```
-The resulting SQL file recreates the tables and data. It can be loaded into a fresh Supabase project's database with `psql`. It does not include the sign-in accounts; recreate those as in step 3.
+**a. Create a backup login in Supabase.** Go to **Authentication → Users → Add user → Create new user**:
+   - Email: any address you control. A Gmail "plus" address works and needs no new account, e.g. `yourname+kidtracker-backup@gmail.com`.
+   - Password: a long random one. Store it in your password manager.
+   - Tick **Auto Confirm User**.
+
+**b. Create the script.**
+   1. Go to <https://script.google.com>, click **New project**, and rename it (top left) to `kidTracker backup`.
+   2. Open [`backup/Code.gs`](backup/Code.gs) on GitHub and click the *copy raw file* button. In the script editor, select everything in `Code.gs`, delete it, and paste.
+   3. Click 💾 **Save**.
+
+**c. Enter the settings.** Click ⚙️ **Project Settings** (left sidebar), scroll to **Script Properties**, choose **Add script property**, and add:
+
+| Property | Value |
+|---|---|
+| `SUPABASE_URL` | `https://lusbippzmyvukzpswxxr.supabase.co` |
+| `SUPABASE_KEY` | the same publishable/anon key you gave GitHub |
+| `BACKUP_EMAIL` | the backup login's email from step a |
+| `BACKUP_PASSWORD` | the backup login's password |
+| `KEEP_DAYS` | optional; how many days of snapshots to keep (default 365) |
+
+Click **Save script properties**.
+
+**d. Run it once.** Go back to the **Editor** (`< >` icon). In the toolbar's function dropdown choose **setup**, then click **▶ Run**.
+   - Google asks you to authorize. Choose your account. Because this is your own unpublished script, Google shows *"Google hasn't verified this app"*: click **Advanced → Go to kidTracker backup (unsafe)** → **Allow**. The script asks for Drive and Sheets access (to write the backup) and external requests (to reach Supabase).
+   - The log at the bottom should end with *"Setup complete. Saved kidtracker-…json"*.
+   - Check Google Drive: the **kidTracker backups** folder now contains a snapshot and the **kidTracker data** sheet.
+
+That's all. It now runs nightly by itself. If a run ever fails, Google emails you. The usual causes are a changed backup password or a paused Supabase project.
+
+**Don't edit the Sheet.** It is overwritten every night. Make changes in the app.
+
+**To restore** (rarely needed):
+1. Download a snapshot `.json` from the Drive folder.
+2. Open <https://leftoverjacksons.github.io/kidTracker/restore.html> and choose the file. It turns the file into SQL inside your browser; nothing is uploaded.
+3. Copy the SQL, paste it into Supabase **SQL Editor**, and click **Run**.
+
+This replaces all logged data with the snapshot. Sign-in accounts are not affected. On a brand-new Supabase project, first run steps 2 and 3 of this guide.
 
 ---
 
@@ -79,7 +109,7 @@ The resulting SQL file recreates the tables and data. It can be loaded into a fr
 
 - **Is the anon key secret?** No. It is designed to be public and is visible in the app's code. Access is protected by the database's row-level security, which allows only the accounts listed as caregivers.
 - **This repository is public.** The code and design doc are visible to anyone; your data is not (it lives only in Supabase).
-- **Free-tier pause:** Supabase pauses a free project after 7 days with no use. Daily logging prevents this. If it ever happens, open the Supabase dashboard and click **Restore**; no data is lost.
+- **Free-tier pause:** Supabase pauses a free project after 7 days with no use. Daily logging and the nightly backup both prevent this. If it ever happens, open the Supabase dashboard and click **Restore**; no data is lost.
 - **Forgotten password:** in the Supabase **SQL Editor**, run (with the real email and a new password):
   ```sql
   update auth.users

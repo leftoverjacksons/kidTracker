@@ -63,6 +63,8 @@ jobs:
           curl -sSL https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz | tar xJ
           echo "POSTGREST=$PWD/postgrest" >> "$GITHUB_ENV"
       - run: e2e/run.sh
+      - name: Backup round trip (Apps Script + restore)
+        run: backup/test/run.sh
       - if: always()
         uses: actions/upload-artifact@v4
         with:

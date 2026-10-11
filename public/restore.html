@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>kidTracker restore</title>
+  <style>
+    :root { --bg: #fff; --fg: #111; --muted: #555; --line: #ddd; --accent: #3d5a99; color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #121212; --fg: #f0efec; --muted: #a8a79f; --line: #333; --accent: #8fa8e0; } }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 22px; } ol { padding-left: 20px; } .muted { color: var(--muted); }
+    textarea { width: 100%; height: 220px; box-sizing: border-box; font: 12px ui-monospace, monospace; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; }
+    button { font: inherit; padding: 10px 16px; border-radius: 10px; border: 0; background: var(--accent); color: var(--bg); }
+    .err { color: #d03b3b; } .ok { color: #0ca30c; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Restore a kidTracker backup</h1>
+  <p class="muted">Everything happens in this browser. The file is not uploaded anywhere.</p>
+  <ol>
+    <li>Download a <code>kidtracker-YYYY-MM-DD.json</code> file from the <b>kidTracker backups</b> folder in Google Drive.</li>
+    <li>Choose it here: <input type="file" id="file" accept=".json,application/json" /></li>
+    <li>Copy the SQL below, paste it into Supabase <b>SQL Editor → New query</b>, and click <b>Run</b>.
+      It <b>replaces</b> all logged data with the backup. Both database scripts (0001, 0002) must already have been run.</li>
+  </ol>
+  <p id="status" class="muted"></p>
+  <textarea id="sql" readonly placeholder="SQL appears here"></textarea>
+  <p><button id="copy" disabled>Copy SQL</button></p>
+</main>
+<script type="module">
+  import { buildRestoreSql } from './restore.js';
+  const status = document.getElementById('status'), out = document.getElementById('sql'), copy = document.getElementById('copy');
+  document.getElementById('file').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const snap = JSON.parse(await f.text());
+      out.value = buildRestoreSql(snap);
+      const n = (t) => snap.tables[t].length;
+      status.className = 'ok';
+      status.textContent = `Backup from ${snap.created_at}: ${n('events')} entries, ${n('babies')} baby, ${n('medications')} medications.`;
+      copy.disabled = false;
+    } catch (err) {
+      status.className = 'err'; status.textContent = err.message; out.value = ''; copy.disabled = true;
+    }
+  });
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(out.value); copy.textContent = 'Copied'; }
+    catch { out.select(); document.execCommand('copy'); copy.textContent = 'Copied'; }
+  });
+</script>
+</body>
+</html>
