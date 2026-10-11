@@ -1,6 +1,6 @@
 # kidTracker — Design Document
 
-Status: **Draft v0.1** (for review before implementation)
+Status: **Draft v0.2** (decisions from review applied; see §7.1)
 Last updated: 2026-10-11
 
 ---
@@ -17,12 +17,13 @@ store the owners control and can query directly.
 
 | ID | Goal |
 |----|------|
-| G1 | Log sleep, nursing, bottle, diaper, pumping, and medicine events with as few taps as possible. |
+| G1 | Log sleep, nursing, bottle, diaper, pumping, medicine, temperature, growth, tummy time, and bath events with as few taps as possible. |
 | G2 | Shared timers: either caregiver can start a timer, and either can stop it from their own phone. |
 | G3 | Concurrent use: both phones can read and write at the same time with no data loss and no duplicate entries. |
 | G4 | Owners have full, direct access to the raw data (SQL and/or spreadsheet export). |
 | G5 | Every entry can be created manually after the fact and edited later (start, end, and all fields). |
 | G6 | Usable one-handed, at night, half-asleep: large touch targets, dark mode, little text input. |
+| G7 | Analytics dashboards over the full history, and export of CSVs and a printable summary for the pediatrician. |
 
 ### 1.2 Non-goals (v1)
 
@@ -41,20 +42,20 @@ the items marked *requested* are the ones you asked for.
 
 | Category | Typical features in commercial apps | v1? |
 |---|---|---|
-| **Sleep** | Start/stop timer; manual entry; naps vs. night sleep; daily totals; sleep location; wake-window display | **Yes** (*requested*) |
+| **Sleep** | Start/stop timer; manual entry; naps vs. night sleep; daily totals; sleep location; wake-window display | **Yes** (*requested*). Nap/night is derived later in analytics, not entered (§3.2). |
 | **Breastfeeding** | Per-side timers (L/R), switch sides mid-session, pause, "last side" indicator | **Yes** (*requested*) |
 | **Bottle** | Volume (ml/oz), contents (breast milk / formula / mixed) | **Yes** (*requested*) |
 | **Solids** | Food name, amount, reaction/allergen flag | Later |
 | **Diaper** | Wet / dirty / mixed / dry; poop color & consistency; rash flag; notes | **Yes** (*requested*) |
 | **Pumping** | L/R/both, timer, volume per side; milk-stash inventory | **Yes** (*requested*); stash later |
 | **Medicine** | Med name, dose, unit; reminders; time since last dose | **Yes** (*requested*) |
-| Temperature | Value + method | Proposed v1 (small, pairs with meds) |
-| Growth | Weight, length, head circumference; WHO percentile charts | Later |
-| Activities | Tummy time, bath, outdoor time, etc. (timed or instant) | Later (the generic event model supports it cheaply) |
+| Temperature | Value + method | **Yes** |
+| Growth | Weight, length, head circumference; WHO percentile charts | **Yes** (entry in v1; percentile chart with analytics) |
+| Activities | Tummy time, bath, outdoor time, etc. (timed or instant) | **Tummy time and bath: yes.** Others later. |
 | Milestones / photos | First smile, rolling, etc. | No |
 | Potty training | — | No (age-inappropriate for now) |
 | Summary / dashboard | "Time since last feed/diaper/sleep", daily totals, timeline | **Yes** |
-| Reports / charts | Daily/weekly bars, trends | Basic in v1; more later |
+| Reports / charts | Daily/weekly bars, trends | Daily summary in v1; dashboards + CSV/pediatrician export in a later phase (§5.7) |
 | Reminders | Feed / med reminders | Later (see §7.4 on PWA notification limits) |
 | Multi-caregiver sync | Real-time shared log | **Yes** (core requirement) |
 | Multiple children | Profiles per child | Schema supports it; UI single-child in v1 |
@@ -72,16 +73,17 @@ Things commercial apps get right that we should copy:
 
 ### 3.1 Home screen
 
-- One tile per category: Sleep, Nurse, Bottle, Diaper, Pump, Meds.
+- One tile per category: Sleep, Nurse, Bottle, Diaper, Pump, Meds. A secondary row (or "More" tile) holds Temp, Growth, Tummy time, Bath.
 - Each tile shows the time since the last event of that type and a one-line summary (e.g. "Nursed 1h 42m ago · last side **R**").
 - A tile with a running timer shows a live elapsed counter and a **Stop** button. The timer is visible to both phones.
-- Below the tiles: a reverse-chronological timeline for today, with daily totals (sleep hours, feed count, ml taken, wet/dirty counts).
+- Below the tiles: a reverse-chronological timeline for today, with daily totals (sleep hours, feed count, oz taken, wet/dirty counts).
 
 ### 3.2 Sleep
 
 - **Timer mode:** tap *Start*; a running sleep is created. Either phone can tap *Stop*.
 - **Manual mode:** pick start and end date/times.
-- Optional fields: notes. Sleep type (nap vs. night) is derived from start time by a configurable rule (e.g. night if it starts between 19:00 and 06:00), and can be overridden.
+- Optional fields: notes.
+- **No nap/night field is entered.** A sleep is stored only as start, end, and notes. Nap vs. night is a classification computed in analytics views (§5.7), so the rule can change as a schedule forms and is re-applied to all past data without editing it. The first rule will be simple (e.g. a sleep that starts in an evening window, or is the longest of a 24 h period, counts as night). It is not decided now.
 - Only one running sleep per child. If the second phone taps *Start* while one is running, the app shows the existing timer instead of creating a second one.
 
 ### 3.3 Nursing (breastfeeding)
@@ -95,7 +97,7 @@ Things commercial apps get right that we should copy:
 
 ### 3.4 Bottle
 
-- Volume with a numeric keypad and quick-pick chips (e.g. 30 / 60 / 90 / 120 ml). Unit is a household setting (ml or oz); data is always **stored in ml**.
+- Volume with a numeric keypad and quick-pick chips (e.g. 1 / 2 / 3 / 4 / 5 oz). The display unit is a household setting, **default oz**; data is always **stored in ml**, so switching units later changes no data.
 - Contents: breast milk / formula / mixed.
 - Time defaults to now and can be edited. Notes are optional.
 
@@ -109,7 +111,7 @@ Things commercial apps get right that we should copy:
 
 - Side selector: **L**, **R**, **Both**.
 - Timer (start/stop, shared like sleep) or manual start/end.
-- Volume: per side (L ml, R ml) or a single total; the app computes the total.
+- Volume: per side (L oz, R oz) or a single total; the app computes the total.
 - Notes are optional. A milk-stash inventory is deferred.
 
 ### 3.7 Medicine
@@ -117,12 +119,31 @@ Things commercial apps get right that we should copy:
 - **Medication catalog** (configured once): name, default dose, unit (ml, mg, drops, tablet), and an optional *minimum interval* and *max doses per 24 h* that the user enters from a pediatrician's or label instructions.
 - **Log a dose:** pick a medication; the default dose is prefilled and editable; time defaults to now.
 - The home tile shows the last dose time per medication and, if an interval is configured, "next allowed at HH:MM". This is arithmetic on the user's own settings, not advice.
-- (Proposed) **Temperature** entry on the same screen: value, unit, method (rectal / axillary / temporal / ear).
 
-### 3.8 Editing and history
+### 3.8 Temperature
+
+- Value (°F by default; stored in °C), method (rectal / axillary / temporal / ear), time, notes.
+- Shown on the Meds screen as well, since the two are usually read together.
+
+### 3.9 Growth
+
+- Weight (lb + oz), length (in), head circumference (in), any subset; date; notes. Stored metric (g, cm).
+- Typically entered from pediatrician visits or a home scale.
+- Later (analytics phase): plotted against WHO growth-standard percentile curves.
+
+### 3.10 Tummy time
+
+- A shared timer exactly like sleep (start on one phone, stop on either), or manual start/end.
+- Daily total minutes on the home screen.
+
+### 3.11 Bath
+
+- One tap logs a bath at the current time; optional duration and notes.
+
+### 3.12 Editing and history
 
 - Every event can be opened, edited, or deleted. Deletion is a soft delete (`deleted_at`), so it can be undone.
-- Each row records `created_by` and `updated_by` (which parent).
+- Each row records `created_by` and `updated_by`: which parent logged or last changed it. The name shown comes from that parent's Google account (editable in settings) and appears in the timeline and on running timers ("started by …").
 - A history view per category, filterable by date.
 
 ---
@@ -137,22 +158,38 @@ writes) together with G4 (direct data access).
 | Option | Real-time sync | Concurrency safety | Direct data access | Cost | Ops burden | Assessment |
 |---|---|---|---|---|---|---|
 | **A. Google Sheets** via Apps Script web app | No push: clients poll (e.g. every 5–10 s); writes take ~1–3 s | Weak: needs `LockService` around every write; no transactions, no unique constraints | Excellent (it is a spreadsheet) | Free | Low | Workable for logging. Shared timers would be laggy and race-prone. Sheets API quotas apply. |
-| **B. Supabase** (hosted Postgres + realtime + auth) | Yes (Postgres change subscriptions over websocket) | Strong: transactions, unique/partial indexes, row-level security | Excellent: SQL editor, direct Postgres connection string, CSV export | Free tier is sufficient (500 MB DB; projects pause after 7 days with no activity, which daily use prevents) | Low (managed) | **Recommended.** |
+| **B. Supabase** (hosted Postgres + realtime + auth) | Yes (Postgres change subscriptions over websocket) | Strong: transactions, unique/partial indexes, row-level security | Excellent: SQL editor, direct Postgres connection string, CSV export | Free tier is sufficient (§4.3) | Low (managed) | **Recommended.** |
 | **C. Firebase Firestore** | Yes | Good (transactions) | Medium: NoSQL documents; queries are less flexible; export through tooling | Free tier is sufficient | Low | Good offline support, but you asked for SQL-style access, and it is weaker there. |
 | **D. Self-hosted** (PocketBase/SQLite or Postgres on a home server/VPS) | Yes (PocketBase has realtime) | Strong | Excellent (you own the file or server) | ~$0–5/mo | Medium: TLS, backups, uptime are your job | A good fallback if you want zero third-party dependency. |
 
 ### 4.2 Recommendation
 
-**Supabase (Postgres)** as the system of record, plus an **optional one-way
-export to Google Sheets** (scheduled job or on-demand button) for casual
-browsing and charting.
+**Supabase (Postgres)** as the system of record. A Google Sheets export is
+not planned; CSV export (§5.7) covers the same need.
 
 Rationale:
 
 - Postgres constraints solve the "both of us pressed Start" problem in the database (§5.3), which is not possible in Sheets.
 - Realtime subscriptions make a timer started on one phone appear on the other within about a second.
-- "Total access" holds: the data is ordinary SQL tables, reachable from the Supabase dashboard, `psql`, Python, a BI tool, or the Sheets export.
+- "Total access" holds: the data is ordinary SQL tables, reachable from the Supabase dashboard, `psql`, Python, a BI tool, or CSV export.
 - Moving away later is cheap. The schema is plain Postgres; `pg_dump` moves it anywhere (including option D).
+
+### 4.3 Supabase free tier
+
+Figures below are from secondary sources (2026) and must be re-checked on
+supabase.com/pricing at setup.
+
+| Resource | Free limit | Expected use |
+|---|---|---|
+| Database | 500 MB per project | About 30–50 events/day at under 1 KB per row comes to roughly 5–15 MB per year. |
+| Auth users | 50,000 MAU | 2 |
+| Egress | ~2–5 GB/month (sources disagree) | Well under 100 MB/month for two phones syncing text rows |
+| Projects | 2 free per organization | 1 |
+| Inactivity | Paused after 7 days without activity; data is retained, restore is manual | Daily use prevents this; a weekly keep-alive job is a backstop |
+| Backups | No point-in-time recovery | Nightly `pg_dump` via GitHub Actions (§5.5) |
+
+Expected cost: **$0**. The next tier (Pro, ~$25/month) is needed only if the
+pause or backup limits become a problem, and neither is expected to.
 
 If you would rather avoid any third-party service, option D (PocketBase on
 a small VPS or home machine) keeps the same architecture with a different
@@ -179,8 +216,8 @@ client SDK.
  │   ├─ Row-Level Security policies           │
  │   └─ Realtime (change feed)                │
  └───────────────┬────────────────────────────┘
-                 │ (optional, scheduled)
-          Google Sheets export
+                 │ SQL views
+          Analytics dashboard · CSV / PDF export
 ```
 
 **Why a PWA rather than a native Android app:**
@@ -231,7 +268,8 @@ create table medications (
 );
 
 create type event_type as enum
-  ('sleep','nursing','bottle','diaper','pump','medicine','temperature','note');
+  ('sleep','nursing','bottle','diaper','pump','medicine','temperature',
+   'growth','tummy_time','bath','note');
 
 create table events (
   id            uuid primary key,              -- generated on the client (idempotent retries)
@@ -266,8 +304,13 @@ create table events (
   temp_c        numeric(4,1),
   temp_method   text,
 
-  -- sleep
-  sleep_kind    text check (sleep_kind in ('nap','night')),
+  -- growth (any subset per measurement)
+  weight_g      numeric(7,1),
+  length_cm     numeric(5,1),
+  head_cm       numeric(5,1),
+
+  -- sleep, tummy_time, bath: no extra columns (started_at/ended_at/notes suffice;
+  -- nap vs. night is computed in views, never stored)
 
   -- audit
   created_by    uuid references caregivers(id),
@@ -290,15 +333,16 @@ create table nursing_segments (
 create unique index one_running_timer
   on events (baby_id, type)
   where ended_at is null and deleted_at is null
-    and type in ('sleep','nursing','pump');
+    and type in ('sleep','nursing','pump','tummy_time');
 
 -- At most one open segment per nursing session
 create unique index one_open_segment
   on nursing_segments (event_id) where ended_at is null;
 ```
 
-Units: volumes are stored in **ml** and temperatures in **°C**. Conversion
-happens only in the UI, according to a household setting.
+Units: storage is metric (ml, °C, g, cm). Display defaults to US units (oz,
+°F, lb/oz, in), set per household. Conversion happens only in the UI and in
+export, so the unit setting can be changed at any time without touching data.
 
 ### 5.3 Shared timers and concurrency
 
@@ -328,14 +372,36 @@ true time. `created_at`/`updated_at` are server-assigned.
 - Sign-in with Google through Supabase Auth.
 - Row-Level Security: every table allows access only when `auth.uid()` is in `caregivers`. Only your two accounts are inserted there, so anyone else who signs in sees nothing.
 - The public anon key in the front end is safe under RLS. The service-role key is never shipped to the client.
-- Backups: Supabase free tier has no point-in-time recovery. Mitigation: a nightly GitHub Action running `pg_dump` to a private location, and/or the Sheets export.
+- Backups: Supabase free tier has no point-in-time recovery. Mitigation: a nightly GitHub Action running `pg_dump` to a private location.
 
 ### 5.6 Data access for you
 
 - Supabase dashboard: table editor and SQL editor.
 - Direct Postgres connection string (psql, DBeaver, Python/pandas, Metabase, Grafana).
-- Views such as `v_sleep`, `v_feeds`, `v_diapers`, `v_pumps`, `v_meds`, and `v_daily_summary`.
-- Optional: a Google Sheets mirror, refreshed on a schedule. This is read-only, so the database remains the single source of truth.
+- Views such as `v_sleep`, `v_feeds`, `v_diapers`, `v_pumps`, `v_meds`, `v_growth`, and `v_daily_summary`.
+
+### 5.7 Analytics and export
+
+All analytics read from SQL views, not from app-side code. The app's charts,
+the CSV exports, and any ad-hoc query you write therefore agree by
+construction. Derived classifications (nap vs. night, feed count per day,
+longest sleep stretch) are defined once, in the views.
+
+**In-app dashboard** (a Reports screen; date-range picker, default last 14 days):
+
+- Sleep: total hours per day, stacked nap/night; longest stretch per night; a 24 h timeline ("sleep map") of each day.
+- Feeding: feeds per day; bottle oz per day; nursing minutes per day by side; time between feeds.
+- Diapers: wet and dirty counts per day.
+- Pumping: oz per day by side.
+- Growth: weight, length, and head circumference over age, against WHO percentile curves.
+- Meds and temperature: a timeline of doses with temperature readings overlaid.
+
+**Export:**
+
+- **CSV** per category and one combined file, for any date range, in display units with ISO-8601 local timestamps. Opens directly in Excel or Google Sheets.
+- **Pediatrician summary**: a one-page printable view (browser *Print → Save as PDF*) for a chosen range. It shows daily averages for sleep, feeds, oz, and diapers; the growth table; and the medication and temperature log.
+
+Charting library: to be chosen at that phase (e.g. Chart.js or Recharts).
 
 ---
 
@@ -353,12 +419,21 @@ true time. `created_at`/`updated_at` are server-assigned.
 
 ### 7.1 Decisions needed from you
 
-1. **Backend:** Supabase (recommended), self-hosted PocketBase, or Google Sheets despite the timer/concurrency limits?
-2. **Units:** ml or oz in the UI?
-3. **Extra modules for v1:** temperature? growth (weight/length)? solids? tummy time / bath?
-4. **Sleep classification:** auto nap/night by clock window, or always manual?
-5. **Naming:** what display names should caregivers have (shown as "started by …")?
-6. **Google Sheets export:** wanted in v1, or later?
+Resolved (2026-10-11):
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Backend | **Supabase**, free tier (§4.3) |
+| 2 | Units | **US units (oz, °F, lb/oz, in)** for display; metric storage keeps this changeable |
+| 3 | Extra modules for v1 | **Temperature, growth, tummy time, bath.** Solids deferred. |
+| 4 | Sleep classification | **Not entered.** Derived in analytics views once a schedule forms (§3.2, §5.7). |
+| 5 | Caregiver names | Taken from each Google account; editable in settings |
+| 6 | Google Sheets export | **No.** Replaced by CSV export and the pediatrician summary (§5.7). |
+
+Still open:
+
+- The baby's name and birth date, used for age-based growth percentiles. These can be entered at first run.
+- Front-end framework (React vs. Svelte). This is an implementation choice; it will be decided at Phase 0 unless you have a preference.
 
 ### 7.2 Known risks
 
@@ -380,7 +455,7 @@ A web app cannot reliably keep an **ongoing** Android notification with a
 live counter and Stop button while the app is closed. The timer itself is
 unaffected (it lives in the database), but it is only visible when the app is
 opened. If an always-visible timer turns out to be needed, the planned path is
-a Capacitor wrapper with a native foreground notification (Phase 4).
+a Capacitor wrapper with a native foreground notification (Phase 5).
 
 ---
 
@@ -389,10 +464,11 @@ a Capacitor wrapper with a native foreground notification (Phase 4).
 | Phase | Scope | Exit criterion |
 |---|---|---|
 | **0. Setup** | Repo scaffolding, Supabase project, schema migration, RLS, auth with both accounts | Both phones can sign in; SQL editor shows tables |
-| **1. Core logging** | Home tiles, diaper, bottle, medicine (catalog + dose), manual entry for all types, edit/delete, timeline | A full day can be logged by both parents |
-| **2. Shared timers** | Sleep timer, nursing L/R with segments, pump timer; realtime sync; conflict handling | Start on one phone, stop on the other, verified under simultaneous taps |
-| **3. Offline + polish** | Outbox, PWA install, dark mode, undo, daily summary, ml/oz setting | Works in airplane mode and syncs on reconnect |
-| **4. Optional** | Sheets export, charts, reminders, growth/solids, Capacitor wrapper | As chosen |
+| **1. Core logging** | Home tiles, diaper, bottle, medicine (catalog + dose), temperature, growth, bath, manual entry for all types, edit/delete, timeline | A full day can be logged by both parents |
+| **2. Shared timers** | Sleep, tummy time, and pump timers; nursing L/R with segments; realtime sync; conflict handling | Start on one phone, stop on the other, verified under simultaneous taps |
+| **3. Offline + polish** | Outbox, PWA install, dark mode, undo, daily summary, unit setting | Works in airplane mode and syncs on reconnect |
+| **4. Analytics + export** | SQL views, Reports dashboard, WHO growth percentiles, CSV export, pediatrician summary | A two-week report can be exported and printed |
+| **5. Optional** | Reminders, solids, milk stash, Capacitor wrapper (persistent timer notification) | As chosen |
 
 ### Testing strategy
 
@@ -407,4 +483,4 @@ a Capacitor wrapper with a native foreground notification (Phase 4).
 - Huckleberry App Store listing: https://apps.apple.com/us/app/huckleberry-baby-tracker/id1169136078
 - Glow Baby comparison: https://marlvel.ai/apps/com-glowing-noah/vs
 - Baby tracking app roundup: https://mobileappdaily.com/products/best-baby-tracking-apps
-- Supabase pricing and limits should be re-checked at setup time, because free-tier terms change.
+- Supabase free-tier figures (secondary sources): https://automationatlas.io/answers/supabase-free-tier-limits-2026/ , https://www.jetadmin.io/blog/supabase-pricing-2026-guide-to-plans-limits-and-real-world-costs/ . Re-check at setup, because free-tier terms change.
