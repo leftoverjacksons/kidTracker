@@ -1,6 +1,6 @@
 # kidTracker — Design Document
 
-Status: **Draft v0.2** (decisions from review applied; see §7.1)
+Status: **v0.3**. Phase 0 implemented; decisions recorded in §7.1.
 Last updated: 2026-10-11
 
 ---
@@ -204,14 +204,14 @@ client SDK.
 ```
  ┌──────────── Android phone (×2) ────────────┐
  │  PWA (installed to home screen)            │
- │   ├─ UI (React or Svelte + TypeScript)     │
+ │   ├─ UI (React + Ionic + TypeScript)       │
  │   ├─ Local cache + outbox (IndexedDB)      │
  │   └─ Supabase JS client                    │
  └───────────────┬────────────────────────────┘
                  │ HTTPS (REST) + WebSocket (realtime)
  ┌───────────────▼────────────────────────────┐
  │  Supabase                                  │
- │   ├─ Auth (Google sign-in, 2-email allowlist)│
+ │   ├─ Auth (email code, sign-up disabled)   │
  │   ├─ Postgres (events, meds, babies…)      │
  │   ├─ Row-Level Security policies           │
  │   └─ Realtime (change feed)                │
@@ -234,7 +234,17 @@ Recommendation: **start with a PWA.** If the persistent-notification or widget
 gap turns out to matter, wrap the same code with Capacitor later. That is
 additive and requires no rewrite.
 
-Hosting the static front end: GitHub Pages, Cloudflare Pages, or Vercel (all free).
+Hosting the static front end: **GitHub Pages**, deployed by GitHub Actions on every push (the repository is public, so Pages is free).
+
+**Front-end stack (decided):** React 18 + **Ionic 8** (mobile UI components; Material Design styling on Android) + TypeScript, built with Vite and `vite-plugin-pwa`. Reasons:
+
+- Ionic provides native-looking mobile building blocks (bottom tab bar, sheets, transitions, swipe actions). Without it these would be hand-built.
+- Ionic's sibling project Capacitor can later wrap the same code as an Android app (persistent timer notification; §7.4) with no rewrite.
+- React has the largest ecosystem and the most documentation (including Supabase's), which matters for long-term maintenance by non-specialists.
+
+Alternatives considered: Svelte (smaller, but fewer mobile components), React + MUI (desktop-oriented), Flutter/Kotlin (native, but heavier to distribute and change).
+
+Theme: light/dark follows the phone's system setting.
 
 ### 5.2 Data model (Postgres)
 
@@ -369,8 +379,9 @@ true time. `created_at`/`updated_at` are server-assigned.
 
 ### 5.5 Security and access
 
-- Sign-in with Google through Supabase Auth.
-- Row-Level Security: every table allows access only when `auth.uid()` is in `caregivers`. Only your two accounts are inserted there, so anyone else who signs in sees nothing.
+- Sign-in with an **emailed one-time code** (or the link in the same email) through Supabase Auth. This was chosen over Google sign-in because it needs no Google Cloud OAuth setup. Sessions persist, so each phone signs in once.
+- Public sign-up is disabled. The two accounts are created in the Supabase dashboard; a database trigger adds each new auth user to `caregivers`.
+- Row-Level Security: every table allows access only when `auth.uid()` is in `caregivers`, so a signed-in account not on that list sees nothing.
 - The public anon key in the front end is safe under RLS. The service-role key is never shipped to the client.
 - Backups: Supabase free tier has no point-in-time recovery. Mitigation: a nightly GitHub Action running `pg_dump` to a private location.
 
@@ -427,13 +438,12 @@ Resolved (2026-10-11):
 | 2 | Units | **US units (oz, °F, lb/oz, in)** for display; metric storage keeps this changeable |
 | 3 | Extra modules for v1 | **Temperature, growth, tummy time, bath.** Solids deferred. |
 | 4 | Sleep classification | **Not entered.** Derived in analytics views once a schedule forms (§3.2, §5.7). |
-| 5 | Caregiver names | Taken from each Google account; editable in settings |
+| 5 | Caregiver names | Defaults to the part of the email address before the @; editable in Settings |
 | 6 | Google Sheets export | **No.** Replaced by CSV export and the pediatrician summary (§5.7). |
+| 7 | Front-end framework | **React + Ionic + TypeScript** (§5.1) |
+| 8 | Sign-in method | **Emailed one-time code** (§5.5) |
 
-Still open:
-
-- The baby's name and birth date, used for age-based growth percentiles. These can be entered at first run.
-- Front-end framework (React vs. Svelte). This is an implementation choice; it will be decided at Phase 0 unless you have a preference.
+The baby's name and birth date are entered in the app at first run.
 
 ### 7.2 Known risks
 

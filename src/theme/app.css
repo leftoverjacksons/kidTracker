@@ -1,0 +1,66 @@
+:root {
+  --ion-color-primary: #3d5a99;
+  --ion-color-primary-rgb: 61, 90, 153;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #36508a;
+  --ion-color-primary-tint: #506ba3;
+  --tile-bg: #eef1f8;
+  --tile-fg: #1f2a44;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ion-color-primary: #8fa8e0;
+    --ion-color-primary-rgb: 143, 168, 224;
+    --ion-color-primary-contrast: #0e1526;
+    --ion-color-primary-contrast-rgb: 14, 21, 38;
+    --ion-color-primary-shade: #7e94c5;
+    --ion-color-primary-tint: #9ab1e3;
+    --tile-bg: #1c2438;
+    --tile-fg: #e8ecf6;
+  }
+}
+
+.subtitle { font-weight: 400; opacity: 0.7; }
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.tile-grid-small { grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 104px;
+  padding: 14px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--tile-bg);
+  color: var(--tile-fg);
+  text-align: left;
+  font: inherit;
+  transition: transform 80ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tile:active { transform: scale(0.96); }
+.tile-emoji { font-size: 32px; line-height: 1.1; }
+.tile-label { font-size: 18px; font-weight: 600; }
+.tile-sub { font-size: 14px; opacity: 0.7; }
+.tile-small { min-height: 76px; align-items: center; padding: 10px 4px; }
+.tile-small .tile-emoji { font-size: 26px; }
+.tile-small .tile-label { font-size: 13px; font-weight: 500; }
+
+.section-title { font-size: 16px; font-weight: 600; margin: 28px 4px 8px; opacity: 0.8; }
+.empty { opacity: 0.6; text-align: center; margin-top: 24px; }
+
+.login { max-width: 420px; margin: 12vh auto 0; text-align: center; }
+.login-logo { font-size: 64px; }
+.login h1 { margin-top: 4px; font-weight: 700; }
+.login-error { display: block; margin-top: 12px; }
+
+.centered { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; }
+.version { display: block; text-align: center; margin-top: 16px; }
