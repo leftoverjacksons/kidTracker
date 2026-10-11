@@ -32,6 +32,13 @@ export default defineConfig({
         orientation: 'portrait',
         background_color: '#1f2a44',
         theme_color: '#1f2a44',
+        // Long-press the app icon for these; each can also be dragged onto the home screen.
+        shortcuts: [
+          { name: 'Diaper', short_name: 'Diaper', url: `${base}#/home?log=diaper`, icons: [{ src: 'icons/sc-diaper.png', sizes: '96x96', type: 'image/png' }] },
+          { name: 'Bottle', short_name: 'Bottle', url: `${base}#/home?log=bottle`, icons: [{ src: 'icons/sc-bottle.png', sizes: '96x96', type: 'image/png' }] },
+          { name: 'Nurse', short_name: 'Nurse', url: `${base}#/home?log=nursing`, icons: [{ src: 'icons/sc-nursing.png', sizes: '96x96', type: 'image/png' }] },
+          { name: 'Sleep', short_name: 'Sleep', url: `${base}#/home?log=sleep`, icons: [{ src: 'icons/sc-sleep.png', sizes: '96x96', type: 'image/png' }] },
+        ],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },

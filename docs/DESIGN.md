@@ -229,7 +229,7 @@ client SDK.
 | Updates | Instant on next open | Rebuild and reinstall |
 | One codebase for both phones and a desktop browser | Yes | Partial |
 | Persistent "timer running" notification with a Stop button | **Limited** (§7.4) | Yes |
-| Home-screen widget | No | Yes |
+| Home-screen widget | No (manifest **shortcuts** instead: long-press icon → Diaper/Bottle/Nurse/Sleep, each pinnable) | Yes |
 
 Recommendation: **start with a PWA.** If the persistent-notification or widget
 gap turns out to matter, wrap the same code with Capacitor later. That is

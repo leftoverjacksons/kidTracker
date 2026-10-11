@@ -1,5 +1,6 @@
 import { IonContent, IonHeader, IonPage, IonRefresher, IonRefresherContent, IonSpinner, IonTitle, IonToolbar } from '@ionic/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useHistory, useLocation } from 'react-router-dom';
 import EditSheet from '../components/EditSheet';
 import EventList from '../components/EventList';
 import LogSheet from '../components/LogSheet';
@@ -21,6 +22,17 @@ export default function Home() {
   const now = useNow();
   const [open, setOpen] = useState<EventType | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
+  const location = useLocation();
+  const history = useHistory();
+
+  // Home-screen shortcuts open a logging sheet directly: #/home?log=diaper
+  useEffect(() => {
+    const log = new URLSearchParams(location.search).get('log') as EventType | null;
+    if (log && log in META && data.ready) {
+      setOpen(log);
+      history.replace('/home');
+    }
+  }, [location.search, data.ready, history]);
 
   const ago = (e?: EventRow) => (e ? formatAgo(new Date(e.ended_at ?? e.started_at), now) : '—');
   const elapsed = (e: EventRow) => formatClock(now.getTime() - new Date(e.started_at).getTime());

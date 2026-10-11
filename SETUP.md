@@ -55,7 +55,8 @@ No email templates or URL settings are needed: the app signs in with email + pas
 1. Open the app address in **Chrome** on the phone.
 2. Sign in with your email and password.
 3. The first person to sign in adds the baby's name and birth date.
-4. Chrome menu **⋮ → Add to Home screen** (or **Install app**). From then on, open it from the home-screen icon. You stay signed in.
+4. Chrome menu **⋮ → Install app** (on some phones it says **Add to Home screen → Install**). From then on, open it from the home-screen icon. It opens full-screen, appears in the app drawer and app switcher, and you stay signed in.
+5. **Shortcuts:** long-press the kidTracker icon to get **Diaper, Bottle, Nurse, Sleep**. Each opens straight to that screen. Drag one onto the home screen to make it a one-tap icon of its own.
 
 ## 6. Nightly backups to Google Drive (about 10 minutes)
 

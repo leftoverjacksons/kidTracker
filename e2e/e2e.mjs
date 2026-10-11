@@ -254,6 +254,12 @@ await shot(A, 'history-filtered');
 const nonDiaper = await A.locator('.ion-page:not(.ion-page-hidden)').last().locator('ion-item').filter({ hasNotText: 'Diaper' }).count();
 if (nonDiaper) problems.push(`history filter shows ${nonDiaper} non-diaper rows`);
 
+// ── Home-screen shortcut deep link opens the logging sheet
+await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 600);
+await A.evaluate(() => { location.hash = '#/home?log=bottle'; }); await wait(A, 1200);
+if (!(await sheet(A).locator('ion-title', { hasText: 'Bottle' }).count())) problems.push('shortcut #/home?log=bottle did not open the Bottle sheet');
+await closeSheet(A);
+
 // ── Settings: set sex for growth percentiles
 await A.locator('ion-tab-button[tab="settings"]').click(); await wait(A, 800);
 await A.locator('ion-select', { hasText: 'Sex' }).click(); await wait(A, 600);
