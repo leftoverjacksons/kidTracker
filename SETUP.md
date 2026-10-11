@@ -20,6 +20,8 @@ App address once deployed: **https://leftoverjacksons.github.io/kidTracker/**
 
 ## 2. Create the database tables
 
+> If you connected Supabase's **GitHub integration**, turn **off** "Deploy to production" in it (Project Settings → Integrations). Database changes are applied by pasting SQL as below; the automatic deploy would try to re-run scripts that are already applied.
+
 1. In the project, open **SQL Editor** → **New query**.
 2. Open [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) on GitHub, click the *copy raw file* button, and paste the whole file into the editor.
 3. Click **Run**. It should say *Success. No rows returned*.
@@ -43,12 +45,10 @@ App address once deployed: **https://leftoverjacksons.github.io/kidTracker/**
 
 ## 4. Connect GitHub to Supabase
 
-1. In Supabase: **Project Settings → API** (or **Data API** / **API Keys**). Copy:
-   - the **Project URL** (`https://xxxx.supabase.co`)
-   - the **anon / public** key (or **publishable** key). Never use the `service_role` / secret key here.
+1. In Supabase: **Project Settings → API Keys**. Copy the **publishable** key (starts `sb_publishable_`) or, on the *Legacy API keys* tab, the **anon public** key. Never use the `secret` / `service_role` key here.
 2. In GitHub, in this repository: **Settings → Secrets and variables → Actions → Variables tab → New repository variable**:
-   - `VITE_SUPABASE_URL` = the Project URL
-   - `VITE_SUPABASE_ANON_KEY` = the anon/publishable key
+   - Name `VITE_SUPABASE_ANON_KEY`, value = the key from step 1.
+   - (The project URL, `https://lusbippzmyvukzpswxxr.supabase.co`, is already built in. Only set `VITE_SUPABASE_URL` if you ever move to a different project.)
 3. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 4. **Actions → Deploy to GitHub Pages → Run workflow**. After about 2 minutes the app is live at the address above.
 

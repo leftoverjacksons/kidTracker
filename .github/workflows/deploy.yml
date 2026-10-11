@@ -27,7 +27,7 @@ jobs:
       - run: npm run build
         env:
           # Set under Settings → Secrets and variables → Actions → Variables.
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://lusbippzmyvukzpswxxr.supabase.co' }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_BASE: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
