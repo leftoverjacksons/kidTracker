@@ -1,12 +1,14 @@
 import {
   IonApp, IonButton, IonContent, IonIcon, IonLabel, IonPage, IonRouterOutlet, IonSpinner,
-  IonTabBar, IonTabButton, IonTabs, setupIonicReact,
+  IonTabBar, IonTabButton, IonTabs, setupIonicReact, useIonToast,
 } from '@ionic/react';
 import { IonReactHashRouter } from '@ionic/react-router';
 import { barChart, home, list, settings as settingsIcon } from 'ionicons/icons';
 import { Redirect, Route } from 'react-router-dom';
+import { DataProvider } from './lib/data';
 import { HouseholdProvider, useHousehold } from './lib/household';
 import { supabase } from './lib/supabase';
+import History from './pages/History';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
@@ -21,9 +23,7 @@ function Tabs() {
       <IonTabs>
         <IonRouterOutlet>
           <Route exact path="/home" component={Home} />
-          <Route exact path="/history">
-            <Placeholder title="History" text="The full log of entries will appear here." />
-          </Route>
+          <Route exact path="/history" component={History} />
           <Route exact path="/reports">
             <Placeholder title="Reports" text="Charts and exports for the pediatrician will appear here." />
           </Route>
@@ -54,7 +54,16 @@ function Gate() {
     );
   }
   if (!baby) return <Onboarding />;
-  return <Tabs />;
+  return <SignedIn />;
+}
+
+function SignedIn() {
+  const [toast] = useIonToast();
+  return (
+    <DataProvider onError={(message) => void toast({ message, color: 'danger', duration: 4000 })}>
+      <Tabs />
+    </DataProvider>
+  );
 }
 
 function Centered({ children }: { children: React.ReactNode }) {

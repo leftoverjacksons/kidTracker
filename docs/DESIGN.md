@@ -1,6 +1,6 @@
 # kidTracker — Design Document
 
-Status: **v0.3**. Phase 0 implemented; decisions recorded in §7.1.
+Status: **v0.4**. Phases 0–2 implemented (logging, shared timers, history); decisions recorded in §7.1.
 Last updated: 2026-10-11
 
 ---
@@ -143,6 +143,7 @@ Things commercial apps get right that we should copy:
 ### 3.12 Editing and history
 
 - Every event can be opened, edited, or deleted. Deletion is a soft delete (`deleted_at`), so it can be undone.
+- Implementation note (Phase 1): one-tap logging (diaper, bath, "Give" for meds) shows a 5-second **Undo** toast. Bottle quick-picks are 1–5 oz (30–150 ml when set to ml).
 - Each row records `created_by` and `updated_by`: which parent logged or last changed it. The name shown comes from that parent's Google account (editable in settings) and appears in the timeline and on running timers ("started by …").
 - A history view per category, filterable by date.
 
@@ -487,7 +488,7 @@ a Capacitor wrapper with a native foreground notification (Phase 5).
 
 - Unit tests for duration and summary math (segment sums, overnight sleeps that cross midnight, DST transitions).
 - Database tests for the constraints: concurrent `INSERT` of running timers, double `Stop`, side-switch RPC.
-- A two-browser manual test script for the concurrency scenarios in §5.3.
+- An end-to-end test (`e2e/`) that drives the built app in two headless browsers ("Parent A" and "Parent B") against a local Postgres + PostgREST running the real migration. It covers every logging screen, start-on-one-phone/stop-on-the-other, simultaneous Start, editing, and delete-with-undo. Supabase Realtime is not emulated there; the test uses the app's refresh-on-wake path instead. It runs in CI on every push.
 
 ---
 

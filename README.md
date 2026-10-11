@@ -7,7 +7,7 @@ A minimal shared baby tracker for two caregivers: sleep, nursing, bottle, diaper
 
 ## Status
 
-Phase 0 (app shell, sign-in, database schema) is complete. Logging screens arrive in Phase 1.
+Logging for all categories, shared timers (sleep, nursing, pumping, tummy time), History with edit/delete, and live sync between phones are working. Next: offline queue and polish (Phase 3), then Reports/export (Phase 4).
 
 ## Development
 
@@ -18,6 +18,7 @@ npm run dev                   # local dev server
 npm test                      # unit tests
 npm run build                 # production build → dist/
 supabase/tests/run.sh         # database tests (needs a local Postgres)
+npm run e2e                   # two-phone end-to-end test (Postgres + PostgREST + Playwright)
 ```
 
 Stack: React + Ionic + TypeScript (Vite, PWA) · Supabase (Postgres, Auth, Realtime) · GitHub Pages.

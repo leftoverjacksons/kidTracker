@@ -1,29 +1,69 @@
-import { IonContent, IonHeader, IonPage, IonTitle, IonToolbar, useIonToast } from '@ionic/react';
+import { IonContent, IonHeader, IonPage, IonRefresher, IonRefresherContent, IonSpinner, IonTitle, IonToolbar } from '@ionic/react';
+import { useState } from 'react';
+import EditSheet from '../components/EditSheet';
+import EventList from '../components/EventList';
+import LogSheet from '../components/LogSheet';
+import { useData, useNow } from '../lib/data';
+import { diaperLabel, META } from '../lib/describe';
+import { formatAgo, formatClock, formatDuration, formatTemp, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
+import { activeSide, lastSide, sideTotals } from '../lib/nursing';
+import type { EventRow, EventType } from '../lib/types';
 import { ageLabel } from '../lib/units';
 
-interface Tile { key: string; emoji: string; label: string }
-
-const PRIMARY: Tile[] = [
-  { key: 'sleep', emoji: '😴', label: 'Sleep' },
-  { key: 'nursing', emoji: '🤱', label: 'Nurse' },
-  { key: 'bottle', emoji: '🍼', label: 'Bottle' },
-  { key: 'diaper', emoji: '🧷', label: 'Diaper' },
-  { key: 'pump', emoji: '🥛', label: 'Pump' },
-  { key: 'medicine', emoji: '💊', label: 'Meds' },
-];
-const SECONDARY: Tile[] = [
-  { key: 'temperature', emoji: '🌡️', label: 'Temp' },
-  { key: 'growth', emoji: '📏', label: 'Growth' },
-  { key: 'tummy_time', emoji: '🧸', label: 'Tummy' },
-  { key: 'bath', emoji: '🛁', label: 'Bath' },
-];
+const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'medicine'];
+const SECONDARY: EventType[] = ['temperature', 'growth', 'tummy_time', 'bath'];
+const SIDE = { left: 'L', right: 'R' } as const;
 
 export default function Home() {
-  const { baby } = useHousehold();
-  const [toast] = useIonToast();
-  const soon = (t: Tile) =>
-    toast({ message: `${t.label} logging arrives in the next build.`, duration: 1500, position: 'bottom' });
+  const { baby, settings } = useHousehold();
+  const data = useData();
+  const now = useNow();
+  const [open, setOpen] = useState<EventType | null>(null);
+  const [editing, setEditing] = useState<EventRow | null>(null);
+
+  const ago = (e?: EventRow) => (e ? formatAgo(new Date(e.ended_at ?? e.started_at), now) : '—');
+  const elapsed = (e: EventRow) => formatClock(now.getTime() - new Date(e.started_at).getTime());
+  const today = data.events.filter((e) => new Date(e.started_at) >= startOfDay(now));
+
+  function sub(t: EventType): { text: string; live: boolean } {
+    const run = (data.running as Partial<Record<EventType, EventRow>>)[t];
+    const last = data.latest[t];
+    switch (t) {
+      case 'sleep':
+        if (run) return { text: `Asleep ${elapsed(run)}`, live: true };
+        return { text: last?.ended_at ? `Awake ${formatDuration(now.getTime() - new Date(last.ended_at).getTime())}` : '—', live: false };
+      case 'nursing': {
+        if (run) {
+          const segs = run.nursing_segments ?? [];
+          const side = activeSide(segs);
+          const t2 = sideTotals(segs, now);
+          return { text: `${side ? SIDE[side] : 'Paused'} · ${formatClock(t2.left + t2.right)}`, live: true };
+        }
+        const ls = last ? lastSide(last.nursing_segments ?? []) : null;
+        return { text: last ? `${ago(last)}${ls ? ` · last ${SIDE[ls]}` : ''}` : '—', live: false };
+      }
+      case 'pump':
+        if (run) return { text: `Pumping ${elapsed(run)}`, live: true };
+        return { text: last ? `${ago(last)}${last.pump_left_ml || last.pump_right_ml ? ` · ${formatVolume((last.pump_left_ml ?? 0) + (last.pump_right_ml ?? 0), settings)}` : ''}` : '—', live: false };
+      case 'tummy_time': {
+        if (run) return { text: elapsed(run), live: true };
+        const ms = today.filter((e) => e.type === 'tummy_time' && e.ended_at)
+          .reduce((a, e) => a + new Date(e.ended_at!).getTime() - new Date(e.started_at).getTime(), 0);
+        return { text: ms ? `${formatDuration(ms)} today` : '—', live: false };
+      }
+      case 'bottle': return { text: last ? `${ago(last)} · ${formatVolume(last.bottle_ml, settings)}` : '—', live: false };
+      case 'diaper': return { text: last ? `${ago(last)} · ${diaperLabel(last)}` : '—', live: false };
+      case 'medicine': {
+        const med = last && data.meds.find((m) => m.id === last.medication_id);
+        return { text: last ? `${ago(last)}${med ? ` · ${med.name}` : ''}` : '—', live: false };
+      }
+      case 'temperature': return { text: last ? formatTemp(last.temp_c, settings) : '—', live: false };
+      case 'growth': return { text: last?.weight_g ? formatWeight(last.weight_g, settings) : last ? ago(last) : '—', live: false };
+      case 'bath': return { text: ago(last), live: false };
+      default: return { text: '—', live: false };
+    }
+  }
 
   return (
     <IonPage>
@@ -36,26 +76,71 @@ export default function Home() {
         </IonToolbar>
       </IonHeader>
       <IonContent className="ion-padding">
-        <div className="tile-grid">
-          {PRIMARY.map((t) => (
-            <button key={t.key} className="tile" onClick={() => soon(t)}>
-              <span className="tile-emoji">{t.emoji}</span>
-              <span className="tile-label">{t.label}</span>
-              <span className="tile-sub">—</span>
-            </button>
-          ))}
-        </div>
-        <div className="tile-grid tile-grid-small">
-          {SECONDARY.map((t) => (
-            <button key={t.key} className="tile tile-small" onClick={() => soon(t)}>
-              <span className="tile-emoji">{t.emoji}</span>
-              <span className="tile-label">{t.label}</span>
-            </button>
-          ))}
-        </div>
-        <h2 className="section-title">Today</h2>
-        <p className="empty">Nothing logged yet.</p>
+        <IonRefresher slot="fixed" onIonRefresh={async (e) => { await data.reload(); e.detail.complete(); }}>
+          <IonRefresherContent />
+        </IonRefresher>
+        {!data.ready ? <div className="centered"><IonSpinner /></div> : (
+          <>
+            <div className="tile-grid">
+              {PRIMARY.map((t) => {
+                const s = sub(t);
+                return (
+                  <button key={t} className={`tile ${s.live ? 'tile-live' : ''}`} onClick={() => setOpen(t)}>
+                    <span className="tile-emoji">{META[t].emoji}</span>
+                    <span className="tile-label">{META[t].label}</span>
+                    <span className="tile-sub">{s.live && <span className="live-dot" />}{s.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="tile-grid tile-grid-small">
+              {SECONDARY.map((t) => {
+                const s = sub(t);
+                return (
+                  <button key={t} className={`tile tile-small ${s.live ? 'tile-live' : ''}`} onClick={() => setOpen(t)}>
+                    <span className="tile-emoji">{META[t].emoji}</span>
+                    <span className="tile-label">{t === 'tummy_time' ? 'Tummy' : META[t].label}</span>
+                    <span className="tile-sub tile-sub-small">{s.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <TodaySummary events={today} />
+            {today.length === 0
+              ? <p className="empty">Nothing logged today.</p>
+              : <EventList events={today} onOpen={setEditing} groupByDay={false} />}
+          </>
+        )}
+        <LogSheet type={open} onClose={() => setOpen(null)} />
+        <EditSheet event={editing} onClose={() => setEditing(null)} />
       </IonContent>
     </IonPage>
+  );
+}
+
+function TodaySummary({ events }: { events: EventRow[] }) {
+  const { settings } = useHousehold();
+  const now = useNow(60_000);
+  let sleepMs = 0, feeds = 0, bottleMl = 0, wet = 0, dirty = 0;
+  const dayStart = startOfDay(now).getTime();
+  for (const e of events) {
+    if (e.type === 'sleep') {
+      const end = e.ended_at ? new Date(e.ended_at).getTime() : now.getTime();
+      sleepMs += end - Math.max(dayStart, new Date(e.started_at).getTime());
+    }
+    if (e.type === 'nursing' || e.type === 'bottle') feeds++;
+    if (e.type === 'bottle') bottleMl += e.bottle_ml ?? 0;
+    if (e.type === 'diaper') { if (e.diaper_wet) wet++; if (e.diaper_dirty) dirty++; }
+  }
+  return (
+    <div className="summary">
+      <h2 className="section-title">Today</h2>
+      <div className="summary-row">
+        <div><b>{formatDuration(sleepMs)}</b><span>sleep</span></div>
+        <div><b>{feeds}</b><span>feeds</span></div>
+        <div><b>{bottleMl ? formatVolume(bottleMl, settings) : '0'}</b><span>bottle</span></div>
+        <div><b>{wet}/{dirty}</b><span>wet/dirty</span></div>
+      </div>
+    </div>
   );
 }
