@@ -1,5 +1,5 @@
 import {
-  IonButton, IonContent, IonHeader, IonInput, IonItem, IonLabel, IonList, IonListHeader, IonNote,
+  IonButton, IonContent, IonHeader, IonInput, IonInputPasswordToggle, IonItem, IonLabel, IonList, IonListHeader, IonNote,
   IonPage, IonSelect, IonSelectOption, IonTitle, IonToolbar, useIonToast,
 } from '@ionic/react';
 import { useEffect, useState } from 'react';
@@ -13,6 +13,7 @@ export default function Settings() {
   const [displayName, setDisplayName] = useState(me?.display_name ?? '');
   const [babyName, setBabyName] = useState(baby?.name ?? '');
   const [birthDate, setBirthDate] = useState(baby?.birth_date ?? '');
+  const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => setDisplayName(me?.display_name ?? ''), [me]);
   useEffect(() => { setBabyName(baby?.name ?? ''); setBirthDate(baby?.birth_date ?? ''); }, [baby]);
@@ -30,6 +31,13 @@ export default function Settings() {
     (babyName !== baby.name || (birthDate || null) !== baby.birth_date) &&
     run(supabase.from('babies').update({ name: babyName.trim(), birth_date: birthDate || null }).eq('id', baby.id));
 
+  async function changePassword() {
+    if (!supabase || newPassword.length < 8) return;
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) toast({ message: error.message, color: 'danger', duration: 3000 });
+    else { setNewPassword(''); toast({ message: 'Password changed', duration: 1500 }); }
+  }
+
   const setUnit = <K extends keyof HouseholdSettings>(k: K, v: HouseholdSettings[K]) =>
     supabase && v !== settings[k] &&
     run(supabase.from('household_settings').update({ [k]: v }).eq('id', true));
@@ -45,6 +53,16 @@ export default function Settings() {
               onIonInput={(e) => setDisplayName(e.detail.value ?? '')} onIonBlur={saveName} />
           </IonItem>
           <IonItem><IonLabel color="medium">{session?.user.email}</IonLabel></IonItem>
+          <IonItem>
+            <IonInput label="New password (8+ characters)" labelPlacement="stacked" type="password"
+              autocomplete="new-password" value={newPassword}
+              onIonInput={(e) => setNewPassword(e.detail.value ?? '')}>
+              <IonInputPasswordToggle slot="end" />
+            </IonInput>
+            <IonButton slot="end" fill="clear" disabled={newPassword.length < 8} onClick={changePassword}>
+              Change
+            </IonButton>
+          </IonItem>
         </IonList>
 
         <IonList inset>

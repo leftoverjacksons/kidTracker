@@ -379,7 +379,9 @@ true time. `created_at`/`updated_at` are server-assigned.
 
 ### 5.5 Security and access
 
-- Sign-in with an **emailed one-time code** (or the link in the same email) through Supabase Auth. This was chosen over Google sign-in because it needs no Google Cloud OAuth setup. Sessions persist, so each phone signs in once.
+- Sign-in with **email + password** through Supabase Auth. Sessions persist, so each phone signs in once; each person can change their password in Settings.
+  - Google sign-in was rejected because it needs a Google Cloud OAuth setup.
+  - An emailed one-time code was tried first and rejected: Supabase's built-in email sender delivers only to members of the Supabase team and does not allow template edits without a custom SMTP server.
 - Public sign-up is disabled. The two accounts are created in the Supabase dashboard; a database trigger adds each new auth user to `caregivers`.
 - Row-Level Security: every table allows access only when `auth.uid()` is in `caregivers`, so a signed-in account not on that list sees nothing.
 - The public anon key in the front end is safe under RLS. The service-role key is never shipped to the client.
@@ -441,7 +443,7 @@ Resolved (2026-10-11):
 | 5 | Caregiver names | Defaults to the part of the email address before the @; editable in Settings |
 | 6 | Google Sheets export | **No.** Replaced by CSV export and the pediatrician summary (§5.7). |
 | 7 | Front-end framework | **React + Ionic + TypeScript** (§5.1) |
-| 8 | Sign-in method | **Emailed one-time code** (§5.5) |
+| 8 | Sign-in method | **Email + password** (§5.5) |
 
 The baby's name and birth date are entered in the app at first run.
 
@@ -453,6 +455,7 @@ The baby's name and birth date are entered in the app at first run.
 | Vendor dependency | Plain Postgres schema; `pg_dump` migrates to any Postgres or self-host. |
 | Phone clock skew | Android NTP sync keeps it to well under a second; acceptable for this domain. |
 | Accidental deletes | Soft delete plus undo toast. |
+| Forgotten password | Reset from the Supabase dashboard (Users → user → reset), or set a new one there. |
 
 ### 7.3 Things deliberately left simple
 

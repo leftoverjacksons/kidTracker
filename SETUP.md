@@ -30,18 +30,13 @@ App address once deployed: **https://leftoverjacksons.github.io/kidTracker/**
 
 1. **Authentication → Sign In / Providers**
    - Turn **off** "Allow new users to sign up". Only accounts you create in the next step can sign in.
-   - Make sure **Email** is enabled.
-2. **Authentication → URL Configuration**
-   - Site URL: `https://leftoverjacksons.github.io/kidTracker/`
-   - Redirect URLs: add the same address.
-3. **Authentication → Emails → Magic Link** template: add this line to the message body, so the email contains a 6-digit code as well as the link:
-   ```
-   <p>Your code: <strong>{{ .Token }}</strong></p>
-   ```
-4. **Authentication → Users → Add user → Create new user**, once for each of you:
+   - Make sure **Email** is enabled (this covers email + password sign-in).
+2. **Authentication → Users → Add user → Create new user**, once for each of you:
    - Email: your real email address
-   - Password: anything (it is never used)
+   - Password: one you will remember (each person can change theirs later in the app's Settings)
    - Tick **Auto Confirm User**.
+
+No email templates or URL settings are needed: the app signs in with email + password, so Supabase never has to send an email.
 
 ## 4. Connect GitHub to Supabase
 
@@ -55,7 +50,7 @@ App address once deployed: **https://leftoverjacksons.github.io/kidTracker/**
 ## 5. Install on each phone
 
 1. Open the app address in **Chrome** on the phone.
-2. Enter your email → **Email me a sign-in code** → type the code from the email (or tap the link).
+2. Sign in with your email and password.
 3. The first person to sign in adds the baby's name and birth date.
 4. Chrome menu **⋮ → Add to Home screen** (or **Install app**). From then on, open it from the home-screen icon. You stay signed in.
 
