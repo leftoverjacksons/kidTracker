@@ -54,6 +54,22 @@ No email templates or URL settings are needed: the app signs in with email + pas
 3. The first person to sign in adds the baby's name and birth date.
 4. Chrome menu **⋮ → Add to Home screen** (or **Install app**). From then on, open it from the home-screen icon. You stay signed in.
 
+## 6. Nightly backups (do this once real data exists)
+
+Backups are encrypted, because files produced by GitHub Actions on a public repository can be downloaded by any GitHub user.
+
+1. In Supabase, click **Connect** (top of the project) and copy the **Session pooler** connection string. Replace `[YOUR-PASSWORD]` in it with the database password from step 1.
+2. In GitHub: **Settings → Secrets and variables → Actions → Secrets tab → New repository secret**:
+   - `SUPABASE_DB_URL` = that connection string
+   - `BACKUP_PASSPHRASE` = a long passphrase. **Store it in your password manager.** Without it, nobody can open the backups, including you.
+3. **Actions → Nightly backup → Run workflow** once to check it. A green tick means it worked. After that it runs every night and keeps 90 days of backups.
+
+**To restore** (rarely needed): download a `backup-YYYY-MM-DD` artifact from the workflow run, then
+```bash
+gpg -d kidtracker-YYYY-MM-DD.sql.gpg > kidtracker.sql   # asks for the passphrase
+```
+The resulting SQL file recreates the tables and data. It can be loaded into a fresh Supabase project's database with `psql`. It does not include the sign-in accounts; recreate those as in step 3.
+
 ---
 
 ### Notes
