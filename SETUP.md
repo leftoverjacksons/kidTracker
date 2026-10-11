@@ -67,3 +67,4 @@ No email templates or URL settings are needed: the app signs in with email + pas
      set encrypted_password = extensions.crypt('NEW-PASSWORD', extensions.gen_salt('bf'))
    where email = 'you@example.com';
   ```
+- **Wiping test data:** paste [`supabase/reset_data.sql`](supabase/reset_data.sql) into the Supabase **SQL Editor** and click **Run**. It deletes all entries, medications, and the baby profile, and keeps both accounts and settings. The app then asks for the baby's details again. This cannot be undone.

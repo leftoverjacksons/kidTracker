@@ -10,3 +10,7 @@ psql -q -v ON_ERROR_STOP=1 -d "$DB" -f supabase_stub.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0001_init.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f post_grants.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f timers_test.sql
+psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../reset_data.sql
+test "$(psql -qtA -d "$DB" -c 'select (select count(*) from events) + (select count(*) from babies) + (select count(*) from nursing_segments)')" = 0
+test "$(psql -qtA -d "$DB" -c 'select count(*) from caregivers')" = 2
+echo 'RESET SCRIPT TEST PASSED'
