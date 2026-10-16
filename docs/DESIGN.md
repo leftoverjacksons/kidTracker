@@ -420,7 +420,10 @@ longest sleep stretch) are defined once, in the views.
 - Views live in `supabase/migrations/0002_reports.sql`: `v_daily_summary`, `v_sleep`, `v_feeds`, `v_diapers`, `v_pumps`, `v_meds`, `v_temps`, `v_growth`. They are `security_invoker`, so row-level security applies to them.
 - Days are split in the household time zone (`household_settings.timezone`), which the app keeps equal to the phone's zone. Sleep and tummy-time minutes are split at local midnight.
 - Nap vs. night is one SQL function, `sleep_kind()`. The current rule: a sleep that starts between 19:00 and 05:59 counts as night. Changing the function re-classifies all history.
-- Averages and the pediatrician summary ignore the days in the range before the first entry.
+- Averages and the pediatrician summary ignore the days in the range before the first entry, **and today's unfinished day**. Today's bar is drawn lighter and labeled "Today" ("so far" in tooltips and the summary).
+- **Longest sleep stretch** per day: the longest single sleep that **started** that day, from `v_sleep`. It's shown on Reports and as a column and average in the pediatrician summary.
+- **Diaper guide** (first 14 days of life, when the birth date is set): thin stepped lines behind the diaper bars show a common hospital/pediatric handout reference: wet ≈ day of life up to 6+, dirty ≈ day of life up to 3+. It's labeled as a reference with "ask your pediatrician", not as a judgement.
+- Hour-based charts put ticks on whole/half hours.
 - **Weight vs. birth weight** (Reports → Growth; needs no WHO data):
   - a line of every weight over days of age;
   - behind each point, a bar from the first weight to that weight, blue when above it and red when below (validated diverging pair, both themes);
@@ -553,6 +556,15 @@ Location: **History → List | Timeline** (the choice is remembered per phone). 
 - Layout logic is in `src/lib/timeline.ts` (unit-tested). The e2e test selects a feed, nudges it +5 min, and undoes it.
 
 Possible later additions: a "last 24 h" strip on Home; tummy time as a block.
+
+### C. Report ideas saved for later (2026-10-16)
+
+- **Wake windows:** average awake time between sleeps per day (trend).
+- **Growth charts in weeks** for the first 3 months (age axis currently in months).
+- **Time between feeds** (start to start, typical and longest overnight). **Needs the feed grouping (A)**, so it goes with migration 0003.
+- **Daily charts on the timeline's day cutoff** instead of midnight, so "sleep per day" means the same in both places. Needs a view change, so it also goes with 0003.
+- **Pediatrician summary:** add weight-change numbers (birth weight, lowest %, regain age) and diapers by day of life.
+- **Discoverability:** a "tap a bar for details" hint or a direct label on the latest bar.
 
 ## 9. Sources consulted
 

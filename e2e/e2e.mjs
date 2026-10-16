@@ -323,6 +323,8 @@ const canvases = await reports.locator('canvas').count();
 if (canvases < 5) problems.push(`expected >= 5 charts on Reports, saw ${canvases}`);
 await expectText(A, 'th pct');
 await expectText(A, 'Weight vs.');
+await expectText(A, 'Longest sleep stretch');
+await expectText(A, 'today so far'); // the only day with data is today → partial
 await expectText(A, 'Log another weight to see the change.'); // e2e logs a single weight
 await shot(A, 'reports-top');
 await reports.locator('ion-content').evaluate((el) => el.scrollToPoint(0, 1400, 0));

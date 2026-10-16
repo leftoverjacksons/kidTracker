@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatDuration, formatLength, formatTemp, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
-import { averages, fillDays, isoDay, localStamp, shortDay, trimLeading, type DailyRow } from '../lib/reports';
+import { averages, completeDays, fillDays, isoDay, localStamp, longestSleepByDay, shortDay, trimLeading, type DailyRow } from '../lib/reports';
 import { supabase } from '../lib/supabase';
 import { ageLabel } from '../lib/units';
 import { ageInMonths, percentile, type Measure } from '../lib/who';
@@ -15,6 +15,7 @@ export default function PrintReport({ days }: { days: number }) {
   const [growth, setGrowth] = useState<Row[]>([]);
   const [meds, setMeds] = useState<Row[]>([]);
   const [temps, setTemps] = useState<Row[]>([]);
+  const [longest, setLongest] = useState<Map<string, number>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,11 +27,12 @@ export default function PrintReport({ days }: { days: number }) {
     if (!supabase || !baby) return;
     const from = new Date(startOfDay(new Date()).getTime() - (days - 1) * 86_400_000);
     void (async () => {
-      const [d, g, m, t] = await Promise.all([
+      const [d, g, m, t, sl] = await Promise.all([
         supabase!.from('v_daily_summary').select('*').eq('baby_id', baby.id).gte('day', isoDay(from)),
         supabase!.from('v_growth').select('*').eq('baby_id', baby.id).order('started_at'),
         supabase!.from('v_meds').select('*').eq('baby_id', baby.id).gte('started_at', from.toISOString()).order('started_at'),
         supabase!.from('v_temps').select('*').eq('baby_id', baby.id).gte('started_at', from.toISOString()).order('started_at'),
+        supabase!.from('v_sleep').select('start_date,duration_min').eq('baby_id', baby.id).gte('start_date', isoDay(from)),
       ]);
       const err = d.error ?? g.error ?? m.error ?? t.error;
       if (err) return setError(err.message);
@@ -38,6 +40,7 @@ export default function PrintReport({ days }: { days: number }) {
       setGrowth(g.data ?? []);
       setMeds(m.data ?? []);
       setTemps(t.data ?? []);
+      setLongest(longestSleepByDay((sl.data ?? []) as { start_date: string; duration_min: number }[]));
     })();
   }, [baby, days]);
 
@@ -46,7 +49,10 @@ export default function PrintReport({ days }: { days: number }) {
   if (error) return <div className="print-page"><p>{error}</p><button onClick={back}>Back</button></div>;
   if (!daily) return <div className="print-page"><p>Loading…</p></div>;
 
-  const avg = averages(daily);
+  const full = completeDays(daily);
+  const avg = averages(full); // complete days only; today is still in progress
+  const today = isoDay(new Date());
+  const avgLongest = full.reduce((a, r) => a + (longest.get(r.day) ?? 0), 0) / (full.length || 1);
   const h = (min: number) => formatDuration(min * 60_000);
   const pct = (m: Measure, at: string, v: number) => {
     if (!baby.birth_date || !baby.sex) return '';
@@ -68,32 +74,37 @@ export default function PrintReport({ days }: { days: number }) {
         Summary of {shortDay(first)} to {shortDay(last)} ({daily.length} day{daily.length === 1 ? '' : 's'}) · generated {new Date().toLocaleString()}
       </p>
 
-      <h2>Daily averages</h2>
+      <h2>Daily averages <span className="meta">({full.length} complete day{full.length === 1 ? '' : 's'})</span></h2>
+      <div className="table-wrap">
       <table className="kv">
         <tbody>
           <tr><th>Sleep</th><td>{h(avg.sleepMin)}</td><th>Feeds</th><td>{avg.feeds.toFixed(1)}</td></tr>
           <tr><th>Bottle</th><td>{formatVolume(avg.bottleMl, settings)}</td><th>Nursing</th><td>{h(avg.nursingMin)}</td></tr>
           <tr><th>Wet diapers</th><td>{avg.wet.toFixed(1)}</td><th>Dirty diapers</th><td>{avg.dirty.toFixed(1)}</td></tr>
+          <tr><th>Longest sleep</th><td>{h(avgLongest)}</td><th></th><td></td></tr>
         </tbody>
-      </table>
+      </table></div>
 
       <h2>By day</h2>
+      <div className="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Sleep</th><th>Night</th><th>Naps</th><th>Feeds</th><th>Nursing L/R</th><th>Bottle</th><th>Wet</th><th>Dirty</th></tr></thead>
+        <thead><tr><th>Date</th><th>Sleep</th><th>Night</th><th>Naps</th><th>Longest</th><th>Feeds</th><th>Nursing L/R</th><th>Bottle</th><th>Wet</th><th>Dirty</th></tr></thead>
         <tbody>
           {daily.map((r) => (
             <tr key={r.day}>
-              <td className="nowrap">{shortDay(r.day)}</td><td>{h(r.sleep_min)}</td><td>{h(r.night_sleep_min)}</td><td>{h(r.nap_sleep_min)}</td>
+              <td className="nowrap">{shortDay(r.day)}{r.day === today ? ' (so far)' : ''}</td><td>{h(r.sleep_min)}</td><td>{h(r.night_sleep_min)}</td><td>{h(r.nap_sleep_min)}</td>
+              <td>{longest.get(r.day) ? h(longest.get(r.day)!) : '–'}</td>
               <td>{r.feeds}</td><td>{r.nursing_left_min}/{r.nursing_right_min} m</td>
               <td>{r.bottle_ml ? formatVolume(r.bottle_ml, settings) : '–'}</td><td>{r.wet_diapers}</td><td>{r.dirty_diapers}</td>
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       {growth.length > 0 && (
         <>
           <h2>Growth{baby.sex ? ' (WHO percentile)' : ''}</h2>
+          <div className="table-wrap">
           <table>
             <thead><tr><th>Date</th><th>Weight</th><th>Length</th><th>Head</th></tr></thead>
             <tbody>
@@ -106,13 +117,14 @@ export default function PrintReport({ days }: { days: number }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </>
       )}
 
       {meds.length > 0 && (
         <>
           <h2>Medicine given</h2>
+          <div className="table-wrap">
           <table>
             <thead><tr><th>Time</th><th>Medication</th><th>Dose</th><th>Notes</th></tr></thead>
             <tbody>
@@ -121,13 +133,14 @@ export default function PrintReport({ days }: { days: number }) {
                   <td>{m.dose_amount != null ? `${m.dose_amount} ${m.dose_unit ?? ''}` : ''}</td><td>{String(m.notes ?? '')}</td></tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </>
       )}
 
       {temps.length > 0 && (
         <>
           <h2>Temperatures</h2>
+          <div className="table-wrap">
           <table>
             <thead><tr><th>Time</th><th>Temperature</th><th>Method</th><th>Notes</th></tr></thead>
             <tbody>
@@ -136,7 +149,7 @@ export default function PrintReport({ days }: { days: number }) {
                   <td>{String(t.temp_method ?? '')}</td><td>{String(t.notes ?? '')}</td></tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </>
       )}
       <p className="meta">Recorded by the family with kidTracker. Sleep minutes are split at midnight; "night" = sleep starting 7 pm–6 am.</p>

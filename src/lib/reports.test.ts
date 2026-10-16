@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { averages, csvUnits, fillDays, toCsv, trimLeading, type DailyRow } from './reports';
+import { averages, completeDays, csvUnits, dayOfLife, diaperGuide, fillDays, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
 import { DEFAULT_SETTINGS } from './types';
 
 describe('reports', () => {
@@ -27,5 +27,33 @@ describe('reports', () => {
     expect(u.temp(38)).toBe(100.4);
     expect(u.weight(3402)).toEqual([7, 8]);
     expect(u.vol(null)).toBe('');
+  });
+});
+
+describe('report helpers (round 2)', () => {
+  it('drops only today from averages', () => {
+    const rows = fillDays([], 3, new Date(2026, 9, 11, 9));
+    expect(completeDays(rows, new Date(2026, 9, 11, 9)).map((r) => r.day)).toEqual(['2026-10-09', '2026-10-10']);
+    expect(completeDays(rows.slice(-1), new Date(2026, 9, 11, 9))).toHaveLength(1);
+    expect(completeDays(rows, new Date(2026, 9, 12))).toHaveLength(3);
+  });
+  it('counts day of life from the birth date as day 1', () => {
+    expect(dayOfLife('2026-10-11', '2026-10-11')).toBe(1);
+    expect(dayOfLife('2026-11-01', '2026-10-11')).toBe(22);
+  });
+  it('gives the newborn diaper guide for the first 14 days', () => {
+    expect(diaperGuide('2026-10-11', '2026-10-11')).toEqual({ wet: 1, dirty: 1 });
+    expect(diaperGuide('2026-10-14', '2026-10-11')).toEqual({ wet: 4, dirty: 3 });
+    expect(diaperGuide('2026-10-20', '2026-10-11')).toEqual({ wet: 6, dirty: 3 });
+    expect(diaperGuide('2026-10-25', '2026-10-11')).toBeNull();
+    expect(diaperGuide('2026-10-10', '2026-10-11')).toBeNull();
+  });
+  it('finds the longest sleep per start day', () => {
+    const m = longestSleepByDay([
+      { start_date: '2026-10-11', duration_min: 90 }, { start_date: '2026-10-11', duration_min: '150' },
+      { start_date: '2026-10-12', duration_min: 40 },
+    ]);
+    expect(m.get('2026-10-11')).toBe(150);
+    expect(m.get('2026-10-12')).toBe(40);
   });
 });

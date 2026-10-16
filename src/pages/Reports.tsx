@@ -10,7 +10,7 @@ import { weightChange } from '../lib/weight';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
-import { averages, fillDays, isoDay, trimLeading, type DailyRow } from '../lib/reports';
+import { averages, completeDays, diaperGuide, fillDays, isoDay, longestSleepByDay, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
 import { cmToIn, mlToOz } from '../lib/units';
@@ -25,14 +25,16 @@ export default function Reports() {
   const [days, setDays] = useState(14);
   const [rows, setRows] = useState<DailyRow[] | null>(null);
   const [growth, setGrowth] = useState<GrowthRow[]>([]);
+  const [sleeps, setSleeps] = useState<{ start_date: string; duration_min: number }[]>([]);
   const [missing, setMissing] = useState(false);
 
   const load = useCallback(async () => {
     if (!supabase || !baby) return;
     const from = isoDay(new Date(startOfDay(new Date()).getTime() - (days - 1) * 86_400_000));
-    const [d, g] = await Promise.all([
+    const [d, g, sl] = await Promise.all([
       supabase.from('v_daily_summary').select('*').eq('baby_id', baby.id).gte('day', from),
       supabase.from('v_growth').select('started_at,weight_g,length_cm,head_cm').eq('baby_id', baby.id).order('started_at'),
+      supabase.from('v_sleep').select('start_date,duration_min').eq('baby_id', baby.id).gte('start_date', from),
     ]);
     if (d.error) {
       // View not created yet: migration 0002 has not been run.
@@ -43,6 +45,7 @@ export default function Reports() {
     setMissing(false);
     setRows(trimLeading(fillDays((d.data ?? []) as DailyRow[], days)));
     setGrowth((g.data ?? []) as GrowthRow[]);
+    setSleeps((sl.data ?? []) as { start_date: string; duration_min: number }[]);
   }, [baby, days, toast]);
 
   // Reload when the range changes or anything is logged.
@@ -57,9 +60,23 @@ export default function Reports() {
 
   const view = useMemo(() => {
     if (!rows) return null;
-    const labels = rows.map((r) => { const [, m, d] = r.day.split('-').map(Number); return `${m}/${d}`; });
+    const today = isoDay(new Date());
+    const partial = rows[rows.length - 1]?.day === today; // today's bar is unfinished
+    const labels = rows.map((r) => {
+      if (r.day === today) return 'Today';
+      const [, m, d] = r.day.split('-').map(Number);
+      return `${m}/${d}`;
+    });
+    const longest = longestSleepByDay(sleeps);
+    const bd = baby?.birth_date;
+    const guide = bd ? rows.map((r) => diaperGuide(r.day, bd)) : [];
+    const diaperGuides = guide.some(Boolean) ? [
+      { label: 'Wet guide', data: guide.map((x) => x?.wet ?? null), seriesIndex: 0 },
+      { label: 'Dirty guide', data: guide.map((x) => x?.dirty ?? null), seriesIndex: 1 },
+    ] : [];
     return {
-      labels,
+      labels, partial, diaperGuides,
+      longest: [{ label: 'Longest sleep', data: rows.map((r) => longest.get(r.day) ?? 0) }],
       sleep: [
         { label: 'Night', data: rows.map((r) => r.night_sleep_min) },
         { label: 'Naps', data: rows.map((r) => r.nap_sleep_min) },
@@ -76,10 +93,12 @@ export default function Reports() {
       ],
       pump: [{ label: 'Pumped', data: rows.map((r) => toVol(r.pump_ml)) }],
       tummy: [{ label: 'Tummy time', data: rows.map((r) => r.tummy_min) }],
-      avg: averages(rows),
+      // Averages use complete days only; today's partial day would pull them down.
+      avg: averages(completeDays(rows)),
+      avgDays: completeDays(rows).length,
       has: (k: keyof DailyRow) => rows.some((r) => Number(r[k]) > 0),
     };
-  }, [rows, toVol]);
+  }, [rows, toVol, sleeps, baby?.birth_date]);
 
 
   const volUnit = oz ? 'oz' : 'ml';
@@ -104,7 +123,7 @@ export default function Reports() {
               <IonSegmentButton value="30">30 days</IonSegmentButton>
             </IonSegment>
 
-            <h2 className="section-title">Daily average</h2>
+            <h2 className="section-title">Daily average <span className="subtle">({view.avgDays === 1 && view.partial ? 'today so far' : `${view.avgDays} complete day${view.avgDays === 1 ? '' : 's'}`})</span></h2>
             <div className="summary-row summary-row-3">
               <div><b>{formatDuration(view.avg.sleepMin * 60_000)}</b><span>sleep</span></div>
               <div><b>{fmtCount(view.avg.feeds)}</b><span>feeds</span></div>
@@ -114,14 +133,20 @@ export default function Reports() {
               <div><b>{formatVolume(view.avg.pumpMl, settings)}</b><span>pumped</span></div>
             </div>
 
-            <BarChart integer title="Sleep per day" labels={view.labels} series={view.sleep} stacked format={fmtHours} />
-            <BarChart integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} />
-            {view.has('bottle_ml') && <BarChart title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle} format={fmtVolAxis} />}
+            <BarChart partialLast={view.partial} integer minutesAxis title="Sleep per day" labels={view.labels} series={view.sleep} stacked format={fmtHours} />
+            {view.has('sleeps') && (
+              <BarChart partialLast={view.partial} integer minutesAxis title="Longest sleep stretch" labels={view.labels} series={view.longest} format={fmtHours}
+                note="The longest single sleep that started that day." />
+            )}
+            <BarChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} />
+            {view.has('bottle_ml') && <BarChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle} format={fmtVolAxis} />}
             {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
-              <BarChart integer title="Nursing minutes per day" labels={view.labels} series={view.nursing} stacked format={fmtMin} />}
-            <BarChart integer title="Diapers per day" labels={view.labels} series={view.diapers} format={fmtCount} />
-            {view.has('pump_ml') && <BarChart title={`Pumped (${volUnit}) per day`} labels={view.labels} series={view.pump} format={fmtVolAxis} />}
-            {view.has('tummy_min') && <BarChart integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} />}
+              <BarChart partialLast={view.partial} integer title="Nursing minutes per day" labels={view.labels} series={view.nursing} stacked format={fmtMin} />}
+            <BarChart partialLast={view.partial} integer title="Diapers per day" labels={view.labels} series={view.diapers} format={fmtCount}
+              guides={view.diaperGuides}
+              note={view.diaperGuides.length ? 'Guide lines: a common first-two-weeks reference (wet ≈ day of life up to 6+, dirty ≈ day of life up to 3+). Ask your pediatrician what to expect for your baby.' : undefined} />
+            {view.has('pump_ml') && <BarChart partialLast={view.partial} title={`Pumped (${volUnit}) per day`} labels={view.labels} series={view.pump} format={fmtVolAxis} />}
+            {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} />}
 
             <GrowthSection rows={growth} />
 

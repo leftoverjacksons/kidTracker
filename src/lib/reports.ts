@@ -116,3 +116,36 @@ export function download(filename: string, text: string, type = 'text/csv') {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/** Rows without today's unfinished day (keeps at least one row). */
+export function completeDays(rows: DailyRow[], today: Date = new Date()): DailyRow[] {
+  const t = isoDay(today);
+  return rows.length > 1 && rows[rows.length - 1].day === t ? rows.slice(0, -1) : rows;
+}
+
+/** Day of life for a calendar day: the birth date is day 1. */
+export function dayOfLife(day: string, birthDate: string): number {
+  const [y1, m1, d1] = day.split('-').map(Number), [y0, m0, d0] = birthDate.split('-').map(Number);
+  return Math.round((Date.UTC(y1, m1 - 1, d1) - Date.UTC(y0, m0 - 1, d0)) / 86_400_000) + 1;
+}
+
+/**
+ * Common newborn diaper reference used on hospital/pediatric handouts:
+ * wet ≈ day of life up to 6+ (day 6 on), dirty ≈ day of life up to 3+ (day 3 on).
+ * Shown for the first 14 days of life only; null outside that.
+ */
+export function diaperGuide(day: string, birthDate: string): { wet: number; dirty: number } | null {
+  const dol = dayOfLife(day, birthDate);
+  if (dol < 1 || dol > 14) return null;
+  return { wet: Math.min(dol, 6), dirty: Math.min(dol, 3) };
+}
+
+/** Longest single sleep (minutes) per day, by the day it started. */
+export function longestSleepByDay(sleeps: { start_date: string; duration_min: number | string | null }[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const s of sleeps) {
+    const m = Number(s.duration_min ?? 0);
+    if (m > (out.get(s.start_date) ?? 0)) out.set(s.start_date, m);
+  }
+  return out;
+}
