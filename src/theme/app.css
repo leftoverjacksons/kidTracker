@@ -205,3 +205,8 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .tl-days ion-segment { flex: 1; min-height: 32px; }
 .tl-days ion-segment-button { min-height: 32px; min-width: 0; --padding-start: 0; --padding-end: 0; }
 .tl-side { padding: 0 4px; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tl-body { touch-action: pan-y; } /* one finger scrolls; two-finger pinch is handled as time zoom */
+.tl-zoom { display: inline-flex; align-items: center; margin-left: auto; }
+.tl-zoom ion-button { --padding-start: 4px; --padding-end: 4px; margin: 0; height: 28px; }
+.tl-zoom-label { font: inherit; font-size: 12px; min-width: 32px; background: none; border: 0; color: inherit; font-variant-numeric: tabular-nums; }
+.tl-side { white-space: pre-line; line-height: 1.15; }

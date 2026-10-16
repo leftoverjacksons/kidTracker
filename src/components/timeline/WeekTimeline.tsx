@@ -1,5 +1,5 @@
 import { IonButton, IonIcon, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonToast } from '@ionic/react';
-import { chevronBack, chevronForward, close } from 'ionicons/icons';
+import { add, chevronBack, chevronForward, close, remove } from 'ionicons/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useData, useNow } from '../../lib/data';
 import { META } from '../../lib/describe';
@@ -15,6 +15,8 @@ const MIN = 60_000;
 const MIN_DURATION = 5 * MIN;
 
 const DAY_CHOICES = [1, 2, 3, 4, 5, 6];
+export const ZOOM_MIN = 1, ZOOM_MAX = 8;
+const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
 interface Prefs { cutoff: number; diapers: boolean; days: number }
 function loadPrefs(): Prefs {
   const def: Prefs = { cutoff: 19, diapers: true, days: 6 };
@@ -60,14 +62,20 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
   const gridRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
   dragRef.current = drag;
+  const selectedRef = useRef<string | null>(null);
+  selectedRef.current = selected;
   // Latest loaded rows, so Undo works from the saved state (incl. shifted nursing segments).
   const eventsRef = useRef(data.events);
   eventsRef.current = data.events;
 
   const update = (p: Partial<Prefs>) => setPrefs((old) => { const n = { ...old, ...p }; savePrefs(n); return n; });
 
-  const hourPx = Math.min(40, Math.max(18, Math.floor((window.innerHeight - 345) / 24)));
-  const colH = hourPx * 24;
+  // Zoom stretches only the time axis (pinch, or the − / + buttons). 1 = whole day on screen.
+  const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  const baseHourPx = Math.min(40, Math.max(18, Math.floor((window.innerHeight - 345) / 24)));
+  const colH = Math.round(baseHourPx * 24 * zoom);
   const cols = useMemo(() => dayColumns(now, prefs.cutoff, prefs.days, page), [now, prefs.cutoff, prefs.days, page]);
   const wide = prefs.days <= 3; // room for time labels inside blocks
 
@@ -182,7 +190,73 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
   const rangeLabel = cols.length === 1
     ? first.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
     : `${md(first)} – ${md(last)}`;
-  const ticks = hourTicks(prefs.cutoff);
+  // Denser labels and gridlines as the time axis stretches.
+  const hourPxNow = colH / 24;
+  const ticks = hourTicks(prefs.cutoff, hourPxNow >= 60 ? 1 : hourPxNow >= 36 ? 2 : 3);
+  const gridTicks = hourTicks(prefs.cutoff, hourPxNow >= 30 ? 1 : 3);
+
+  // Change zoom while keeping the time at screen position `anchorY` (client px) in place.
+  // Uses only the rendered layout, so rapid pinch updates before a re-render don't drift.
+  const scrollerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const contentEl = gridRef.current?.closest('ion-content') as (HTMLElement & { getScrollElement?: () => Promise<HTMLElement> }) | null;
+    void contentEl?.getScrollElement?.().then((el) => { scrollerRef.current = el; });
+  }, []);
+  function zoomTo(next: number, anchorY?: number) {
+    const z = clampZoom(next);
+    const grid = gridRef.current, scroller = scrollerRef.current;
+    if (Math.abs(z - zoomRef.current) < 0.001 || !grid) return;
+    const rect = grid.getBoundingClientRect();
+    const sRect = scroller?.getBoundingClientRect();
+    const y = anchorY ?? (sRect ? sRect.top + sRect.height / 2 : rect.top);
+    const frac = Math.min(1, Math.max(0, (y - rect.top) / rect.height)); // time fraction under the anchor
+    zoomRef.current = z;
+    setZoom(z);
+    if (scroller && sRect) {
+      const gridTopInContent = rect.top - sRect.top + scroller.scrollTop;
+      const target = Math.round(baseHourPx * 24 * z);
+      const desired = gridTopInContent + frac * target - (y - sRect.top);
+      requestAnimationFrame(() => { scroller.scrollTop = Math.max(0, desired); });
+    }
+  }
+
+  // Two-finger pinch on the grid → zoom the time axis (single-finger scrolling is untouched).
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    let start: { dist: number; zoom: number } | null = null;
+    const span = (t: TouchList) => Math.max(20, Math.abs(t[0].clientY - t[1].clientY));
+    const mid = (t: TouchList) => (t[0].clientY + t[1].clientY) / 2;
+    let selectedBefore: string | null = null;
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) selectedBefore = selectedRef.current;
+      if (e.touches.length === 2) {
+        // A pinch is not a tap or a drag: undo whatever the first finger started.
+        dragRef.current = null;
+        setDrag(null);
+        setSelected(selectedBefore);
+        start = { dist: span(e.touches), zoom: zoomRef.current };
+        e.preventDefault();
+      }
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!start || e.touches.length !== 2) return;
+      e.preventDefault();
+      zoomTo(start.zoom * (span(e.touches) / start.dist), mid(e.touches));
+    };
+    const onEnd = (e: TouchEvent) => { if (e.touches.length < 2) start = null; };
+    el.addEventListener('touchstart', onStart, { passive: false });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const color = { sleep: theme.series[0], feed: theme.series[1] };
 
   return (
@@ -215,6 +289,15 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
         <button className={`tl-toggle ${prefs.diapers ? 'on' : ''}`} onClick={() => update({ diapers: !prefs.diapers })}>
           <i className="tick" style={{ background: theme.muted }} />Diapers {prefs.diapers ? 'on' : 'off'}
         </button>
+        <span className="tl-zoom">
+          <IonButton fill="clear" size="small" aria-label="Zoom out" disabled={zoom <= ZOOM_MIN} onClick={() => zoomTo(zoom / 1.5)}>
+            <IonIcon slot="icon-only" icon={remove} />
+          </IonButton>
+          <button className="tl-zoom-label" onClick={() => zoomTo(1)} aria-label="Reset zoom">{zoom > 1.01 ? `${Math.round(zoom * 10) / 10}×` : '1×'}</button>
+          <IonButton fill="clear" size="small" aria-label="Zoom in" disabled={zoom >= ZOOM_MAX} onClick={() => zoomTo(zoom * 1.5)}>
+            <IonIcon slot="icon-only" icon={add} />
+          </IonButton>
+        </span>
       </div>
 
       <div className="tl-head">
@@ -227,7 +310,7 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
         ))}
       </div>
 
-      <div className="tl-body" style={{ height: colH }} ref={gridRef}>
+      <div className="tl-body" style={{ height: colH }} ref={gridRef} data-zoom={zoom}>
         <div className="tl-axis">
           {ticks.map((t) => (
             <span key={t.frac} style={{ top: t.frac * colH }}>{t.label}</span>
@@ -238,7 +321,7 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
           const nowIn = now >= c.start && now < c.end;
           return (
             <div key={c.start.getTime()} className="tl-col" style={{ borderColor: theme.grid }}>
-              {ticks.map((t) => <div key={t.frac} className="tl-grid" style={{ top: t.frac * colH, background: theme.grid }} />)}
+              {gridTicks.map((t) => <div key={t.frac} className="tl-grid" style={{ top: t.frac * colH, background: theme.grid }} />)}
               {blocks.filter((b) => prefs.diapers || b.kind !== 'diaper').map((b) => (
                 <BlockView key={b.event.id + c.start.getTime()} b={b} colH={colH} color={color} theme={theme} wide={wide}
                   selected={b.event.id === selected} dragging={drag?.id === b.event.id}
@@ -281,9 +364,12 @@ function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, 
   const sEnd = b.event.ended_at ? new Date(b.event.ended_at) : null;
   const dur = sEnd ? formatDuration(sEnd.getTime() - new Date(b.event.started_at).getTime()) : '';
   // Narrow columns: just L/R on feeds. Wide columns (1–3 days): start time and length too.
+  const start = formatTime(new Date(b.event.started_at));
   const label = wide && h >= 16 && !b.clippedTop
-    ? [formatTime(new Date(b.event.started_at)), dur, sides].filter(Boolean).join(' · ')
-    : b.kind === 'nursing' && h >= 14 ? sides : '';
+    ? [start, dur, sides].filter(Boolean).join(' · ')
+    : h >= 30 && !b.clippedTop // narrow columns, zoomed in: start time (and side) on two lines
+      ? [start.replace(/\s?[AP]M$/i, ''), sides].filter(Boolean).join('\n')
+      : b.kind === 'nursing' && h >= 14 ? sides : '';
 
   const select = (ev: React.PointerEvent) => {
     ev.stopPropagation();

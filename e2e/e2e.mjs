@@ -277,7 +277,30 @@ await A.locator('ion-toast').last().evaluate((t) => t.shadowRoot.querySelector('
 const undone = await tl.locator('.tl-card-detail').textContent();
 if (!/\(15m\)/.test(undone ?? '')) problems.push(`timeline undo did not restore: ${undone}`);
 await shot(A, 'history-timeline');
+// Zoom stretches only the time axis
+const tlBody = tl.locator('.tl-body');
+const hBefore = (await tlBody.boundingBox()).height, colsBefore = await tl.locator('.tl-col').count();
 await tl.locator('.tl-card-head ion-button').click(); await wait(A, 300);
+await tl.locator('.tl-zoom ion-button').nth(1).click(); await wait(A, 500);
+const hAfter = (await tlBody.boundingBox()).height;
+if (!(hAfter > hBefore * 1.4) || (await tl.locator('.tl-col').count()) !== colsBefore) problems.push(`zoom: height ${hBefore}→${hAfter}, cols ${colsBefore}→${await tl.locator('.tl-col').count()}`);
+await tl.locator('.tl-zoom-label').click(); await wait(A, 400);
+// Two-finger pinch zooms the time axis and must not select or move a block
+{
+  const bb = await tlBody.boundingBox();
+  const cx = bb.x + bb.width / 2, cy = bb.y + Math.min(bb.height, 500) / 2;
+  const cdp = await A.context().newCDPSession(A);
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], id) => ({ x, y, id })) });
+  await touch('touchStart', [[cx, cy - 30]]);
+  await touch('touchStart', [[cx, cy - 30], [cx, cy + 30]]);
+  for (let i = 1; i <= 8; i++) await touch('touchMove', [[cx, cy - 30 - i * 12], [cx, cy + 30 + i * 12]]);
+  await touch('touchEnd', []);
+  await wait(A, 500);
+  const z = Number(await tlBody.getAttribute('data-zoom'));
+  if (!(z > 2)) problems.push(`pinch did not zoom (zoom=${z})`);
+  if (await tl.locator('.tl-card').count()) problems.push('pinch selected a block');
+  await tl.locator('.tl-zoom-label').click(); await wait(A, 400);
+}
 await A.locator('ion-segment-button[value="list"]').click(); await wait(A, 500);
 
 // ── Home-screen shortcut deep link opens the logging sheet
