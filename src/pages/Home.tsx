@@ -8,7 +8,7 @@ import { useData, useNow } from '../lib/data';
 import { diaperLabel, META } from '../lib/describe';
 import { formatAgo, formatClock, formatDuration, formatTemp, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
-import { activeSide, lastSide, sideTotals } from '../lib/nursing';
+import { activeSide, lastFeedStart, lastSide, sideTotals } from '../lib/nursing';
 import type { EventRow, EventType } from '../lib/types';
 import { ageLabel } from '../lib/units';
 
@@ -52,8 +52,10 @@ export default function Home() {
           const t2 = sideTotals(segs, now);
           return { text: `${side ? SIDE[side] : 'Paused'} · ${formatClock(t2.left + t2.right)}`, live: true };
         }
+        // Time since the START of the last feed (back-to-back entries < 20 min apart count as one).
+        const feedStart = lastFeedStart(data.events);
         const ls = last ? lastSide(last.nursing_segments ?? []) : null;
-        return { text: last ? `${ago(last)}${ls ? ` · last ${SIDE[ls]}` : ''}` : '—', live: false };
+        return { text: feedStart ? `${formatAgo(feedStart, now)}${ls ? ` · last ${SIDE[ls]}` : ''}` : '—', live: false };
       }
       case 'pump':
         if (run) return { text: `Pumping ${elapsed(run)}`, live: true };

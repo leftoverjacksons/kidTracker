@@ -48,3 +48,24 @@ export function firstSide(segments: NursingSegment[]): 'left' | 'right' | null {
   for (const s of segments) if (!best || s.started_at < best.started_at) best = s;
   return best?.side ?? null;
 }
+
+/** Gap (minutes) under which back-to-back nursing entries count as one feed. */
+export const FEED_GAP_MIN = 20;
+
+/**
+ * Start time of the most recent feed, treating nursing entries that begin within
+ * FEED_GAP_MIN of the previous one's end as the same feed. `events` must be
+ * newest first; only finished nursing entries are considered.
+ * (Display only; the report views still count entries until the SQL grouping lands.)
+ */
+export function lastFeedStart(events: { type: string; started_at: string; ended_at: string | null }[]): Date | null {
+  const nursing = events.filter((e) => e.type === 'nursing' && e.ended_at);
+  if (!nursing.length) return null;
+  let start = new Date(nursing[0].started_at);
+  for (const e of nursing.slice(1)) {
+    const gap = start.getTime() - new Date(e.ended_at!).getTime();
+    if (gap > FEED_GAP_MIN * 60_000) break;
+    start = new Date(Math.min(start.getTime(), new Date(e.started_at).getTime()));
+  }
+  return start;
+}

@@ -1,7 +1,7 @@
 # kidTracker — Design Document
 
-Status: **v0.5**. Phases 0–2 and 4 implemented (logging, shared timers, history, reports/export, backups); Phase 3 (offline queue) pending. Decisions recorded in §7.1.
-Last updated: 2026-10-11
+Status: **v0.6**. Phases 0–2 and 4 implemented (logging, shared timers, history, reports/export, backups); Phase 3 (offline queue) pending. Decisions recorded in §7.1; real-use backlog in §8a.
+Last updated: 2026-10-16
 
 ---
 
@@ -500,6 +500,40 @@ a Capacitor wrapper with a native foreground notification (Phase 5).
 - An end-to-end test (`e2e/`) that drives the built app in two headless browsers ("Parent A" and "Parent B") against a local Postgres + PostgREST running the real migration. It covers every logging screen, start-on-one-phone/stop-on-the-other, simultaneous Start, editing, and delete-with-undo. Supabase Realtime is not emulated there; the test uses the app's refresh-on-wake path instead. It runs in CI on every push.
 
 ---
+
+## 8a. Backlog from real use (first week, 2026-10)
+
+Feedback after two days of use in the hospital. The items are recorded here to pick up at home.
+
+### A. Group nursing entries into feeds — **agreed, shelved until home (needs one SQL migration)**
+
+Problem: at first the Pause / switch-side controls were not obvious, so a single feed was often logged as several Finish → Start entries. Per-entry counts therefore overstate the number of feeds.
+
+Agreed design:
+
+1. **Raw data is never merged or edited.** Each entry stays as logged; grouping happens at read time, so it also fixes past data retroactively.
+2. **Rule:** a nursing entry that starts within **20 minutes** of the previous nursing entry's **end** belongs to the same feed. The gap is configurable in one place.
+3. **Bottles:** a bottle within 20 minutes of nursing (a top-up) counts as part of the same feed.
+4. **Where:** the grouping is defined in a SQL view (a "gaps and islands" query, e.g. `v_feed_sessions`). `v_daily_summary.feeds`, the Reports feed chart, average time between feeds, CSV exports, the pediatrician summary and the Google Sheet all read from it. This needs migration `0003_feed_sessions.sql` (one paste in the Supabase SQL editor).
+5. **App-only follow-ups (no database change):**
+   - Starting nursing within 20 min of the last feed offers **"Continue last feed"** (resume the previous entry) instead of creating a new one.
+   - Make **Pause** and **switch side** more discoverable on the running-feed screen.
+6. **Done already (2026-10-16):** the Nurse tile's "time since last feed" counts from the **start** of the most recent feed, applying the same 20-minute grouping on the phone (`lastFeedStart()` in `src/lib/nursing.ts`). Once the SQL view exists, the tile and the reports share that definition.
+
+### B. Layered 24-hour timeline — **in design**
+
+Agreed so far:
+
+- **Vertical layout for phones:** time runs top to bottom, days run left to right (as in Outlook's week view), with **7 day columns** and the most recent day on the right.
+- **Layers:** sleep (bars), nursing (bars at real duration, per side), bottles (markers); diapers possibly as an optional layer. At most three color-coded layers; tap any mark for details.
+- **Adjustable day cutoff** (e.g. 7 pm instead of midnight) so a night is one unbroken stretch.
+
+Open questions (being decided):
+
+- Placement: a second view inside History (List | Timeline), and whether it leaves Reports.
+- Navigation to earlier weeks.
+- Whether the cutoff is per phone (no database change) or shared by the household.
+- How a column is labeled when the day starts at 7 pm.
 
 ## 9. Sources consulted
 
