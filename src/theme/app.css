@@ -200,3 +200,8 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .tl-card-actions span { opacity: 0.7; margin-left: 4px; }
 .tl-card-actions ion-button:last-child { margin-left: auto; }
 .tl-card-hint { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+.tl-days { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; font-size: 13px; }
+.tl-days span { opacity: 0.75; }
+.tl-days ion-segment { flex: 1; min-height: 32px; }
+.tl-days ion-segment-button { min-height: 32px; min-width: 0; --padding-start: 0; --padding-end: 0; }
+.tl-side { padding: 0 4px; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

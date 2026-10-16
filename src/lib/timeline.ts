@@ -32,12 +32,15 @@ export function columnStartFor(t: Date, cutoffHour: number): Date {
   return s;
 }
 
-/** Seven consecutive day columns, the last one containing `now` shifted back by `weekOffset` weeks. */
-export function weekColumns(now: Date, cutoffHour: number, weekOffset = 0): Column[] {
+/**
+ * `count` consecutive day columns ending with the one containing `now`,
+ * shifted back by `page` whole windows (page 1 = the `count` days before).
+ */
+export function dayColumns(now: Date, cutoffHour: number, count = 7, page = 0): Column[] {
   const last = columnStartFor(now, cutoffHour);
-  return Array.from({ length: 7 }, (_, i) => {
+  return Array.from({ length: count }, (_, i) => {
     const start = new Date(last);
-    start.setDate(start.getDate() - (6 - i) - 7 * weekOffset);
+    start.setDate(start.getDate() - (count - 1 - i) - count * page);
     const end = new Date(start);
     end.setDate(end.getDate() + 1); // calendar day, so DST days are 23/25 h
     return { start, end };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { columnBlocks, columnStartFor, hourTicks, snap, weekColumns } from './timeline';
+import { columnBlocks, columnStartFor, dayColumns, hourTicks, snap } from './timeline';
 import type { EventRow } from './types';
 
 const ev = (type: string, start: Date, end: Date | null, id = Math.random().toString()) =>
@@ -12,13 +12,16 @@ describe('timeline columns', () => {
     expect(columnStartFor(L(16, 3), 19).getTime()).toBe(L(15, 19).getTime());
     expect(columnStartFor(L(16, 3), 0).getTime()).toBe(L(16, 0).getTime());
   });
-  it('builds 7 columns ending with the current one, and pages back by weeks', () => {
-    const cols = weekColumns(L(16, 3), 19);
-    expect(cols).toHaveLength(7);
-    expect(cols[6].start.getTime()).toBe(L(15, 19).getTime());
-    expect(cols[0].start.getTime()).toBe(L(9, 19).getTime());
-    expect(cols[6].end.getTime()).toBe(L(16, 19).getTime());
-    expect(weekColumns(L(16, 3), 19, 1)[6].start.getTime()).toBe(L(8, 19).getTime());
+  it('builds N columns ending with the current one, and pages back by N days', () => {
+    const cols = dayColumns(L(16, 3), 19, 6);
+    expect(cols).toHaveLength(6);
+    expect(cols[5].start.getTime()).toBe(L(15, 19).getTime());
+    expect(cols[0].start.getTime()).toBe(L(10, 19).getTime());
+    expect(cols[5].end.getTime()).toBe(L(16, 19).getTime());
+    expect(dayColumns(L(16, 3), 19, 6, 1)[5].start.getTime()).toBe(L(9, 19).getTime());
+    const two = dayColumns(L(16, 3), 19, 2, 1);
+    expect(two.map((c) => c.start.getDate())).toEqual([12, 13]);
+    expect(dayColumns(L(16, 3), 0, 1)[0].start.getTime()).toBe(L(16, 0).getTime());
   });
 });
 

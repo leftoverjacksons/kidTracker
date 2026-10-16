@@ -524,7 +524,7 @@ Agreed design:
 
 Location: **History → List | Timeline** (the choice is remembered per phone). The small sleep map was removed from Reports, so there is one timeline.
 
-- **Layout:** vertical, as in a calendar week view. Time runs top to bottom over one 24-hour day, and there are **7 day columns**, newest on the right. **‹ ›** pages by week; older entries load on demand.
+- **Layout:** vertical, as in a calendar week view. Time runs top to bottom over one 24-hour day, with day columns newest on the right. A **Days 1–6** selector (default 6, saved per phone) sets how many columns are shown, so two days can be compared side by side. **‹ ›** pages back and forward by that many days; older entries load on demand. With 1–3 days showing, blocks also display their start time and length.
 - **Day cutoff:** adjustable, saved **per phone** (`localStorage`, default 7 pm; options midnight, 5–9 pm, 6 am). A column runs from the cutoff one day to the same time the next and is labeled by its **start day** ("Tue→"). Hour labels every 3 hours from the cutoff.
 - **One track per day** (sleep and feeding do not overlap in reality):
   - sleep is a blue block at its real duration;

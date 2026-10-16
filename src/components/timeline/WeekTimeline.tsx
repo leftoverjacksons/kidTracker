@@ -1,4 +1,4 @@
-import { IonButton, IonIcon, IonSelect, IonSelectOption, useIonToast } from '@ionic/react';
+import { IonButton, IonIcon, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonToast } from '@ionic/react';
 import { chevronBack, chevronForward, close } from 'ionicons/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useData, useNow } from '../../lib/data';
@@ -6,7 +6,7 @@ import { META } from '../../lib/describe';
 import { formatDuration, formatTime, formatVolume } from '../../lib/format';
 import { useHousehold } from '../../lib/household';
 import { sideTotals } from '../../lib/nursing';
-import { columnBlocks, hourTicks, snap, weekColumns, type Block } from '../../lib/timeline';
+import { columnBlocks, dayColumns, hourTicks, snap, type Block } from '../../lib/timeline';
 import type { EventRow } from '../../lib/types';
 import { useChartTheme } from '../charts/theme';
 
@@ -14,12 +14,18 @@ const PREFS_KEY = 'kt.timeline';
 const MIN = 60_000;
 const MIN_DURATION = 5 * MIN;
 
-interface Prefs { cutoff: number; diapers: boolean }
+const DAY_CHOICES = [1, 2, 3, 4, 5, 6];
+interface Prefs { cutoff: number; diapers: boolean; days: number }
 function loadPrefs(): Prefs {
+  const def: Prefs = { cutoff: 19, diapers: true, days: 6 };
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}');
-    return { cutoff: Number.isInteger(p.cutoff) ? p.cutoff : 19, diapers: p.diapers ?? true };
-  } catch { return { cutoff: 19, diapers: true }; }
+    return {
+      cutoff: Number.isInteger(p.cutoff) ? p.cutoff : def.cutoff,
+      diapers: p.diapers ?? def.diapers,
+      days: DAY_CHOICES.includes(p.days) ? p.days : def.days,
+    };
+  } catch { return def; }
 }
 function savePrefs(p: Prefs) {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* private mode: keep in memory */ }
@@ -48,7 +54,7 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
   const [toast] = useIonToast();
   const now = useNow(30_000);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
-  const [week, setWeek] = useState(0);
+  const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -60,9 +66,10 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
 
   const update = (p: Partial<Prefs>) => setPrefs((old) => { const n = { ...old, ...p }; savePrefs(n); return n; });
 
-  const hourPx = Math.min(40, Math.max(18, Math.floor((window.innerHeight - 300) / 24)));
+  const hourPx = Math.min(40, Math.max(18, Math.floor((window.innerHeight - 345) / 24)));
   const colH = hourPx * 24;
-  const cols = useMemo(() => weekColumns(now, prefs.cutoff, week), [now, prefs.cutoff, week]);
+  const cols = useMemo(() => dayColumns(now, prefs.cutoff, prefs.days, page), [now, prefs.cutoff, prefs.days, page]);
+  const wide = prefs.days <= 3; // room for time labels inside blocks
 
   // Load older entries when paging back past what is in memory.
   useEffect(() => {
@@ -170,25 +177,35 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
     void commit(e, s2, e2);
   }
 
-  const first = cols[0].start, last = cols[6].start;
-  const rangeLabel = `${first.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${last.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+  const first = cols[0].start, last = cols[cols.length - 1].start;
+  const md = (d: Date) => d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const rangeLabel = cols.length === 1
+    ? first.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+    : `${md(first)} – ${md(last)}`;
   const ticks = hourTicks(prefs.cutoff);
   const color = { sleep: theme.series[0], feed: theme.series[1] };
 
   return (
     <div className="tl" onPointerDown={() => !drag && setSelected(null)}>
       <div className="tl-toolbar">
-        <IonButton fill="clear" size="small" aria-label="Previous week" onClick={() => { setWeek(week + 1); setSelected(null); }}>
+        <IonButton fill="clear" size="small" aria-label="Earlier" onClick={() => { setPage(page + 1); setSelected(null); }}>
           <IonIcon slot="icon-only" icon={chevronBack} />
         </IonButton>
         <span className="tl-range">{rangeLabel}</span>
-        <IonButton fill="clear" size="small" aria-label="Next week" disabled={week === 0} onClick={() => { setWeek(week - 1); setSelected(null); }}>
+        <IonButton fill="clear" size="small" aria-label="Later" disabled={page === 0} onClick={() => { setPage(page - 1); setSelected(null); }}>
           <IonIcon slot="icon-only" icon={chevronForward} />
         </IonButton>
         <IonSelect className="tl-cutoff" aria-label="Day starts at" interface="popover" value={prefs.cutoff}
           onIonChange={(e) => update({ cutoff: Number(e.detail.value) })}>
           {CUTOFFS.map((h) => <IonSelectOption key={h} value={h}>Day starts {cutoffLabel(h)}</IonSelectOption>)}
         </IonSelect>
+      </div>
+
+      <div className="tl-days">
+        <span>Days</span>
+        <IonSegment value={String(prefs.days)} onIonChange={(e) => { update({ days: Number(e.detail.value) }); setPage(0); setSelected(null); }}>
+          {DAY_CHOICES.map((n) => <IonSegmentButton key={n} value={String(n)}>{n}</IonSegmentButton>)}
+        </IonSegment>
       </div>
 
       <div className="tl-legend">
@@ -204,8 +221,8 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
         <div className="tl-axis-pad" />
         {cols.map((c) => (
           <div key={c.start.getTime()} className="tl-colhead">
-            <b>{c.start.toLocaleDateString([], { weekday: 'short' })}{prefs.cutoff !== 0 ? '→' : ''}</b>
-            <span>{c.start.getMonth() + 1}/{c.start.getDate()}</span>
+            <b>{c.start.toLocaleDateString([], { weekday: wide ? 'long' : 'short' })}{prefs.cutoff !== 0 ? ' →' : ''}</b>
+            <span>{wide ? md(c.start) : `${c.start.getMonth() + 1}/${c.start.getDate()}`}</span>
           </div>
         ))}
       </div>
@@ -223,7 +240,7 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
             <div key={c.start.getTime()} className="tl-col" style={{ borderColor: theme.grid }}>
               {ticks.map((t) => <div key={t.frac} className="tl-grid" style={{ top: t.frac * colH, background: theme.grid }} />)}
               {blocks.filter((b) => prefs.diapers || b.kind !== 'diaper').map((b) => (
-                <BlockView key={b.event.id + c.start.getTime()} b={b} colH={colH} color={color} theme={theme}
+                <BlockView key={b.event.id + c.start.getTime()} b={b} colH={colH} color={color} theme={theme} wide={wide}
                   selected={b.event.id === selected} dragging={drag?.id === b.event.id}
                   onSelect={() => setSelected(b.event.id)}
                   onDrag={(ev, mode) => startDrag(ev, b.event, mode)} />
@@ -250,8 +267,8 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
   );
 }
 
-function BlockView({ b, colH, color, theme, selected, dragging, onSelect, onDrag }: {
-  b: Block; colH: number; color: { sleep: string; feed: string }; theme: ReturnType<typeof useChartTheme>;
+function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, onDrag }: {
+  b: Block; colH: number; color: { sleep: string; feed: string }; theme: ReturnType<typeof useChartTheme>; wide: boolean;
   selected: boolean; dragging: boolean;
   onSelect: () => void; onDrag: (ev: React.PointerEvent, mode: Drag['mode']) => void;
 }) {
@@ -260,7 +277,13 @@ function BlockView({ b, colH, color, theme, selected, dragging, onSelect, onDrag
   const h = instant ? 0 : Math.max(3, (b.bottom - b.top) * colH);
   const segs = b.event.nursing_segments ?? [];
   const t = b.kind === 'nursing' ? sideTotals(segs) : null;
-  const label = b.kind === 'nursing' && h >= 14 && t ? (t.left && t.right ? 'LR' : t.left ? 'L' : t.right ? 'R' : '') : '';
+  const sides = t ? (t.left && t.right ? 'LR' : t.left ? 'L' : t.right ? 'R' : '') : '';
+  const sEnd = b.event.ended_at ? new Date(b.event.ended_at) : null;
+  const dur = sEnd ? formatDuration(sEnd.getTime() - new Date(b.event.started_at).getTime()) : '';
+  // Narrow columns: just L/R on feeds. Wide columns (1–3 days): start time and length too.
+  const label = wide && h >= 16 && !b.clippedTop
+    ? [formatTime(new Date(b.event.started_at)), dur, sides].filter(Boolean).join(' · ')
+    : b.kind === 'nursing' && h >= 14 ? sides : '';
 
   const select = (ev: React.PointerEvent) => {
     ev.stopPropagation();
