@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { averages, completeDays, csvUnits, dayOfLife, diaperGuide, fillDays, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
+import { averages, completeDays, csvUnits, daysOld, diaperGuide, fillDays, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
 import { DEFAULT_SETTINGS } from './types';
 
 describe('reports', () => {
@@ -37,15 +37,17 @@ describe('report helpers (round 2)', () => {
     expect(completeDays(rows.slice(-1), new Date(2026, 9, 11, 9))).toHaveLength(1);
     expect(completeDays(rows, new Date(2026, 9, 12))).toHaveLength(3);
   });
-  it('counts day of life from the birth date as day 1', () => {
-    expect(dayOfLife('2026-10-11', '2026-10-11')).toBe(1);
-    expect(dayOfLife('2026-11-01', '2026-10-11')).toBe(22);
+  it('counts the birth date as day 0', () => {
+    expect(daysOld('2026-10-11', '2026-10-11')).toBe(0);
+    expect(daysOld('2026-11-01', '2026-10-11')).toBe(21);
   });
-  it('gives the newborn diaper guide for the first 14 days', () => {
-    expect(diaperGuide('2026-10-11', '2026-10-11')).toEqual({ wet: 1, dirty: 1 });
-    expect(diaperGuide('2026-10-14', '2026-10-11')).toEqual({ wet: 4, dirty: 3 });
-    expect(diaperGuide('2026-10-20', '2026-10-11')).toEqual({ wet: 6, dirty: 3 });
-    expect(diaperGuide('2026-10-25', '2026-10-11')).toBeNull();
+  it('gives the newborn diaper guide from birth through day 14', () => {
+    expect(diaperGuide('2026-10-11', '2026-10-11')).toEqual({ wet: 0, dirty: 0 }); // birth date
+    expect(diaperGuide('2026-10-12', '2026-10-11')).toEqual({ wet: 1, dirty: 1 });
+    expect(diaperGuide('2026-10-15', '2026-10-11')).toEqual({ wet: 4, dirty: 3 });
+    expect(diaperGuide('2026-10-21', '2026-10-11')).toEqual({ wet: 6, dirty: 3 });
+    expect(diaperGuide('2026-10-25', '2026-10-11')).toEqual({ wet: 6, dirty: 3 });
+    expect(diaperGuide('2026-10-26', '2026-10-11')).toBeNull();
     expect(diaperGuide('2026-10-10', '2026-10-11')).toBeNull();
   });
   it('finds the longest sleep per start day', () => {

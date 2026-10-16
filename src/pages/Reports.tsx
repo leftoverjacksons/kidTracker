@@ -144,7 +144,7 @@ export default function Reports() {
               <BarChart partialLast={view.partial} integer title="Nursing minutes per day" labels={view.labels} series={view.nursing} stacked format={fmtMin} />}
             <BarChart partialLast={view.partial} integer title="Diapers per day" labels={view.labels} series={view.diapers} format={fmtCount}
               guides={view.diaperGuides}
-              note={view.diaperGuides.length ? 'Guide lines: a common first-two-weeks reference (wet ≈ day of life up to 6+, dirty ≈ day of life up to 3+). Ask your pediatrician what to expect for your baby.' : undefined} />
+              note={view.diaperGuides.length ? 'Guide lines: a common first-two-weeks reference, counting the birth date as day 0 (wet ≈ days old up to 6+, dirty ≈ days old up to 3+). Ask your pediatrician what to expect for your baby.' : undefined} />
             {view.has('pump_ml') && <BarChart partialLast={view.partial} title={`Pumped (${volUnit}) per day`} labels={view.labels} series={view.pump} format={fmtVolAxis} />}
             {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} />}
 

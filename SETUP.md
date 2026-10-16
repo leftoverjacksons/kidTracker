@@ -27,7 +27,7 @@ App address once deployed: **https://leftoverjacksons.github.io/kidTracker/**
 3. Click **Run**. It should say *Success. No rows returned*.
 4. Do the same with [`supabase/migrations/0002_reports.sql`](supabase/migrations/0002_reports.sql) (the Reports tab needs it). It is safe to run more than once.
 
-Later database changes will arrive as new numbered files in `supabase/migrations/`. Run each new one the same way, in order.
+Later database changes will arrive as new numbered files in `supabase/migrations/`. Run each new one the same way, in order. **[docs/SUPABASE_TODO.md](docs/SUPABASE_TODO.md) lists which ones are still waiting.**
 
 ## 3. Sign-in settings
 

@@ -422,7 +422,7 @@ longest sleep stretch) are defined once, in the views.
 - Nap vs. night is one SQL function, `sleep_kind()`. The current rule: a sleep that starts between 19:00 and 05:59 counts as night. Changing the function re-classifies all history.
 - Averages and the pediatrician summary ignore the days in the range before the first entry, **and today's unfinished day**. Today's bar is drawn lighter and labeled "Today" ("so far" in tooltips and the summary).
 - **Longest sleep stretch** per day: the longest single sleep that **started** that day, from `v_sleep`. It's shown on Reports and as a column and average in the pediatrician summary.
-- **Diaper guide** (first 14 days of life, when the birth date is set): thin stepped lines behind the diaper bars show a common hospital/pediatric handout reference: wet ≈ day of life up to 6+, dirty ≈ day of life up to 3+. It's labeled as a reference with "ask your pediatrician", not as a judgement.
+- **Diaper guide** (first 14 days of life, when the birth date is set): thin stepped lines behind the diaper bars show a common hospital/pediatric handout reference: wet ≈ days old up to 6+, dirty ≈ days old up to 3+, counting the birth date as **day 0** (the same convention as the weight chart; changed from day 1 at the user's request). It's labeled as a reference with "ask your pediatrician", not as a judgement.
 - Hour-based charts put ticks on whole/half hours.
 - **Weight vs. birth weight** (Reports → Growth; needs no WHO data):
   - a line of every weight over days of age;

@@ -4,6 +4,7 @@ A minimal shared baby tracker for two caregivers: sleep, nursing, bottle, diaper
 
 - Design: [docs/DESIGN.md](docs/DESIGN.md)
 - First-time setup (Supabase + GitHub Pages + phones): [SETUP.md](SETUP.md)
+- **Pending Supabase steps for the owner:** [docs/SUPABASE_TODO.md](docs/SUPABASE_TODO.md)
 
 ## Status
 
