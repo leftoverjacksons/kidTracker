@@ -27,7 +27,7 @@ export default function TempLog({ onDone }: { onDone: () => void }) {
   async function save() {
     if (value == null) return;
     const e = await add('temperature', {
-      started_at: (at ?? new Date()).toISOString(), temp_c: Math.round(t.toStore(value) * 10) / 10,
+      started_at: (at ?? new Date()).toISOString(), temp_c: Math.round(t.toStore(value) * 100) / 100, // 0.01 °C keeps any 0.1 °F reading exact
       temp_method: method, notes: notes.trim() || null,
     });
     if (e) { logged(`Temperature logged: ${formatTemp(e.temp_c, settings)}`, e.id); onDone(); }

@@ -205,10 +205,11 @@ await closeSheet(A);
 
 // Temperature, growth, bath, tummy manual
 await tile(A, 'Temp').click(); await wait(A);
-await sheet(A).locator('ion-input[type="number"] input').fill('98.6');
+await sheet(A).locator('ion-input[type="number"] input').fill('98'); // 98.0 °F must not come back as 98.1
 await sheet(A).locator('ion-chip', { hasText: 'axillary' }).click();
 await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
-await expectText(A, '98.6 °F', '.tile');
+await expectText(A, '98 °F', '.tile');
+if (await A.locator('.tile', { hasText: '98.1' }).count()) problems.push('98 °F was stored as 98.1 °F');
 
 await tile(A, 'Growth').click(); await wait(A);
 const g = sheet(A).locator('ion-input[type="number"] input');

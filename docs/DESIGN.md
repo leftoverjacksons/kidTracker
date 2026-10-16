@@ -525,7 +525,7 @@ Agreed design:
 1. **Raw data is never merged or edited.** Each entry stays as logged; grouping happens at read time, so it also fixes past data retroactively.
 2. **Rule:** a nursing entry that starts within **20 minutes** of the previous nursing entry's **end** belongs to the same feed. The gap is configurable in one place.
 3. **Bottles:** a bottle within 20 minutes of nursing (a top-up) counts as part of the same feed.
-4. **Where:** the grouping is defined in a SQL view (a "gaps and islands" query, e.g. `v_feed_sessions`). `v_daily_summary.feeds`, the Reports feed chart, average time between feeds, CSV exports, the pediatrician summary and the Google Sheet all read from it. This needs migration `0003_feed_sessions.sql` (one paste in the Supabase SQL editor).
+4. **Where:** the grouping is defined in a SQL view (a "gaps and islands" query, e.g. `v_feed_sessions`). `v_daily_summary.feeds`, the Reports feed chart, average time between feeds, CSV exports, the pediatrician summary and the Google Sheet all read from it. This needs migration `0004_feed_sessions.sql` (one paste in the Supabase SQL editor).
 5. **App-only follow-ups (no database change):**
    - Starting nursing within 20 min of the last feed offers **"Continue last feed"** (resume the previous entry) instead of creating a new one.
    - Make **Pause** and **switch side** more discoverable on the running-feed screen.
@@ -557,12 +557,23 @@ Location: **History → List | Timeline** (the choice is remembered per phone). 
 
 Possible later additions: a "last 24 h" strip on Home; tummy time as a block.
 
+### D. Temperature precision fix (2026-10-16), migration `0003_temperature_precision.sql`
+
+Bug: `temp_c` was `numeric(4,1)`, a resolution of 0.1 °C, which is 0.18 °F. So 98.0 °F was stored as 36.7 °C and displayed as 98.1 °F, and re-editing could not correct it. The app also rounded to 0.1 °C before saving.
+
+Fix:
+- The app now sends 0.01 °C.
+- Migration 0003 widens the column to `numeric(5,2)`. It drops and recreates the two views that reference the column (`v_temps`, `v_daily_summary`; the latter copied unchanged from 0002).
+- Existing readings keep their stored value; re-saving a reading after the migration corrects it.
+- Other stored units were checked: ml, g and cm at 0.1 are finer than their display resolution.
+- Tests: a database test (exact round-trip, daily view unchanged) and an e2e test (enter 98 → shows 98 °F).
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).
 - **Growth charts in weeks** for the first 3 months (age axis currently in months).
-- **Time between feeds** (start to start, typical and longest overnight). **Needs the feed grouping (A)**, so it goes with migration 0003.
-- **Daily charts on the timeline's day cutoff** instead of midnight, so "sleep per day" means the same in both places. Needs a view change, so it also goes with 0003.
+- **Time between feeds** (start to start, typical and longest overnight). **Needs the feed grouping (A)**, so it goes with migration 0004.
+- **Daily charts on the timeline's day cutoff** instead of midnight, so "sleep per day" means the same in both places. Needs a view change, so it also goes with 0004.
 - **Pediatrician summary:** add weight-change numbers (birth weight, lowest %, regain age) and diapers by day of life.
 - **Discoverability:** a "tap a bar for details" hint or a direct label on the latest bar.
 

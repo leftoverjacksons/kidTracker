@@ -86,7 +86,7 @@ function EditForm({ event: e, onDone }: { event: EventRow; onDone: () => void })
         Object.assign(f, { medication_id: medId, dose_amount: dose, dose_unit: doseUnit.trim() || null });
         break;
       case 'temperature':
-        Object.assign(f, { temp_c: tempV != null ? r1(t.toStore(tempV)) : null, temp_method: method });
+        Object.assign(f, { temp_c: tempV != null ? Math.round(t.toStore(tempV) * 100) / 100 : null, temp_method: method });
         break;
       case 'growth':
         Object.assign(f, {
