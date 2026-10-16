@@ -5,7 +5,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import BarChart from '../components/charts/BarChart';
 import GrowthChart from '../components/charts/GrowthChart';
-import SleepMap from '../components/charts/SleepMap';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
@@ -80,11 +79,6 @@ export default function Reports() {
     };
   }, [rows, toVol]);
 
-  const mapDays = useMemo(() => {
-    const n = Math.min(days, 14, rows?.length ?? 14);
-    const t = startOfDay(new Date());
-    return Array.from({ length: n }, (_, i) => new Date(t.getFullYear(), t.getMonth(), t.getDate() - (n - 1 - i)));
-  }, [days, rows]);
 
   const volUnit = oz ? 'oz' : 'ml';
 
@@ -119,7 +113,6 @@ export default function Reports() {
             </div>
 
             <BarChart integer title="Sleep per day" labels={view.labels} series={view.sleep} stacked format={fmtHours} />
-            <SleepMap events={data.events} days={mapDays} />
             <BarChart integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} />
             {view.has('bottle_ml') && <BarChart title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle} format={fmtVolAxis} />}
             {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&

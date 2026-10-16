@@ -16,6 +16,10 @@ interface Data {
   names: Record<string, string>;
   reload: () => Promise<void>;
   loadOlder: () => Promise<boolean>;
+  /** Earliest time currently loaded. */
+  since: Date;
+  /** Change an entry's start/end (keeps nursing side segments consistent). Pass end = null for instants or running timers. */
+  retime: (e: EventRow, start: Date, end: Date | null) => Promise<boolean>;
   add: (type: EventType, fields: EventFields) => Promise<EventRow | null>;
   update: (id: string, fields: EventFields) => Promise<boolean>;
   remove: (id: string) => Promise<boolean>;
@@ -160,6 +164,34 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
       await reload();
       return ok;
     };
+    const retime: Data['retime'] = async (e, start, end) => {
+      const fields: EventFields = { started_at: start.toISOString() };
+      if (end && e.ended_at) fields.ended_at = end.toISOString();
+      let ok = fail((await client.from('events').update(fields).eq('id', e.id)).error);
+      const segs = [...(e.nursing_segments ?? [])].sort((a, b) => a.started_at.localeCompare(b.started_at));
+      if (ok && e.type === 'nursing' && segs.length) {
+        const oldStart = new Date(e.started_at).getTime();
+        const oldEnd = e.ended_at ? new Date(e.ended_at).getTime() : null;
+        const ds = start.getTime() - oldStart;
+        const de = end && oldEnd != null ? end.getTime() - oldEnd : 0;
+        const moved = ds !== 0 && (oldEnd == null || ds === de);
+        const iso = (t: string | null, d: number) => (t ? new Date(new Date(t).getTime() + d).toISOString() : null);
+        const updates: { id: string; started_at?: string; ended_at?: string | null }[] = [];
+        if (moved) {
+          for (const g of segs) updates.push({ id: g.id, started_at: iso(g.started_at, ds)!, ended_at: iso(g.ended_at, ds) });
+        } else {
+          if (ds !== 0) updates.push({ id: segs[0].id, started_at: start.toISOString() });
+          const last = segs[segs.length - 1];
+          if (de !== 0 && last.ended_at) updates.push({ id: last.id, ended_at: end!.toISOString() });
+        }
+        for (const u of updates) {
+          const { id, ...f } = u;
+          ok = fail((await client.from('nursing_segments').update(f).eq('id', id)).error) && ok;
+        }
+      }
+      await reload();
+      return ok;
+    };
     const replaceNursingSegments: Data['replaceNursingSegments'] = async (eventId, segs) => {
       let ok = fail((await client.from('nursing_segments').delete().eq('event_id', eventId)).error);
       if (ok && segs.length) {
@@ -177,10 +209,10 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
     };
 
     return {
-      ready, events, running, latest, meds, names, reload, loadOlder,
+      ready, events, running, latest, meds, names, reload, loadOlder, since: since.current, retime,
       add, update, remove, restore, startTimer, stopTimer, setNursingSide, addManualNursing, replaceNursingSegments, saveMedication,
     };
-  }, [events, meds, names, ready, babyId, reload, loadOlder]);
+  }, [events, meds, names, ready, babyId, reload, loadOlder]); // since.current changes only via loadOlder → reload → events
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

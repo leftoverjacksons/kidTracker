@@ -147,3 +147,56 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
   @page { margin: 14mm; }
 }
 .print-page .nowrap { white-space: nowrap; }
+
+/* ── Week timeline (History → Timeline) ── */
+.tl { position: relative; user-select: none; -webkit-user-select: none; padding-bottom: 150px; }
+.tl-toolbar { display: flex; align-items: center; gap: 2px; }
+.tl-range { font-weight: 600; font-size: 15px; min-width: 112px; text-align: center; }
+.tl-cutoff { margin-left: auto; font-size: 13px; max-width: 150px; }
+.tl-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; opacity: 0.85; margin: 2px 0 8px; align-items: center; }
+.tl-legend span, .tl-toggle { display: inline-flex; align-items: center; gap: 5px; }
+.tl-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.tl-legend i.dot { border-radius: 50%; }
+.tl-legend i.tick { width: 10px; height: 3px; }
+.tl-toggle { font: inherit; font-size: 12px; color: inherit; background: none; border: 1px solid currentColor; border-radius: 12px; padding: 2px 8px; opacity: 0.6; }
+.tl-toggle.on { opacity: 1; }
+.tl-head { display: flex; }
+.tl-axis-pad { width: 30px; flex: none; }
+.tl-colhead { flex: 1; text-align: center; font-size: 11px; line-height: 1.2; padding-bottom: 4px; display: flex; flex-direction: column; }
+.tl-colhead b { font-size: 12px; }
+.tl-colhead span { opacity: 0.65; }
+.tl-body { display: flex; position: relative; }
+.tl-axis { width: 30px; flex: none; position: relative; }
+.tl-axis span { position: absolute; right: 4px; transform: translateY(-50%); font-size: 10px; opacity: 0.65; }
+.tl-axis span:first-child { transform: none; }
+.tl-axis span:last-child { transform: translateY(-100%); }
+.tl-col { flex: 1; position: relative; border-left: 1px solid; }
+.tl-col:last-child { border-right: 1px solid; }
+.tl-grid { position: absolute; left: 0; right: 0; height: 1px; }
+.tl-block { position: absolute; left: 3px; right: 3px; overflow: visible; z-index: 1; }
+.tl-block.narrow { left: 35%; z-index: 2; }
+.tl-block.dragging { opacity: 0.85; z-index: 3; }
+.tl-side { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; pointer-events: none; }
+.tl-handle { position: absolute; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; z-index: 4; touch-action: none; }
+.tl-handle::after { content: ''; position: absolute; inset: -12px; } /* bigger hit area */
+.tl-handle.top { top: -18px; }    /* outside the block so short blocks keep two separate handles */
+.tl-handle.bottom { bottom: -18px; }
+.tl-handle.top::before, .tl-handle.bottom::before { content: ''; position: absolute; left: 6px; width: 2px; height: 11px; background: inherit; }
+.tl-handle.top::before { top: 12px; }
+.tl-handle.bottom::before { bottom: 12px; }
+.tl-bottle { position: absolute; left: 50%; width: 24px; margin-left: -12px; height: 24px; display: flex; align-items: center; justify-content: center; z-index: 3; }
+.tl-bottle i { width: 10px; height: 10px; border-radius: 50%; }
+.tl-diaper { position: absolute; right: 0; width: 14px; height: 16px; display: flex; align-items: center; justify-content: flex-end; z-index: 3; }
+.tl-diaper i { width: 8px; height: 3px; border-radius: 1px; }
+.tl-now { position: absolute; left: -1px; right: -1px; height: 2px; z-index: 5; pointer-events: none; }
+.tl-now::before { content: ''; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: inherit; }
+.tl-dragtip { white-space: nowrap; position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 20; padding: 6px 12px; border-radius: 16px; font-size: 14px; font-weight: 600;
+  background: var(--ion-color-primary); color: var(--ion-color-primary-contrast); pointer-events: none; font-variant-numeric: tabular-nums; }
+.tl-card { position: fixed; left: 8px; right: 8px; bottom: calc(64px + env(safe-area-inset-bottom)); z-index: 20; padding: 8px 12px 10px; border-radius: 16px;
+  background: var(--ion-item-background, var(--ion-background-color)); box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
+.tl-card-head { display: flex; align-items: center; justify-content: space-between; }
+.tl-card-detail { font-size: 14px; opacity: 0.85; font-variant-numeric: tabular-nums; }
+.tl-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; margin-top: 6px; font-size: 13px; }
+.tl-card-actions span { opacity: 0.7; margin-left: 4px; }
+.tl-card-actions ion-button:last-child { margin-left: auto; }
+.tl-card-hint { font-size: 12px; opacity: 0.6; margin-top: 2px; }

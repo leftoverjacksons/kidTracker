@@ -520,20 +520,30 @@ Agreed design:
    - Make **Pause** and **switch side** more discoverable on the running-feed screen.
 6. **Done already (2026-10-16):** the Nurse tile's "time since last feed" counts from the **start** of the most recent feed, applying the same 20-minute grouping on the phone (`lastFeedStart()` in `src/lib/nursing.ts`). Once the SQL view exists, the tile and the reports share that definition.
 
-### B. Layered 24-hour timeline — **in design**
+### B. Week timeline — **built (2026-10-16)**
 
-Agreed so far:
+Location: **History → List | Timeline** (the choice is remembered per phone). The small sleep map was removed from Reports, so there is one timeline.
 
-- **Vertical layout for phones:** time runs top to bottom, days run left to right (as in Outlook's week view), with **7 day columns** and the most recent day on the right.
-- **Layers:** sleep (bars), nursing (bars at real duration, per side), bottles (markers); diapers possibly as an optional layer. At most three color-coded layers; tap any mark for details.
-- **Adjustable day cutoff** (e.g. 7 pm instead of midnight) so a night is one unbroken stretch.
+- **Layout:** vertical, as in a calendar week view. Time runs top to bottom over one 24-hour day, and there are **7 day columns**, newest on the right. **‹ ›** pages by week; older entries load on demand.
+- **Day cutoff:** adjustable, saved **per phone** (`localStorage`, default 7 pm; options midnight, 5–9 pm, 6 am). A column runs from the cutoff one day to the same time the next and is labeled by its **start day** ("Tue→"). Hour labels every 3 hours from the cutoff.
+- **One track per day** (sleep and feeding do not overlap in reality):
+  - sleep is a blue block at its real duration;
+  - nursing is an orange block at its real duration, labeled L/R/LR when tall enough;
+  - a bottle is an orange dot;
+  - diapers are gray ticks on the column's right edge, with an on/off toggle (per phone).
 
-Open questions (being decided):
+  Colors are the validated categorical slots 1–2 used elsewhere.
+- **Overlaps** (data-entry collisions, e.g. a sleep timer started before a feed was finished): the later-starting block is drawn narrower and on top, so both stay visible and can be fixed.
+- **Running timers** extend to now. A **now line** marks the current time.
+- **Entries are shown as recorded.** The 20-minute feed grouping (A) is not applied here; gaps between fragments stay visible.
+- **Editing:**
+  - Tap a block to select it. A card shows the times, the L/R split, the amount, and who logged it, with **Start/End −5/+5 min** buttons and **Edit** (the full edit sheet).
+  - While a block is selected, drag its top or bottom handle to change start or end, or drag the block to move it. Changes snap to 5 minutes and a live time label is shown.
+  - Each change saves on release with an **Undo** toast.
+  - Limits: end ≥ start + 5 min; nothing later than now; a running timer's end can't be dragged; nursing start/end can't pass its first/last side segment. Moving a nursing block shifts all its side segments; resizing adjusts the first or last segment (`retime()` in `src/lib/data.tsx`).
+- Layout logic is in `src/lib/timeline.ts` (unit-tested). The e2e test selects a feed, nudges it +5 min, and undoes it.
 
-- Placement: a second view inside History (List | Timeline), and whether it leaves Reports.
-- Navigation to earlier weeks.
-- Whether the cutoff is per phone (no database change) or shared by the household.
-- How a column is labeled when the day starts at 7 pm.
+Possible later additions: a "last 24 h" strip on Home; tummy time as a block.
 
 ## 9. Sources consulted
 

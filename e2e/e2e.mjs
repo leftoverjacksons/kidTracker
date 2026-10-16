@@ -254,6 +254,32 @@ await shot(A, 'history-filtered');
 const nonDiaper = await A.locator('.ion-page:not(.ion-page-hidden)').last().locator('ion-item').filter({ hasNotText: 'Diaper' }).count();
 if (nonDiaper) problems.push(`history filter shows ${nonDiaper} non-diaper rows`);
 
+// ── History → Timeline: select a nursing block, nudge its end +5 min, then undo
+await A.locator('ion-segment-button[value="timeline"]').click(); await wait(A, 1200);
+const tl = A.locator('.ion-page:not(.ion-page-hidden)').last();
+const blocks = await tl.locator('.tl-block').count();
+if (blocks < 3) problems.push(`timeline shows ${blocks} blocks (expected sleeps + feeds)`);
+if (!(await tl.locator('.tl-now').count())) problems.push('timeline has no now line');
+// The 15-minute manual feed is the tallest nursing block; tap its left edge (bottle dots sit centred).
+const nurseBlocks = tl.locator('.tl-block[aria-label^="Nurse"]');
+let nurseBlock = nurseBlocks.first(), tallest = -1;
+for (let i = 0; i < await nurseBlocks.count(); i++) {
+  const h = (await nurseBlocks.nth(i).boundingBox())?.height ?? 0;
+  if (h > tallest) { tallest = h; nurseBlock = nurseBlocks.nth(i); }
+}
+await nurseBlock.click({ position: { x: 3, y: Math.max(1, Math.floor(tallest / 2)) } }); await wait(A, 400);
+const before = await tl.locator('.tl-card-detail').textContent();
+if (!/\(15m\)/.test(before ?? '')) problems.push(`timeline card before nudge: ${before}`);
+await tl.locator('.tl-card ion-button', { hasText: '+5' }).nth(1).click(); await wait(A, 1200);
+const after = await tl.locator('.tl-card-detail').textContent();
+if (!/\(20m\)/.test(after ?? '')) problems.push(`timeline card after +5 end: ${after}`);
+await A.locator('ion-toast').last().evaluate((t) => t.shadowRoot.querySelector('button').click()); await wait(A, 1200);
+const undone = await tl.locator('.tl-card-detail').textContent();
+if (!/\(15m\)/.test(undone ?? '')) problems.push(`timeline undo did not restore: ${undone}`);
+await shot(A, 'history-timeline');
+await tl.locator('.tl-card-head ion-button').click(); await wait(A, 300);
+await A.locator('ion-segment-button[value="list"]').click(); await wait(A, 500);
+
 // ── Home-screen shortcut deep link opens the logging sheet
 await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 600);
 await A.evaluate(() => { location.hash = '#/home?log=bottle'; }); await wait(A, 1200);
@@ -269,7 +295,7 @@ await A.locator('ion-action-sheet button', { hasText: 'Female' }).click(); await
 await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 2000);
 const reports = A.locator('.ion-page:not(.ion-page-hidden)').last();
 await expectText(A, 'Daily average');
-await expectText(A, 'Sleep map');
+if (await reports.getByText('Sleep map').count()) problems.push('sleep map should have moved to History → Timeline');
 const canvases = await reports.locator('canvas').count();
 if (canvases < 5) problems.push(`expected >= 5 charts on Reports, saw ${canvases}`);
 await expectText(A, 'th pct');
@@ -305,3 +331,4 @@ await expectText(A, 'Daily average');
 
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'E2E OK');
 await browser.close(); srv.close();
+process.exitCode = problems.length ? 1 : 0;
