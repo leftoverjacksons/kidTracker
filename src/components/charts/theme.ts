@@ -9,6 +9,9 @@ export const SLOTS = {
 export interface ChartTheme {
   dark: boolean;
   series: string[];
+  /** Diverging poles (validated pair): above / below a reference. */
+  gain: string;
+  loss: string;
   surface: string;
   text: string;
   muted: string;
@@ -27,6 +30,6 @@ export function useChartTheme(): ChartTheme {
     return () => m.removeEventListener('change', on);
   }, []);
   return dark
-    ? { dark, series: SLOTS.dark, surface: '#121212', text: '#f0efec', muted: '#a8a79f', grid: '#2a2a28', reference: '#5c5b56' }
-    : { dark, series: SLOTS.light, surface: '#ffffff', text: '#0b0b0b', muted: '#6b6a65', grid: '#ebeae6', reference: '#b9b8b1' };
+    ? { dark, series: SLOTS.dark, gain: '#3987e5', loss: '#e66767', surface: '#121212', text: '#f0efec', muted: '#a8a79f', grid: '#2a2a28', reference: '#5c5b56' }
+    : { dark, series: SLOTS.light, gain: '#2a78d6', loss: '#e34948', surface: '#ffffff', text: '#0b0b0b', muted: '#6b6a65', grid: '#ebeae6', reference: '#b9b8b1' };
 }

@@ -5,6 +5,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import BarChart from '../components/charts/BarChart';
 import GrowthChart from '../components/charts/GrowthChart';
+import WeightChangeChart from '../components/charts/WeightChangeChart';
+import { weightChange } from '../lib/weight';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
@@ -162,9 +164,27 @@ function GrowthSection({ rows }: { rows: GrowthRow[] }) {
     return { weight: pts('weight_g', 0.001), length: pts('length_cm', 1), head: pts('head_cm', 1) };
   }, [rows, baby]);
 
+  // Weight vs. first (birth) weight: needs no WHO data, so it shows even without sex/birth date.
+  const wc = useMemo(() => weightChange(rows), [rows]);
+  const gToUnit = useCallback((g: number) => (settings.weight_unit === 'lb_oz' ? g / 453.59237 : g / 1000), [settings.weight_unit]);
+  const fmtGrams = useCallback((g: number) => formatWeight(g, settings), [settings]);
+  const birth = baby?.birth_date ? (() => { const [y, m, d] = baby.birth_date!.split('-').map(Number); return new Date(y, m - 1, d).getTime(); })() : null;
+  // "Birth weight" if the first weight was logged within 2 days of birth, else "First weight".
+  const baseLabel = wc && birth != null && wc.base.t - birth < 2 * 86_400_000 ? 'Birth weight' : 'First weight';
+  const weightCard = wc && (
+    <WeightChangeChart data={wc} toDisplay={gToUnit} unit={settings.weight_unit === 'lb_oz' ? 'lb' : 'kg'}
+      formatWeight={fmtGrams} dayZero={birth ?? startOfDay(new Date(wc.base.t)).getTime()} baseLabel={baseLabel} />
+  );
+
   if (rows.length === 0) return null;
   if (!baby?.birth_date || !baby.sex || !series) {
-    return <p className="hint">Growth charts: set the baby's birth date and sex in Settings to compare against WHO percentiles.</p>;
+    return (
+      <>
+        <h2 className="section-title">Growth</h2>
+        {weightCard}
+        <p className="hint">Set the baby's birth date and sex in Settings to also compare against WHO percentiles.</p>
+      </>
+    );
   }
   const age = ageInMonths(baby.birth_date, new Date());
   const maxMonths = Math.min(24, Math.max(3, Math.ceil(age + 1)));
@@ -187,6 +207,7 @@ function GrowthSection({ rows }: { rows: GrowthRow[] }) {
           last.head_cm != null && `head ${formatLength(Number(last.head_cm), settings)}${pct('head', lastAge, Number(last.head_cm))}`,
         ].filter(Boolean).join(' · ')}
       </p>
+      {weightCard}
       {series.weight.length > 0 && <GrowthChart title="Weight" sex={sex} measure="weight" points={series.weight} toDisplay={toLb} format={fmtW} maxMonths={maxMonths} />}
       {series.length.length > 0 && <GrowthChart title="Length" sex={sex} measure="length" points={series.length} toDisplay={toLen} format={fmtL} maxMonths={maxMonths} />}
       {series.head.length > 0 && <GrowthChart title="Head circumference" sex={sex} measure="head" points={series.head} toDisplay={toLen} format={fmtL} maxMonths={maxMonths} />}

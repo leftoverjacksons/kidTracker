@@ -421,6 +421,14 @@ longest sleep stretch) are defined once, in the views.
 - Days are split in the household time zone (`household_settings.timezone`), which the app keeps equal to the phone's zone. Sleep and tummy-time minutes are split at local midnight.
 - Nap vs. night is one SQL function, `sleep_kind()`. The current rule: a sleep that starts between 19:00 and 05:59 counts as night. Changing the function re-classifies all history.
 - Averages and the pediatrician summary ignore the days in the range before the first entry.
+- **Weight vs. birth weight** (Reports → Growth; needs no WHO data):
+  - a line of every weight over days of age;
+  - behind each point, a bar from the first weight to that weight, blue when above it and red when below (validated diverging pair, both themes);
+  - one weight scale on the left, with the right edge labeling the same scale as % of the first weight at round values, so there are no independent dual axes;
+  - direct labels on the latest and lowest %, and a thin −10% reference line, shown only once a loss of more than 5% appears;
+  - a note giving the current weight and %, the lowest %, and the age when the first weight was regained.
+
+  The baseline is called "Birth weight" when the first weight was logged within 2 days of the birth date, otherwise "First weight". Logic is in `src/lib/weight.ts` (tested).
 - Growth percentiles use the WHO LMS tables (0–24 months; data from CDC/NCHS), interpolated to the exact age. They need the baby's birth date and sex.
 - Charts use Chart.js, plus a hand-drawn SVG sleep map. Two-series charts use the validated categorical slots blue and orange (checked for colorblind separation and contrast on both themes); WHO curves are gray reference lines.
 - The pediatrician summary is a plain HTML page (`#/print`) printed with the browser's *Print → Save as PDF*.

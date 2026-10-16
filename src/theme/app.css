@@ -210,3 +210,6 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .tl-zoom ion-button { --padding-start: 4px; --padding-end: 4px; margin: 0; height: 28px; }
 .tl-zoom-label { font: inherit; font-size: 12px; min-width: 32px; background: none; border: 0; color: inherit; font-variant-numeric: tabular-nums; }
 .tl-side { white-space: pre-line; line-height: 1.15; }
+.chart-legend-inline { display: flex; gap: 12px; font-size: 12px; opacity: 0.85; margin: -2px 0 6px; }
+.chart-legend-inline span { display: inline-flex; align-items: center; gap: 5px; }
+.chart-legend-inline i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
