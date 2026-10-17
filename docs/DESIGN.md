@@ -425,7 +425,7 @@ longest sleep stretch) are defined once, in the views.
 - **Diaper guide** (first 14 days of life, when the birth date is set): thin stepped lines behind the diaper bars show a common hospital/pediatric handout reference: wet ≈ days old up to 6+, dirty ≈ days old up to 3+, counting the birth date as **day 0** (the same convention as the weight chart; changed from day 1 at the user's request). It's labeled as a reference with "ask your pediatrician", not as a judgement.
 - Hour-based charts put ticks on whole/half hours.
 - **Weight vs. birth weight** (Reports → Growth; needs no WHO data):
-  - a line of every weight over days of age;
+  - a line of every weight at its exact timestamp. Days are counted from the birth date (day 0). Thin lines mark midnights, and each day's label ("10/14 / day 0") sits in the middle of its day, so an evening weigh-in reads as that day, not the next;
   - behind each point, a bar from the first weight to that weight, blue when above it and red when below (validated diverging pair, both themes);
   - one weight scale on the left, with the right edge labeling the same scale as % of the first weight at round values, so there are no independent dual axes;
   - direct labels on the latest and lowest %, and a thin −10% reference line, shown only once a loss of more than 5% appears;

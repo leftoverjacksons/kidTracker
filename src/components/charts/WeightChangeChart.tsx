@@ -48,6 +48,17 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
     // Reference lines and selective direct labels (latest + lowest), drawn on the canvas.
     const annotate: Plugin<'bar' | 'line'> = {
       id: 'weightAnnotate',
+      // Midnight boundaries between days, behind the bars (labels sit mid-day, see x ticks).
+      beforeDatasetsDraw(chart) {
+        const { ctx, chartArea: a, scales } = chart;
+        ctx.save();
+        ctx.strokeStyle = theme.grid; ctx.lineWidth = 1;
+        for (let d = xStep; d < xMax; d += xStep) {
+          const px = Math.round(scales.x.getPixelForValue(d)) + 0.5;
+          ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke();
+        }
+        ctx.restore();
+      },
       afterDatasetsDraw(chart) {
         const { ctx, chartArea: a, scales } = chart;
         const y = scales.y, x = scales.x;
@@ -99,8 +110,20 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
         scales: {
           x: {
             type: 'linear', min: 0, max: xMax, grid: { display: false }, border: { color: theme.grid },
-            ticks: { color: theme.muted, font: { size: 11 }, stepSize: xStep, autoSkip: false, maxRotation: 0 },
-            title: { display: true, text: 'Days old', color: theme.muted, font: { size: 11 } },
+            // Points sit at their exact time; each day's label is centred in that day (midnight to midnight).
+            afterBuildTicks: (axis) => {
+              axis.ticks = [];
+              for (let d = 0; d < xMax; d += xStep) axis.ticks.push({ value: d + 0.5 });
+            },
+            ticks: {
+              color: theme.muted, font: { size: 11 }, autoSkip: false, maxRotation: 0,
+              callback: (v) => {
+                const d = Math.floor(Number(v));
+                const date = new Date(dayZero + d * DAY + DAY / 2);
+                return [`${date.getMonth() + 1}/${date.getDate()}`, `day ${d}`];
+              },
+            },
+
           },
           y: {
             min: yMin, max: yMax, border: { display: false }, grid: { color: theme.grid },
