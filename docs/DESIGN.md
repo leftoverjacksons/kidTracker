@@ -589,13 +589,14 @@ Fix:
 - An auto-ended pump has no amounts; add them from History.
 - Uses the same `stop_timer` as the Stop button, so it is safe when both phones act at once. Rules live in `src/lib/conflicts.ts` (unit-tested).
 
-**E2. Home screen redesign — built (2026-10-18): "More" tile.** Six large tiles stay on Home: Sleep, Nurse, Bottle, Diaper, Pump (with gauges), Meds. A **More** tile expands the rarely used ones (Temp, Growth, Tummy time, Bath) inline on the main screen, and tapping again collapses them. The open/closed state is remembered per phone. A running timer in a hidden category (e.g. tummy time) keeps the section open so it is never out of sight.
+**E2. Home screen redesign — built (2026-10-18): "More" tile.** Six large tiles stay on Home: Sleep, Nurse, Bottle, Diaper, Pump (with gauges), **Growth** (latest weight · when; swapped with Meds on 2026-10-18). A **More** tile expands the rarely used ones (**Meds**, Temp, Tummy time, Bath) inline on the main screen, and tapping again collapses them. The open/closed state is remembered per phone. A running timer in a hidden category (e.g. tummy time) keeps the section open so it is never out of sight.
 
 **E3. Pump gauges ("odometers") on the Pump tile — built (2026-10-18).** Replace the 🥛 icon with **two gauges, Left and Right**. Each shows how many pumping sessions of **at least 15 minutes** that side has had, against a **target band of 8–12**.
 - A session counts for a side if `pump_side` is that side or `both` (decided: "both" counts for both).
 - Counting window: **rolling last 24 hours** (decided).
 - Design brief: functional first (needle or arc fill, target band marked, count shown as a number, readable at a glance), with a playful, tasteful nod to the shape. The two gauges sit side by side as a pair, each with a small round hub at the needle pivot.
 - Tapping the tile still opens Pump logging.
+- The **Pump screen** shows the same gauges large (140 px). Tapping a breast picks that side; tapping the other one too selects both; tapping a selected one when both are picked leaves only the other. The Left/Right/Both control stays as well.
 - As built: each gauge is a 270° dial (blue below target, green once ≥ 8) with the 8–12 band marked in green on the outer edge. The count sits in a soft round warm centre, on a faint round warm backdrop, with L/R below. `pumpCounts()` in `src/lib/pump.ts` (tested): a running session counts once it reaches 15 min; deleted entries never count.
 
 ### C. Report ideas saved for later (2026-10-16)

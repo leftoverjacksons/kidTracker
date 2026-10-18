@@ -17,7 +17,7 @@ function arc(cx: number, cy: number, r: number, from: number, to: number) {
  * One breast's pumping gauge: a 270° dial filling toward the 8–12 target band
  * (marked on the outer edge), with the session count in the round centre.
  */
-export default function PumpGauge({ count, side }: { count: number; side: 'L' | 'R' }) {
+export default function PumpGauge({ count, side, selected = false }: { count: number; side: 'L' | 'R'; selected?: boolean }) {
   const theme = useChartTheme();
   const S = 60, c = S / 2, r = 22;
   const START = -135, SWEEP = 270, MAX = PUMP_TARGET.max;
@@ -28,7 +28,8 @@ export default function PumpGauge({ count, side }: { count: number; side: 'L' | 
   return (
     <svg className="pump-gauge" viewBox={`0 0 ${S} ${S + 10}`} role="img"
       aria-label={`${side === 'L' ? 'Left' : 'Right'}: ${count} pumping sessions of 15+ minutes in the last 24 hours (target ${PUMP_TARGET.min}–${PUMP_TARGET.max})`}>
-      <circle cx={c} cy={c} r={r + 7} fill={theme.series[1] + '1f'} />
+      <circle cx={c} cy={c} r={r + 7} fill={theme.series[1] + '1f'}
+        stroke={selected ? theme.text : 'none'} strokeWidth={selected ? 1.5 : 0} />
       <path d={arc(c, c, r, START, START + SWEEP)} stroke={theme.grid} strokeWidth={5} fill="none" strokeLinecap="round" />
       {/* target band 8–12 on the outer edge */}
       <path d={arc(c, c, r + 5.5, at(PUMP_TARGET.min), at(MAX))} stroke={GOOD} strokeWidth={2} fill="none" strokeLinecap="round" opacity={0.8} />

@@ -197,6 +197,7 @@ await sheet(A).locator('.big-btn-stop').click(); await wait(A, 1000);
 
 // Nursing on the right ends pumping on the right
 await tile(A, 'Pump').click(); await wait(A);
+if ((await sheet(A).locator('.gauge-btn').count()) !== 2) problems.push('pump sheet has no L/R gauges');
 await sheet(A).locator('ion-segment-button[value="right"]').click(); await wait(A, 300);
 await sheet(A).locator('.big-btn-start').click(); await wait(A, 1200);
 await closeSheet(A);
@@ -216,6 +217,9 @@ await amt.nth(0).fill('2'); await amt.nth(1).fill('1.5');
 await sheet(A).locator('.big-btn-stop').click(); await wait(A, 1500);
 await expectText(A, '3.5 oz', '.tile');
 
+// Meds, Temp, Tummy and Bath live under More
+if (await A.locator('.tile', { hasText: 'Bath' }).count()) problems.push('Bath tile visible before More was opened');
+await A.locator('.more-toggle').click(); await wait(A, 400);
 // Meds: add, give
 await tile(A, 'Meds').click(); await wait(A);
 await sheet(A).getByRole('button', { name: 'Add medication' }).click(); await wait(A, 300);
@@ -234,8 +238,6 @@ await closeSheet(A);
 const gauges = await A.locator('.tile', { hasText: 'Pump' }).locator('.pump-gauge').count();
 if (gauges !== 2) problems.push(`pump tile shows ${gauges} gauges`);
 // Rare tiles live under More
-if (await A.locator('.tile', { hasText: 'Growth' }).count()) problems.push('Growth tile visible before More was opened');
-await A.locator('.more-toggle').click(); await wait(A, 400);
 // Temperature, growth, bath, tummy manual
 await tile(A, 'Temp').click(); await wait(A);
 await sheet(A).locator('ion-input[type="number"] input').fill('98'); // 98.0 °F must not come back as 98.1

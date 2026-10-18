@@ -231,3 +231,8 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .more-toggle .more-chevron { margin-left: auto; opacity: 0.7; }
 .pump-gauges { display: flex; gap: 4px; margin: -6px 0 -2px -6px; }
 .pump-gauge { width: 66px; height: 77px; }
+.pump-gauges-large { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 8px 0 4px; }
+.gauge-btn { border: 0; background: none; padding: 0; -webkit-tap-highlight-color: transparent; transition: transform 80ms ease; }
+.gauge-btn:active { transform: scale(0.96); }
+.gauge-btn .pump-gauge { width: 140px; height: 163px; }
+.gauge-caption { flex-basis: 100%; margin-top: 0; }

@@ -4,6 +4,8 @@ import { useData } from '../../lib/data';
 import { buzz, useLogged } from '../../lib/feedback';
 import { useHousehold } from '../../lib/household';
 import NumberField from '../NumberField';
+import PumpGauge from '../PumpGauge';
+import { PUMP_MIN_MINUTES, PUMP_TARGET, pumpCounts } from '../../lib/pump';
 import ManualRange from './ManualRange';
 import RunningHeader from './RunningHeader';
 import { vol } from './units';
@@ -29,12 +31,31 @@ export default function PumpLog({ onDone }: { onDone: () => void }) {
     pump_right_ml: side !== 'left' && right != null ? v.toStore(right) : null,
   });
 
+  const chooseSide = (s: Side) => {
+    setSide(s);
+    if (running) void data.update(running.id, { pump_side: s });
+  };
+  // Large L/R gauges: 15+ min sessions in the last 24 h. Tapping one picks that side;
+  // tapping the other while one is picked selects both.
+  const counts = pumpCounts(data.events);
+  const tapGauge = (g: 'left' | 'right') => {
+    const other = g === 'left' ? 'right' : 'left';
+    chooseSide(side === g ? g : side === other ? 'both' : side === 'both' ? other : g);
+  };
+  const gauges = (
+    <div className="pump-gauges-large">
+      {(['left', 'right'] as const).map((g) => (
+        <button key={g} className="gauge-btn" aria-pressed={side === g || side === 'both'} onClick={() => tapGauge(g)}>
+          <PumpGauge side={g === 'left' ? 'L' : 'R'} count={counts[g]} selected={side === g || side === 'both'} />
+        </button>
+      ))}
+      <p className="hint center gauge-caption">
+        Sessions of {PUMP_MIN_MINUTES}+ min in the last 24 h · target {PUMP_TARGET.min}–{PUMP_TARGET.max} per side. Tap a breast to pick it.
+      </p>
+    </div>
+  );
   const sidePicker = (
-    <IonSegment value={side} onIonChange={(e) => {
-      const s = e.detail.value as Side;
-      setSide(s);
-      if (running) void data.update(running.id, { pump_side: s });
-    }}>
+    <IonSegment value={side} onIonChange={(e) => chooseSide(e.detail.value as Side)}>
       <IonSegmentButton value="left">Left</IonSegmentButton>
       <IonSegmentButton value="right">Right</IonSegmentButton>
       <IonSegmentButton value="both">Both</IonSegmentButton>
@@ -51,6 +72,7 @@ export default function PumpLog({ onDone }: { onDone: () => void }) {
     return (
       <>
         <RunningHeader event={running} />
+        {gauges}
         {sidePicker}
         <IonList inset>{amountFields}</IonList>
         <button className="big-btn big-btn-wide big-btn-stop" onClick={async () => {
@@ -73,6 +95,7 @@ export default function PumpLog({ onDone }: { onDone: () => void }) {
         <IonSegmentButton value="manual">Enter manually</IonSegmentButton>
       </IonSegment>
       <div className="spacer" />
+      {gauges}
       {sidePicker}
       {mode === 'timer' ? (
         <button className="big-btn big-btn-wide big-btn-start" onClick={async () => {

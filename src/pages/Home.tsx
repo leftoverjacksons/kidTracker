@@ -14,8 +14,8 @@ import { ageLabel } from '../lib/units';
 import PumpGauge from '../components/PumpGauge';
 import { pumpCounts } from '../lib/pump';
 
-const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'medicine'];
-const SECONDARY: EventType[] = ['temperature', 'growth', 'tummy_time', 'bath'];
+const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'growth'];
+const SECONDARY: EventType[] = ['medicine', 'temperature', 'tummy_time', 'bath'];
 const SIDE = { left: 'L', right: 'R' } as const;
 
 export default function Home() {
@@ -78,7 +78,11 @@ export default function Home() {
         return { text: last ? `${ago(last)}${med ? ` · ${med.name}` : ''}` : '—', live: false };
       }
       case 'temperature': return { text: last ? formatTemp(last.temp_c, settings) : '—', live: false };
-      case 'growth': return { text: last?.weight_g ? formatWeight(last.weight_g, settings) : last ? ago(last) : '—', live: false };
+      case 'growth': {
+        // Latest weight (from the newest entry that has one) and how long ago it was measured.
+        const w = data.events.find((e) => e.type === 'growth' && e.weight_g);
+        return { text: w ? `${formatWeight(w.weight_g, settings)} · ${ago(w)}` : last ? ago(last) : '—', live: false };
+      }
       case 'bath': return { text: ago(last), live: false };
       default: return { text: '—', live: false };
     }
@@ -105,7 +109,7 @@ export default function Home() {
                 const s = sub(t);
                 const pc = t === 'pump' ? pumpCounts(data.events, now) : null;
                 return (
-                  <button key={t} className={`tile ${s.live ? 'tile-live' : ''} ${pc ? 'tile-pump' : ''}`} onClick={() => setOpen(t)}>
+                  <button key={t} data-type={t} className={`tile ${s.live ? 'tile-live' : ''} ${pc ? 'tile-pump' : ''}`} onClick={() => setOpen(t)}>
                     {pc ? (
                       <span className="pump-gauges" title="Pump sessions of 15+ min, last 24 h (target 8–12 per side)">
                         <PumpGauge side="L" count={pc.left} />
@@ -133,7 +137,7 @@ export default function Home() {
               {SECONDARY.map((t) => {
                 const s = sub(t);
                 return (
-                  <button key={t} className={`tile tile-small ${s.live ? 'tile-live' : ''}`} onClick={() => setOpen(t)}>
+                  <button key={t} data-type={t} className={`tile tile-small ${s.live ? 'tile-live' : ''}`} onClick={() => setOpen(t)}>
                     <span className="tile-emoji">{META[t].emoji}</span>
                     <span className="tile-label">{t === 'tummy_time' ? 'Tummy' : META[t].label}</span>
                     <span className="tile-sub tile-sub-small">{s.text}</span>
