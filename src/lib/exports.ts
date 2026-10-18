@@ -45,11 +45,12 @@ export async function runExport(
         const d = await fetch('v_daily_summary', 'day', fromDay);
         header = ['date', 'sleep_hours', 'night_sleep_hours', 'nap_hours', 'feeds', 'nursing_sessions',
           'nursing_left_min', 'nursing_right_min', 'bottles', `bottle_${u.volHeader}`, 'diapers', 'wet', 'dirty',
-          `pumped_${u.volHeader}`, 'tummy_time_min', 'med_doses'];
+          `pumped_${u.volHeader}`, 'tummy_time_min', 'med_doses', 'avg_hours_between_feeds', 'longest_hours_between_feeds'];
         const h = (m: unknown) => Math.round((Number(m) / 60) * 10) / 10;
         rows = d.map((r) => [r.day, h(r.sleep_min), h(r.night_sleep_min), h(r.nap_sleep_min), r.feeds, r.nursing_sessions,
           r.nursing_left_min, r.nursing_right_min, r.bottles, u.vol(r.bottle_ml as number), r.diapers, r.wet_diapers,
-          r.dirty_diapers, u.vol(r.pump_ml as number), r.tummy_min, r.med_doses]);
+          r.dirty_diapers, u.vol(r.pump_ml as number), r.tummy_min, r.med_doses,
+          r.avg_feed_interval_min == null ? '' : h(r.avg_feed_interval_min), r.longest_feed_interval_min == null ? '' : h(r.longest_feed_interval_min)]);
         break;
       }
       case 'sleep': {

@@ -10,12 +10,15 @@ import PumpLog from './log/PumpLog';
 import TempLog from './log/TempLog';
 import TimerLog from './log/TimerLog';
 import Sheet from './Sheet';
+import StillRunning from './StillRunning';
+import { TIMED_TYPES, type TimedType } from '../lib/types';
 
 export default function LogSheet({ type, onClose }: { type: EventType | null; onClose: () => void }) {
   return (
     <Sheet open={type != null} title={type ? `${META[type].emoji} ${META[type].label}` : ''} onClose={onClose}>
       {type && (
         <div className="log-body" style={{ ['--acc' as string]: `var(--acc-${type})` }}>
+          {(TIMED_TYPES as readonly string[]).includes(type) && <StillRunning only={type as TimedType} />}
           <Body type={type} onDone={onClose} />
         </div>
       )}

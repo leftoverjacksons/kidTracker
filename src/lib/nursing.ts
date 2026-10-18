@@ -56,7 +56,6 @@ export const FEED_GAP_MIN = 20;
  * Start time of the most recent feed, treating nursing entries that begin within
  * FEED_GAP_MIN of the previous one's end as the same feed. `events` must be
  * newest first; only finished nursing entries are considered.
- * (Display only; the report views still count entries until the SQL grouping lands.)
  */
 export function lastFeedStart(events: { type: string; started_at: string; ended_at: string | null }[]): Date | null {
   const nursing = events.filter((e) => e.type === 'nursing' && e.ended_at);
@@ -68,4 +67,21 @@ export function lastFeedStart(events: { type: string; started_at: string; ended_
     start = new Date(Math.min(start.getTime(), new Date(e.started_at).getTime()));
   }
   return start;
+}
+
+/**
+ * Number of feeds starting at or after `from`, grouped like v_feed_sessions (migration 0004):
+ * finished nursing entries and bottles starting within FEED_GAP_MIN of everything before them ending are one feed.
+ */
+export function countFeeds(events: { type: string; started_at: string; ended_at: string | null }[], from: Date): number {
+  const feeds = events
+    .filter((e) => e.type === 'bottle' || (e.type === 'nursing' && e.ended_at))
+    .map((e) => ({ s: new Date(e.started_at).getTime(), e: new Date(e.ended_at ?? e.started_at).getTime() }))
+    .sort((a, b) => a.s - b.s);
+  let n = 0, prevEnd = -Infinity;
+  for (const f of feeds) {
+    if (f.s - prevEnd > FEED_GAP_MIN * 60_000 && f.s >= from.getTime()) n++;
+    prevEnd = Math.max(prevEnd, f.e);
+  }
+  return n;
 }

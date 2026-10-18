@@ -82,6 +82,10 @@ export default function Reports() {
         { label: 'Naps', data: rows.map((r) => r.nap_sleep_min) },
       ],
       feeds: [{ label: 'Feeds', data: rows.map((r) => r.feeds) }],
+      feedGap: [
+        { label: 'Average', data: rows.map((r) => r.avg_feed_interval_min) },
+        { label: 'Longest', data: rows.map((r) => r.longest_feed_interval_min) },
+      ],
       bottle: [{ label: 'Bottle', data: rows.map((r) => toVol(r.bottle_ml)) }],
       nursing: [
         { label: 'Left', data: rows.map((r) => r.nursing_left_min) },
@@ -138,7 +142,12 @@ export default function Reports() {
               <BarChart partialLast={view.partial} integer minutesAxis title="Longest sleep stretch" labels={view.labels} series={view.longest} format={fmtHours}
                 note="The longest single sleep that started that day." />
             )}
-            <BarChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} />
+            <BarChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount}
+              note="Entries less than 20 minutes apart count as one feed." />
+            {view.has('longest_feed_interval_min') && (
+              <BarChart partialLast={view.partial} integer minutesAxis title="Time between feeds" labels={view.labels} series={view.feedGap} format={fmtHours}
+                note={`Start of one feed to the start of the next, by the day the feed started.${view.avg.feedIntervalMin ? ` Typical: every ${formatDuration(view.avg.feedIntervalMin * 60_000)}.` : ''}`} />
+            )}
             {view.has('bottle_ml') && <BarChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle} format={fmtVolAxis} />}
             {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
               <BarChart partialLast={view.partial} integer title="Nursing minutes per day" labels={view.labels} series={view.nursing} stacked format={fmtMin} />}

@@ -7,6 +7,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 const DIR = process.argv[2], OUT = process.argv[3];
 const SECRET = 'local-test-secret-local-test-secret-123';
@@ -344,6 +345,30 @@ await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 600);
 await A.evaluate(() => { location.hash = '#/home?log=bottle'; }); await wait(A, 1200);
 if (!(await sheet(A).locator('ion-title', { hasText: 'Bottle' }).count())) problems.push('shortcut #/home?log=bottle did not open the Bottle sheet');
 await closeSheet(A);
+
+// ── "Still running?" check: a tummy timer Parent B started 45 min ago (threshold 30)
+const psql = (q) => execFileSync('psql', ['-qtA', '-d', 'kidtracker_e2e', '-c', q], { encoding: 'utf8' }).trim();
+psql(`insert into events (baby_id, type, started_at, created_by) select id, 'tummy_time', now() - interval '45 minutes',
+  '00000000-0000-0000-0000-00000000000b' from babies limit 1`);
+await refresh(A); await wait(A, 600);
+await expectText(A, 'Tummy time has been running 45m');
+await expectText(A, 'by Parent B', '.still-running');
+await A.locator('.ion-page:not(.ion-page-hidden) ion-content').first().evaluate((el) => el.scrollToTop(0)); await wait(A, 300);
+await shot(A, 'still-running');
+await A.locator('.still-running ion-button', { hasText: 'Yes, still going' }).click(); await wait(A, 400);
+if (await A.locator('.still-running').count()) problems.push('"Yes, still going" did not hide the check');
+await B.locator('ion-tab-button[tab="home"]').click(); await refresh(B);
+await expectText(B, 'Still going?', '.still-running'); // snoozing is per phone
+await B.locator('.still-running ion-button', { hasText: 'It ended at' }).click(); await wait(B, 300);
+const endLocal = await B.evaluate(() => {
+  const d = new Date(Date.now() - 25 * 60_000), p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+});
+await B.locator('.still-running ion-input input').fill(endLocal); await wait(B, 300);
+await B.locator('.still-running ion-button', { hasText: 'Save end time' }).click(); await wait(B, 1200);
+const tummyMin = psql(`select round(extract(epoch from ended_at - started_at) / 60) from events where type = 'tummy_time' and started_at between now() - interval '50 minutes' and now() - interval '40 minutes'`);
+if (!['19', '20', '21'].includes(tummyMin)) problems.push(`"It ended at" saved ${tummyMin} min of tummy time, expected ~20`);
+if (await B.locator('.still-running').count()) problems.push('check still showing after saving an end time');
 
 // ── Settings: set sex for growth percentiles
 await A.locator('ion-tab-button[tab="settings"]').click(); await wait(A, 800);

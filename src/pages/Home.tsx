@@ -8,10 +8,11 @@ import { useData, useNow } from '../lib/data';
 import { diaperLabel, META } from '../lib/describe';
 import { formatAgo, formatClock, formatDuration, formatTemp, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
-import { activeSide, lastFeedStart, lastSide, sideTotals } from '../lib/nursing';
+import { activeSide, countFeeds, lastFeedStart, lastSide, sideTotals } from '../lib/nursing';
 import type { EventRow, EventType } from '../lib/types';
 import { ageLabel } from '../lib/units';
 import PumpGauge from '../components/PumpGauge';
+import StillRunning from '../components/StillRunning';
 import { pumpCounts } from '../lib/pump';
 
 const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'growth'];
@@ -104,6 +105,7 @@ export default function Home() {
         </IonRefresher>
         {!data.ready ? <div className="centered"><IonSpinner /></div> : (
           <>
+            <StillRunning />
             <div className="tile-grid">
               {PRIMARY.map((t) => {
                 const s = sub(t);
@@ -149,7 +151,7 @@ export default function Home() {
                 </>
               );
             })()}
-            <TodaySummary events={today} />
+            <TodaySummary events={today} feeds={countFeeds(data.events, startOfDay(now))} />
             {today.length === 0
               ? <p className="empty">Nothing logged today.</p>
               : <EventList events={today} onOpen={setEditing} groupByDay={false} />}
@@ -162,17 +164,16 @@ export default function Home() {
   );
 }
 
-function TodaySummary({ events }: { events: EventRow[] }) {
+function TodaySummary({ events, feeds }: { events: EventRow[]; feeds: number }) {
   const { settings } = useHousehold();
   const now = useNow(60_000);
-  let sleepMs = 0, feeds = 0, bottleMl = 0, wet = 0, dirty = 0;
+  let sleepMs = 0, bottleMl = 0, wet = 0, dirty = 0;
   const dayStart = startOfDay(now).getTime();
   for (const e of events) {
     if (e.type === 'sleep') {
       const end = e.ended_at ? new Date(e.ended_at).getTime() : now.getTime();
       sleepMs += end - Math.max(dayStart, new Date(e.started_at).getTime());
     }
-    if (e.type === 'nursing' || e.type === 'bottle') feeds++;
     if (e.type === 'bottle') bottleMl += e.bottle_ml ?? 0;
     if (e.type === 'diaper') { if (e.diaper_wet) wet++; if (e.diaper_dirty) dirty++; }
   }

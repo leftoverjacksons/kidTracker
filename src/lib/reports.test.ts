@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { averages, completeDays, csvUnits, daysOld, diaperGuide, fillDays, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
+import { averages, completeDays, csvUnits, daysOld, diaperGuide, feedInterval, fillDays, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
 import { DEFAULT_SETTINGS } from './types';
 
 describe('reports', () => {
@@ -57,5 +57,13 @@ describe('report helpers (round 2)', () => {
     ]);
     expect(m.get('2026-10-11')).toBe(150);
     expect(m.get('2026-10-12')).toBe(40);
+  });
+});
+
+describe('feedInterval', () => {
+  it('weights daily averages by feeds and skips days without one', () => {
+    const r = (feeds: number, avg: number) => ({ day: 'x', feeds, avg_feed_interval_min: avg }) as never;
+    expect(feedInterval([r(8, 180), r(10, 144), r(0, 0)])).toBe(160);
+    expect(feedInterval([])).toBe(0);
   });
 });

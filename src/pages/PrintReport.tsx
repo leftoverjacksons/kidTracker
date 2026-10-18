@@ -81,20 +81,20 @@ export default function PrintReport({ days }: { days: number }) {
           <tr><th>Sleep</th><td>{h(avg.sleepMin)}</td><th>Feeds</th><td>{avg.feeds.toFixed(1)}</td></tr>
           <tr><th>Bottle</th><td>{formatVolume(avg.bottleMl, settings)}</td><th>Nursing</th><td>{h(avg.nursingMin)}</td></tr>
           <tr><th>Wet diapers</th><td>{avg.wet.toFixed(1)}</td><th>Dirty diapers</th><td>{avg.dirty.toFixed(1)}</td></tr>
-          <tr><th>Longest sleep</th><td>{h(avgLongest)}</td><th></th><td></td></tr>
+          <tr><th>Longest sleep</th><td>{h(avgLongest)}</td><th>Time between feeds</th><td>{avg.feedIntervalMin ? h(avg.feedIntervalMin) : '–'}</td></tr>
         </tbody>
       </table></div>
 
       <h2>By day</h2>
       <div className="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Sleep</th><th>Night</th><th>Naps</th><th>Longest</th><th>Feeds</th><th>Nursing L/R</th><th>Bottle</th><th>Wet</th><th>Dirty</th></tr></thead>
+        <thead><tr><th>Date</th><th>Sleep</th><th>Night</th><th>Naps</th><th>Longest</th><th>Feeds</th><th>Longest gap</th><th>Nursing L/R</th><th>Bottle</th><th>Wet</th><th>Dirty</th></tr></thead>
         <tbody>
           {daily.map((r) => (
             <tr key={r.day}>
               <td className="nowrap">{shortDay(r.day)}{r.day === today ? ' (so far)' : ''}</td><td>{h(r.sleep_min)}</td><td>{h(r.night_sleep_min)}</td><td>{h(r.nap_sleep_min)}</td>
               <td>{longest.get(r.day) ? h(longest.get(r.day)!) : '–'}</td>
-              <td>{r.feeds}</td><td>{r.nursing_left_min}/{r.nursing_right_min} m</td>
+              <td>{r.feeds}</td><td>{r.longest_feed_interval_min ? h(r.longest_feed_interval_min) : '–'}</td><td>{r.nursing_left_min}/{r.nursing_right_min} m</td>
               <td>{r.bottle_ml ? formatVolume(r.bottle_ml, settings) : '–'}</td><td>{r.wet_diapers}</td><td>{r.dirty_diapers}</td>
             </tr>
           ))}

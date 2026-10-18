@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeSide, lastFeedStart, lastSide, manualSegments, sideTotals } from './nursing';
+import { activeSide, countFeeds, lastFeedStart, lastSide, manualSegments, sideTotals } from './nursing';
 import type { NursingSegment } from './types';
 
 const seg = (side: 'left' | 'right', start: string, end: string | null): NursingSegment =>
@@ -46,5 +46,18 @@ describe('lastFeedStart', () => {
       n('2026-10-15T09:00:00Z', '2026-10-15T09:20:00Z')];
     expect(lastFeedStart(ev)?.toISOString()).toBe('2026-10-15T09:00:00.000Z');
     expect(lastFeedStart([])).toBeNull();
+  });
+});
+
+describe('countFeeds', () => {
+  const ev = (type: string, s: string, e: string | null) => ({ type, started_at: `2026-10-18T${s}:00Z`, ended_at: e && `2026-10-18T${e}:00Z` });
+  it('groups like the database view', () => {
+    const list = [
+      ev('nursing', '10:00', '10:10'), ev('nursing', '10:20', '10:30'), ev('nursing', '10:45', '10:55'), ev('bottle', '11:05', null),
+      ev('nursing', '13:00', '13:15'), ev('nursing', '13:36', '13:50'), ev('nursing', '15:00', null), // running: not counted
+    ];
+    expect(countFeeds(list, new Date('2026-10-18T00:00:00Z'))).toBe(3);
+    // A feed that started before `from` isn't counted, even if part of it is after.
+    expect(countFeeds(list, new Date('2026-10-18T10:15:00Z'))).toBe(2);
   });
 });

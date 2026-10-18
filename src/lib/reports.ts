@@ -10,12 +10,14 @@ export interface DailyRow {
   bottles: number; bottle_ml: number; feeds: number;
   diapers: number; wet_diapers: number; dirty_diapers: number;
   pump_ml: number; tummy_min: number; med_doses: number;
+  // Added by migration 0004 (0 when there's no previous feed yet).
+  feed_entries: number; avg_feed_interval_min: number; longest_feed_interval_min: number;
 }
 
 const ZERO: Omit<DailyRow, 'day'> = {
   sleep_min: 0, night_sleep_min: 0, nap_sleep_min: 0, sleeps: 0, nursing_sessions: 0, nursing_left_min: 0,
   nursing_right_min: 0, bottles: 0, bottle_ml: 0, feeds: 0, diapers: 0, wet_diapers: 0, dirty_diapers: 0,
-  pump_ml: 0, tummy_min: 0, med_doses: 0,
+  pump_ml: 0, tummy_min: 0, med_doses: 0, feed_entries: 0, avg_feed_interval_min: 0, longest_feed_interval_min: 0,
 };
 
 export const isoDay = (d: Date) =>
@@ -62,7 +64,15 @@ export function averages(rows: DailyRow[]) {
     sleepMin: sum('sleep_min') / n, feeds: sum('feeds') / n, bottleMl: sum('bottle_ml') / n,
     wet: sum('wet_diapers') / n, dirty: sum('dirty_diapers') / n, pumpMl: sum('pump_ml') / n,
     nursingMin: (sum('nursing_left_min') + sum('nursing_right_min')) / n, tummyMin: sum('tummy_min') / n,
+    feedIntervalMin: feedInterval(rows),
   };
+}
+
+/** Typical start-to-start time between feeds: daily averages weighted by that day's feeds. */
+export function feedInterval(rows: DailyRow[]): number {
+  const days = rows.filter((r) => r.avg_feed_interval_min > 0 && r.feeds > 0);
+  const w = days.reduce((a, r) => a + r.feeds, 0);
+  return w ? days.reduce((a, r) => a + r.avg_feed_interval_min * r.feeds, 0) / w : 0;
 }
 
 // ───────────── CSV ─────────────

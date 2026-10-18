@@ -601,7 +601,7 @@ Fix:
 
 **E4. Visual style — built (2026-10-18): tinted cards (option B).** Each category has an accent colour, and tiles carry a soft diagonal wash of it, with tuned light and dark variants (`--acc-*` in `app.css`). Big tiles put the icon top-right and the label and status bottom-left. Logging-screen choice buttons wear their category's wash. Options A (soft accents) and C (minimal outline) were mocked up and not chosen.
 
-**E5. "Still running?" check — proposed (2026-10-18).** When a timer runs unusually long, ask the person who started it whether it's still valid.
+**E5. "Still running?" check — Phase 1 built (2026-10-18).** When a timer runs unusually long, ask the person who started it whether it's still valid.
 - **Phase 1, app-only:**
   - Show a banner on Home and on the running sheet once a timer passes a threshold, e.g. "Sleep has been running 5 h 10 m — still asleep?", with **Yes, still going** / **It ended at…** (time picker) / **Discard**.
   - Show it to everyone, but address the starter by name.
@@ -609,13 +609,14 @@ Fix:
 - **Phase 2, needs Supabase (owner steps):**
   - Real push notifications to the starter's phone even when the app is closed: Web Push from a scheduled Supabase Edge Function (pg_cron), plus a `push_subscriptions` table.
   - Android Chrome supports this for installed PWAs.
-- Proposed thresholds (to confirm): sleep 4 h · nursing 60 min · pumping 45 min · tummy time 30 min.
+- Thresholds (confirmed): sleep 4 h · nursing 60 min · pumping 30 min · tummy time 30 min (`src/lib/longRunning.ts`).
+- As built: the card shows on Home and at the top of that timer's sheet, on both phones, with "Started … by <name / you>". **Yes, still going** snoozes on that phone only, for one more threshold interval. **It ended at…** stops the timer at the chosen time, with Undo. **Discard** deletes the entry, with Undo.
 
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).
 - **Growth charts in weeks** for the first 3 months (age axis currently in months).
-- **Time between feeds** (start to start, typical and longest overnight). **Needs the feed grouping (A)**, so it goes with migration 0004.
+- **Time between feeds** — built 2026-10-18: Reports chart (daily average and longest, start to start), typical interval in the chart note, columns in the daily CSV and pediatrician summary. Home's "Today · feeds" uses the same 20-min grouping (`countFeeds`).
 - **Daily charts on the timeline's day cutoff** instead of midnight, so "sleep per day" means the same in both places. Needs a view change, so it also goes with 0004.
 - **Pediatrician summary:** add weight-change numbers (birth weight, lowest %, regain age) and diapers by day of life.
 - **Discoverability:** a "tap a bar for details" hint or a direct label on the latest bar.
