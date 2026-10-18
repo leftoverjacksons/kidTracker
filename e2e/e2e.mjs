@@ -417,6 +417,13 @@ await A.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-print.png`
 await A.getByRole('button', { name: /back/i }).click(); await wait(A, 1000);
 await expectText(A, 'Daily average');
 
+// Light-mode look of Home and a logging sheet
+await A.emulateMedia({ colorScheme: 'light' });
+await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 800);
+await shot(A, 'home-light');
+await tile(A, 'Sleep').click(); await wait(A); await shot(A, 'sleep-sheet-light'); await closeSheet(A);
+if (await A.locator('.tile img.type-icon').count() < 6) problems.push('tile icons missing');
+
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'E2E OK');
 await browser.close(); srv.close();
 process.exitCode = problems.length ? 1 : 0;

@@ -601,6 +601,8 @@ Fix:
 
 **E4. Visual style — built (2026-10-18): tinted cards (option B).** Each category has an accent colour, and tiles carry a soft diagonal wash of it, with tuned light and dark variants (`--acc-*` in `app.css`). Big tiles put the icon top-right and the label and status bottom-left. Logging-screen choice buttons wear their category's wash. Options A (soft accents) and C (minimal outline) were mocked up and not chosen.
 
+**E4b. Illustrated icons — built (2026-10-18).** The emoji are replaced by a flat illustrated set (navy outline, periwinkle and mint fills) that the owner supplied as one image. Each icon was cut out to `src/assets/icons/*.webp` (192 px, transparent background). The set had no pump or note icon, so `pump.svg` and `note.svg` were drawn to match. Rendered by `TypeIcon`. In dark mode a faint light edge keeps the navy outlines visible.
+
 **E5. "Still running?" check — Phase 1 built (2026-10-18).** When a timer runs unusually long, ask the person who started it whether it's still valid.
 - **Phase 1, app-only:**
   - Show a banner on Home and on the running sheet once a timer passes a threshold, e.g. "Sleep has been running 5 h 10 m — still asleep?", with **Yes, still going** / **It ended at…** (time picker) / **Discard**.

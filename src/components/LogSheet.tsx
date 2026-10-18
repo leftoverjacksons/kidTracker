@@ -12,10 +12,11 @@ import TimerLog from './log/TimerLog';
 import Sheet from './Sheet';
 import StillRunning from './StillRunning';
 import { TIMED_TYPES, type TimedType } from '../lib/types';
+import TypeIcon from './TypeIcon';
 
 export default function LogSheet({ type, onClose }: { type: EventType | null; onClose: () => void }) {
   return (
-    <Sheet open={type != null} title={type ? `${META[type].emoji} ${META[type].label}` : ''} onClose={onClose}>
+    <Sheet open={type != null} title={type ? <span className="sheet-title"><TypeIcon type={type} />{META[type].label}</span> : ''} onClose={onClose}>
       {type && (
         <div className="log-body" style={{ ['--acc' as string]: `var(--acc-${type})` }}>
           {(TIMED_TYPES as readonly string[]).includes(type) && <StillRunning only={type as TimedType} />}

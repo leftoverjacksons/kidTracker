@@ -7,6 +7,7 @@ import WeekTimeline from '../components/timeline/WeekTimeline';
 import { useData } from '../lib/data';
 import { META } from '../lib/describe';
 import type { EventRow, EventType } from '../lib/types';
+import TypeIcon from '../components/TypeIcon';
 
 const FILTERS: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'medicine', 'temperature', 'growth', 'tummy_time', 'bath'];
 
@@ -39,7 +40,7 @@ export default function History() {
           <div className="ion-padding-horizontal"><WeekTimeline onEdit={setEditing} /></div>
         ) : (<>
         <div className="ion-padding-horizontal filter-row">
-          <Chips options={FILTERS.map((t) => ({ value: t, label: `${META[t].emoji} ${META[t].label}` }))}
+          <Chips options={FILTERS.map((t) => ({ value: t, label: <span className="chip-label"><TypeIcon type={t} />{META[t].label}</span> }))}
             value={filter} onChange={setFilter} />
         </div>
         {list.length === 0 ? <p className="empty">No entries.</p> : <EventList events={list} onOpen={setEditing} />}

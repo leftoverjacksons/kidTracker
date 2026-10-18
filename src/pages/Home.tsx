@@ -14,6 +14,7 @@ import { ageLabel } from '../lib/units';
 import PumpGauge from '../components/PumpGauge';
 import StillRunning from '../components/StillRunning';
 import { pumpCounts } from '../lib/pump';
+import TypeIcon from '../components/TypeIcon';
 
 const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'growth'];
 const SECONDARY: EventType[] = ['medicine', 'temperature', 'tummy_time', 'bath'];
@@ -117,7 +118,7 @@ export default function Home() {
                         <PumpGauge side="L" count={pc.left} />
                         <PumpGauge side="R" count={pc.right} />
                       </span>
-                    ) : <span className="tile-emoji">{META[t].emoji}</span>}
+                    ) : <span className="tile-emoji"><TypeIcon type={t} /></span>}
                     <span className="tile-label">{META[t].label}</span>
                     <span className="tile-sub">{s.live && <span className="live-dot" />}{s.text}</span>
                   </button>
@@ -131,7 +132,7 @@ export default function Home() {
                 <>
                   <button className="more-toggle" onClick={toggleMore} aria-expanded={show}>
                     <span>{show ? 'Less' : 'More'}</span>
-                    <span className="more-hint">{SECONDARY.map((t) => META[t].emoji).join(' ')}</span>
+                    <span className="more-hint">{SECONDARY.map((t) => <TypeIcon key={t} type={t} />)}</span>
                     <span className="more-chevron">{show ? '▴' : '▾'}</span>
                   </button>
                   {show && (
@@ -140,7 +141,7 @@ export default function Home() {
                 const s = sub(t);
                 return (
                   <button key={t} data-type={t} className={`tile tile-small ${s.live ? 'tile-live' : ''}`} onClick={() => setOpen(t)}>
-                    <span className="tile-emoji">{META[t].emoji}</span>
+                    <span className="tile-emoji"><TypeIcon type={t} /></span>
                     <span className="tile-label">{t === 'tummy_time' ? 'Tummy' : META[t].label}</span>
                     <span className="tile-sub tile-sub-small">{s.text}</span>
                   </button>

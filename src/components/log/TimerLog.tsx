@@ -7,6 +7,7 @@ import { buzz, useLogged } from '../../lib/feedback';
 import TimeField from '../TimeField';
 import ManualRange from './ManualRange';
 import RunningHeader from './RunningHeader';
+import TypeIcon from '../TypeIcon';
 
 /** Sleep and tummy time: shared start/stop timer, or manual entry. */
 export default function TimerLog({ type, onDone }: { type: 'sleep' | 'tummy_time'; onDone: () => void }) {
@@ -49,7 +50,7 @@ export default function TimerLog({ type, onDone }: { type: 'sleep' | 'tummy_time
           const stopped = await data.autoStop({ kind: type === 'sleep' ? 'start_sleep' : 'start_tummy' });
           await data.startTimer(type);
           if (stopped.length) logged(`${label} started`, undefined, stopped);
-        }}><span>{META[type].emoji}</span>Start {label.toLowerCase()}</button>
+        }}><TypeIcon type={type} />Start {label.toLowerCase()}</button>
       ) : (
         <ManualRange defaultMinutes={type === 'sleep' ? 60 : 10} onSave={async (start, end, notes) => {
           const e = await data.add(type, { started_at: start.toISOString(), ended_at: end.toISOString(), notes });

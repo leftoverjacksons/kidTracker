@@ -4,6 +4,7 @@ import { META, summarize } from '../lib/describe';
 import { formatDayHeading, formatTime, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import type { EventRow } from '../lib/types';
+import TypeIcon from './TypeIcon';
 
 /** Entries grouped by day, newest first. Tapping one opens it for editing. */
 export default function EventList({ events, onOpen, groupByDay = true }: {
@@ -26,7 +27,7 @@ export default function EventList({ events, onOpen, groupByDay = true }: {
             const who = e.created_by ? names[e.created_by] : null;
             return (
               <IonItem key={e.id} button detail={false} onClick={() => onOpen(e)}>
-                <span slot="start" className="row-emoji">{META[e.type].emoji}</span>
+                <span slot="start" className="row-emoji"><TypeIcon type={e.type} /></span>
                 <IonLabel>
                   <h3>{META[e.type].label}</h3>
                   <p>{summarize(e, settings, meds, now)}</p>

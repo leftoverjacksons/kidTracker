@@ -9,6 +9,7 @@ import { sideTotals } from '../../lib/nursing';
 import { columnBlocks, dayColumns, hourTicks, snap, type Block } from '../../lib/timeline';
 import type { EventRow } from '../../lib/types';
 import { useChartTheme } from '../charts/theme';
+import TypeIcon from '../TypeIcon';
 
 const PREFS_KEY = 'kt.timeline';
 const MIN = 60_000;
@@ -434,7 +435,7 @@ function DetailCard({ e, names, settings, onClose, onNudge, onEdit }: {
   return (
     <div className="tl-card" onPointerDown={stop}>
       <div className="tl-card-head">
-        <b>{META[e.type].emoji} {META[e.type].label}</b>
+        <b className="tl-card-title"><TypeIcon type={e.type} />{META[e.type].label}</b>
         <IonButton fill="clear" size="small" aria-label="Close" onClick={onClose}><IonIcon slot="icon-only" icon={close} /></IonButton>
       </div>
       <div className="tl-card-detail">{detail}</div>

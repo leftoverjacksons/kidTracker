@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 /** Bottom sheet used for every logging screen. */
 export default function Sheet({ open, title, onClose, children }: {
-  open: boolean; title: string; onClose: () => void; children: ReactNode;
+  open: boolean; title: ReactNode; onClose: () => void; children: ReactNode;
 }) {
   return (
     <IonModal isOpen={open} onDidDismiss={onClose} initialBreakpoint={1} breakpoints={[0, 1]}>

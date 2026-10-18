@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#051b3d" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+  <!-- flange (funnel) -->
+  <path d="M112 92 L56 44 Q40 30 30 50 L22 74 Q14 96 36 104 L104 122 Z" fill="#9ae5d5"/>
+  <ellipse cx="28" cy="76" rx="12" ry="30" transform="rotate(18 28 76)" fill="#b3d3fc"/>
+  <!-- body -->
+  <rect x="100" y="60" width="64" height="64" rx="16" fill="#9bc4fc"/>
+  <!-- collar -->
+  <rect x="88" y="120" width="88" height="26" rx="8" fill="#9bc4fc"/>
+  <!-- bottle -->
+  <path d="M96 146 H168 V220 Q168 238 150 238 H114 Q96 238 96 220 Z" fill="#fdfdfd"/>
+  <path d="M102 196 H162 V218 Q162 232 148 232 H116 Q102 232 102 218 Z" fill="#9ae5d5" stroke="none"/>
+  <path d="M96 146 H168 V220 Q168 238 150 238 H114 Q96 238 96 220 Z"/>
+  <path d="M120 172 H144" stroke="#46b6a7"/>
+</svg>

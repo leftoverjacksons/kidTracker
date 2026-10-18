@@ -1,8 +1,9 @@
 import { IonChip, IonLabel } from '@ionic/react';
+import type { ReactNode } from 'react';
 
 /** Single-select chip row; tapping the selected chip clears it when `clearable`. */
 export default function Chips<T extends string | number>({ options, value, onChange, clearable = true }: {
-  options: { value: T; label: string }[]; value: T | null; onChange: (v: T | null) => void; clearable?: boolean;
+  options: { value: T; label: ReactNode }[]; value: T | null; onChange: (v: T | null) => void; clearable?: boolean;
 }) {
   return (
     <div className="chips">
