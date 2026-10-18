@@ -230,6 +230,12 @@ await shot(A, 'meds-sheet');
 await expectText(A, 'Next allowed tomorrow');
 await closeSheet(A);
 
+// Pump tile shows two gauges (L/R); the short test sessions don't count (need 15+ min)
+const gauges = await A.locator('.tile', { hasText: 'Pump' }).locator('.pump-gauge').count();
+if (gauges !== 2) problems.push(`pump tile shows ${gauges} gauges`);
+// Rare tiles live under More
+if (await A.locator('.tile', { hasText: 'Growth' }).count()) problems.push('Growth tile visible before More was opened');
+await A.locator('.more-toggle').click(); await wait(A, 400);
 // Temperature, growth, bath, tummy manual
 await tile(A, 'Temp').click(); await wait(A);
 await sheet(A).locator('ion-input[type="number"] input').fill('98'); // 98.0 °F must not come back as 98.1

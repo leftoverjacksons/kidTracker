@@ -221,3 +221,13 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
   .print-page th, .print-page td { padding: 3px 5px; }
 }
 @media print { .print-page .table-wrap { overflow: visible; } }
+
+/* ── Home: More toggle and pump gauges ── */
+.more-toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 12px; padding: 10px 14px;
+  border: 0; border-radius: 14px; background: var(--tile-bg); color: var(--tile-fg); font: inherit; font-weight: 600;
+}
+.more-toggle .more-hint { opacity: 0.75; font-weight: 400; letter-spacing: 2px; }
+.more-toggle .more-chevron { margin-left: auto; opacity: 0.7; }
+.pump-gauges { display: flex; gap: 4px; margin: -6px 0 -2px -6px; }
+.pump-gauge { width: 66px; height: 77px; }

@@ -11,6 +11,8 @@ import { useHousehold } from '../lib/household';
 import { activeSide, lastFeedStart, lastSide, sideTotals } from '../lib/nursing';
 import type { EventRow, EventType } from '../lib/types';
 import { ageLabel } from '../lib/units';
+import PumpGauge from '../components/PumpGauge';
+import { pumpCounts } from '../lib/pump';
 
 const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'medicine'];
 const SECONDARY: EventType[] = ['temperature', 'growth', 'tummy_time', 'bath'];
@@ -22,6 +24,9 @@ export default function Home() {
   const now = useNow();
   const [open, setOpen] = useState<EventType | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
+  // Rarely used tiles live under "More" (design doc §8a E2); open/closed is remembered per phone.
+  const [moreOpen, setMoreOpen] = useState(() => { try { return localStorage.getItem('kt.homeMore') === '1'; } catch { return false; } });
+  const toggleMore = () => setMoreOpen((o) => { try { localStorage.setItem('kt.homeMore', o ? '0' : '1'); } catch { /* ignore */ } return !o; });
   const location = useLocation();
   const history = useHistory();
 
@@ -98,15 +103,32 @@ export default function Home() {
             <div className="tile-grid">
               {PRIMARY.map((t) => {
                 const s = sub(t);
+                const pc = t === 'pump' ? pumpCounts(data.events, now) : null;
                 return (
-                  <button key={t} className={`tile ${s.live ? 'tile-live' : ''}`} onClick={() => setOpen(t)}>
-                    <span className="tile-emoji">{META[t].emoji}</span>
+                  <button key={t} className={`tile ${s.live ? 'tile-live' : ''} ${pc ? 'tile-pump' : ''}`} onClick={() => setOpen(t)}>
+                    {pc ? (
+                      <span className="pump-gauges" title="Pump sessions of 15+ min, last 24 h (target 8–12 per side)">
+                        <PumpGauge side="L" count={pc.left} />
+                        <PumpGauge side="R" count={pc.right} />
+                      </span>
+                    ) : <span className="tile-emoji">{META[t].emoji}</span>}
                     <span className="tile-label">{META[t].label}</span>
                     <span className="tile-sub">{s.live && <span className="live-dot" />}{s.text}</span>
                   </button>
                 );
               })}
             </div>
+            {(() => {
+              const secondaryLive = SECONDARY.some((t) => sub(t).live);
+              const show = moreOpen || secondaryLive;
+              return (
+                <>
+                  <button className="more-toggle" onClick={toggleMore} aria-expanded={show}>
+                    <span>{show ? 'Less' : 'More'}</span>
+                    <span className="more-hint">{SECONDARY.map((t) => META[t].emoji).join(' ')}</span>
+                    <span className="more-chevron">{show ? '▴' : '▾'}</span>
+                  </button>
+                  {show && (
             <div className="tile-grid tile-grid-small">
               {SECONDARY.map((t) => {
                 const s = sub(t);
@@ -119,6 +141,10 @@ export default function Home() {
                 );
               })}
             </div>
+                  )}
+                </>
+              );
+            })()}
             <TodaySummary events={today} />
             {today.length === 0
               ? <p className="empty">Nothing logged today.</p>
