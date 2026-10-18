@@ -568,6 +568,29 @@ Fix:
 - Other stored units were checked: ml, g and cm at 0.1 are finer than their display resolution.
 - Tests: a database test (exact round-trip, daily view unchanged) and an e2e test (enter 98 → shows 98 °F).
 
+### E. Interface requests (2026-10-18) — app-only, no Supabase step
+
+**E1. Auto-stop conflicting timers.** Starting or logging something that means the baby is awake should automatically finish a running sleep, ending it at the new entry's start time. In the other direction, starting a sleep finishes a running feed or tummy time.
+- Proposed rules (to confirm):
+
+  | Action (logged for "now") | Stops |
+  |---|---|
+  | Start nursing, log a bottle, start tummy time, log a bath | running **sleep** |
+  | Start sleep | running **nursing** and **tummy time** |
+  | Log a bottle while nursing is running | running **nursing** (a top-up after the breast) |
+  | Diaper | open question: a change often wakes the baby, but not always |
+  | Meds, temperature, growth, pumping | nothing (can happen while asleep, or concerns the parent) |
+- Only for entries timed at **now**. A back-dated manual entry never stops a running timer.
+- Uses the existing `stop_timer` function, so it is safe when both phones act at once. The toast says what was stopped, e.g. "Sleep ended at 2:10", with **Undo**.
+
+**E2. Home screen redesign.** Keep the frequent actions large; move rarely used ones (Growth/weight, Tummy time, Bath, possibly Temp) off the main grid, into a "More" tile/sheet or a separate tab. Layout options are being discussed.
+
+**E3. Pump gauges ("odometers") on the Pump tile.** Replace the 🥛 icon with **two gauges, Left and Right**. Each shows how many pumping sessions of **at least 15 minutes** that side has had, against a **target band of 8–12**.
+- A session counts for a side if `pump_side` is that side or `both`.
+- Counting window (to confirm): rolling last 24 hours (how the 8–12 guidance is usually stated) or since the day cutoff.
+- Design brief: functional first (needle or arc fill, target band marked, count shown as a number, readable at a glance), with a playful, tasteful nod to the shape. The two gauges sit side by side as a pair, each with a small round hub at the needle pivot.
+- Tapping the tile still opens Pump logging.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).
