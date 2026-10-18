@@ -14,7 +14,7 @@ type Contents = 'breast_milk' | 'formula' | 'mixed';
 
 export default function BottleLog({ onDone }: { onDone: () => void }) {
   const { settings } = useHousehold();
-  const { add, latest } = useData();
+  const { add, latest, autoStop, reopen } = useData();
   const logged = useLogged();
   const v = vol(settings);
   const [amount, setAmount] = useState<number | null>(null);
@@ -24,11 +24,13 @@ export default function BottleLog({ onDone }: { onDone: () => void }) {
 
   async function save() {
     if (amount == null || amount <= 0) return;
+    const when = at ?? new Date();
+    const stopped = await autoStop({ kind: 'bottle' }, when);
     const e = await add('bottle', {
-      started_at: (at ?? new Date()).toISOString(), bottle_ml: v.toStore(amount),
+      started_at: when.toISOString(), bottle_ml: v.toStore(amount),
       bottle_contents: contents, notes: notes.trim() || null,
     });
-    if (e) { logged(`Bottle logged: ${formatVolume(e.bottle_ml, settings)}`, e.id); onDone(); }
+    if (e) { logged(`Bottle logged: ${formatVolume(e.bottle_ml, settings)}`, e.id, stopped); onDone(); } else if (stopped.length) void reopen(stopped);
   }
 
   return (

@@ -6,14 +6,16 @@ import NotesField from '../NotesField';
 import TimeField from '../TimeField';
 
 export default function BathLog({ onDone }: { onDone: () => void }) {
-  const { add } = useData();
+  const { add, autoStop, reopen } = useData();
   const logged = useLogged();
   const [at, setAt] = useState<Date | null>(null);
   const [notes, setNotes] = useState('');
 
   async function save() {
-    const e = await add('bath', { started_at: (at ?? new Date()).toISOString(), notes: notes.trim() || null });
-    if (e) { logged('Bath logged', e.id); onDone(); }
+    const when = at ?? new Date();
+    const stopped = await autoStop({ kind: 'bath' }, when);
+    const e = await add('bath', { started_at: when.toISOString(), notes: notes.trim() || null });
+    if (e) { logged('Bath logged', e.id, stopped); onDone(); } else if (stopped.length) void reopen(stopped);
   }
 
   return (

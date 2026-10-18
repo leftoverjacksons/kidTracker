@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { conflictsFor, isNow, type Action } from './conflicts';
 import { useHousehold } from './household';
 import { supabase } from './supabase';
 import type { EventFields, EventRow, EventType, Medication, TimedType } from './types';
@@ -30,6 +31,10 @@ interface Data {
   addManualNursing: (start: Date, segs: { side: 'left' | 'right'; started_at: Date; ended_at: Date }[], notes: string | null) => Promise<boolean>;
   replaceNursingSegments: (eventId: string, segs: { side: 'left' | 'right'; started_at: Date; ended_at: Date }[]) => Promise<boolean>;
   saveMedication: (m: Partial<Medication> & { name: string }) => Promise<boolean>;
+  /** End running timers that conflict with `action` done at `at` (design doc §8a E1). Returns what was ended. */
+  autoStop: (action: Action, at?: Date) => Promise<EventRow[]>;
+  /** Undo for autoStop: reopen those timers (and the nursing side that was active). */
+  reopen: (stopped: EventRow[]) => Promise<void>;
 }
 
 const Ctx = createContext<Data | null>(null);
@@ -202,6 +207,27 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
       await reload();
       return ok;
     };
+    const autoStop: Data['autoStop'] = async (action, at = new Date()) => {
+      if (!isNow(at)) return [];
+      const conflicts = conflictsFor(action, events.filter((e) => !e.ended_at));
+      const stopped: EventRow[] = [];
+      for (const e of conflicts) {
+        // Never end a timer before it started.
+        const end = new Date(Math.max(at.getTime(), new Date(e.started_at).getTime() + 1000));
+        const { error } = await client.rpc('stop_timer', { p_id: e.id, p_ended_at: end.toISOString() });
+        if (fail(error)) stopped.push(e);
+      }
+      if (stopped.length) await reload();
+      return stopped;
+    };
+    const reopen: Data['reopen'] = async (stopped) => {
+      for (const e of stopped) {
+        let ok = fail((await client.from('events').update({ ended_at: null }).eq('id', e.id)).error);
+        const open = (e.nursing_segments ?? []).find((g) => !g.ended_at);
+        if (ok && open) ok = fail((await client.from('nursing_segments').update({ ended_at: null }).eq('id', open.id)).error);
+      }
+      await reload();
+    };
     const saveMedication: Data['saveMedication'] = async (m) => {
       const ok = fail((await client.from('medications').upsert(m)).error);
       await reload();
@@ -210,7 +236,7 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
 
     return {
       ready, events, running, latest, meds, names, reload, loadOlder, since: since.current, retime,
-      add, update, remove, restore, startTimer, stopTimer, setNursingSide, addManualNursing, replaceNursingSegments, saveMedication,
+      add, update, remove, restore, startTimer, stopTimer, setNursingSide, addManualNursing, replaceNursingSegments, saveMedication, autoStop, reopen,
     };
   }, [events, meds, names, ready, babyId, reload, loadOlder]); // since.current changes only via loadOlder → reload → events
 

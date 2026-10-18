@@ -13,7 +13,7 @@ const CONSISTENCY = ['watery', 'seedy', 'soft', 'formed', 'hard'].map((c) => ({ 
 
 /** One tap on a type logs it immediately; details are optional. */
 export default function DiaperLog({ onDone }: { onDone: () => void }) {
-  const { add } = useData();
+  const { add, autoStop, reopen } = useData();
   const logged = useLogged();
   const [more, setMore] = useState(false);
   const [at, setAt] = useState<Date | null>(null);
@@ -23,13 +23,15 @@ export default function DiaperLog({ onDone }: { onDone: () => void }) {
   const [notes, setNotes] = useState('');
 
   async function log(wet: boolean, dirty: boolean) {
+    const when = at ?? new Date();
+    const stopped = await autoStop({ kind: 'diaper' }, when);
     const e = await add('diaper', {
-      started_at: (at ?? new Date()).toISOString(),
+      started_at: when.toISOString(),
       diaper_wet: wet, diaper_dirty: dirty,
       poop_color: dirty ? color : null, poop_consistency: dirty ? consistency : null,
       diaper_rash: rash || null, notes: notes.trim() || null,
     });
-    if (e) { logged(`Diaper logged: ${diaperLabel(e)}`, e.id); onDone(); }
+    if (e) { logged(`Diaper logged: ${diaperLabel(e)}`, e.id, stopped); onDone(); } else if (stopped.length) void reopen(stopped);
   }
 
   return (

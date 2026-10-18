@@ -570,24 +570,30 @@ Fix:
 
 ### E. Interface requests (2026-10-18) — app-only, no Supabase step
 
-**E1. Auto-stop conflicting timers.** Starting or logging something that means the baby is awake should automatically finish a running sleep, ending it at the new entry's start time. In the other direction, starting a sleep finishes a running feed or tummy time.
-- Proposed rules (to confirm):
+**E1. Auto-stop conflicting timers — decided.** An action logged for **now** finishes any running timer it conflicts with, ending it at the action's time. Unrelated actions never interrupt each other (e.g. giving a bottle while pumping is fine).
 
-  | Action (logged for "now") | Stops |
-  |---|---|
-  | Start nursing, log a bottle, start tummy time, log a bath | running **sleep** |
-  | Start sleep | running **nursing** and **tummy time** |
-  | Log a bottle while nursing is running | running **nursing** (a top-up after the breast) |
-  | Diaper | open question: a change often wakes the baby, but not always |
-  | Meds, temperature, growth, pumping | nothing (can happen while asleep, or concerns the parent) |
-- Only for entries timed at **now**. A back-dated manual entry never stops a running timer.
-- Uses the existing `stop_timer` function, so it is safe when both phones act at once. The toast says what was stopped, e.g. "Sleep ended at 2:10", with **Undo**.
+| Action (now) | Ends |
+|---|---|
+| Start nursing (either side) | sleep; a pump on that side or "both" |
+| Switch nursing to a side | a pump on that side or "both" |
+| Log a bottle | sleep; nursing |
+| Log a diaper | sleep |
+| Start tummy time, log a bath | sleep |
+| Start sleep | nursing; tummy time |
+| Start pumping on a side (or both) | nursing whose **active** side is that side (a paused nursing session isn't using either breast) |
+| Meds, temperature, growth | nothing |
 
-**E2. Home screen redesign.** Keep the frequent actions large; move rarely used ones (Growth/weight, Tummy time, Bath, possibly Temp) off the main grid, into a "More" tile/sheet or a separate tab. Layout options are being discussed.
+- "Now" means the entry's time is within 5 minutes of the present. Back-dated entries never stop anything.
+- A stop never ends a timer before it started.
+- The toast names what was ended (e.g. "Bottle logged · Sleep ended"). **Undo** reverts the new entry and reopens what was ended, including the nursing side that was active.
+- An auto-ended pump has no amounts; add them from History.
+- Uses the same `stop_timer` as the Stop button, so it is safe when both phones act at once. Rules live in `src/lib/conflicts.ts` (unit-tested).
+
+**E2. Home screen redesign — decided: "More" tile.** Six large tiles stay on Home: Sleep, Nurse, Bottle, Diaper, Pump (with gauges), Meds. A **More** tile expands the rarely used ones (Temp, Growth, Tummy time, Bath) inline on the main screen, and tapping again collapses them. The open/closed state is remembered per phone. A running timer in a hidden category (e.g. tummy time) keeps the section open so it is never out of sight.
 
 **E3. Pump gauges ("odometers") on the Pump tile.** Replace the 🥛 icon with **two gauges, Left and Right**. Each shows how many pumping sessions of **at least 15 minutes** that side has had, against a **target band of 8–12**.
-- A session counts for a side if `pump_side` is that side or `both`.
-- Counting window (to confirm): rolling last 24 hours (how the 8–12 guidance is usually stated) or since the day cutoff.
+- A session counts for a side if `pump_side` is that side or `both` (decided: "both" counts for both).
+- Counting window: **rolling last 24 hours** (decided).
 - Design brief: functional first (needle or arc fill, target band marked, count shown as a number, readable at a glance), with a playful, tasteful nod to the shape. The two gauges sit side by side as a pair, each with a small round hub at the needle pivot.
 - Tapping the tile still opens Pump logging.
 

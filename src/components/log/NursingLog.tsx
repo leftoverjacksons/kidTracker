@@ -13,6 +13,7 @@ const SIDE = { left: 'Left', right: 'Right' } as const;
 
 export default function NursingLog({ onDone }: { onDone: () => void }) {
   const data = useData();
+  const logged = useLogged();
   const now = useNow();
   const [alert] = useIonAlert();
   const [mode, setMode] = useState<'timer' | 'manual'>('timer');
@@ -30,7 +31,13 @@ export default function NursingLog({ onDone }: { onDone: () => void }) {
         <div className="side-grid">
           {(['left', 'right'] as const).map((s) => (
             <button key={s} className={`big-btn side-btn ${active === s ? 'side-active' : ''}`}
-              onClick={() => { buzz(); void data.setNursingSide(running.id, active === s ? null : s); }}>
+              onClick={async () => {
+                buzz();
+                // Switching onto a side ends a pump running on that side (or both).
+                const stopped = active === s ? [] : await data.autoStop({ kind: 'switch_nursing', side: s });
+                await data.setNursingSide(running.id, active === s ? null : s);
+                if (stopped.length) logged(`Switched to ${SIDE[s].toLowerCase()}`, undefined, stopped);
+              }}>
               <span className="side-letter">{s === 'left' ? 'L' : 'R'}</span>
               <span className="side-time">{formatClock(t[s])}</span>
               <span className="side-hint">{active === s ? 'tap to pause' : active ? 'switch' : 'resume'}</span>
@@ -62,8 +69,10 @@ export default function NursingLog({ onDone }: { onDone: () => void }) {
             <button key={s} className={`big-btn side-btn ${last && last !== s ? 'side-suggest' : ''}`}
               onClick={async () => {
                 buzz();
+                const stopped = await data.autoStop({ kind: 'start_nursing', side: s });
                 const e = await data.startTimer('nursing');
                 if (e) await data.setNursingSide(e.id, s);
+                if (stopped.length) logged('Nursing started', undefined, stopped);
               }}>
               <span className="side-letter">{s === 'left' ? 'L' : 'R'}</span>
               <span className="side-hint">start {SIDE[s].toLowerCase()}</span>

@@ -181,8 +181,35 @@ await mins.nth(0).fill('10'); await mins.nth(1).fill('5');
 await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
 await expectText(A, 'L 10m · R 5m');
 
+// ── Auto-stop (design doc §8a E1): a diaper ends a running sleep; Undo reopens it
+await tile(A, 'Sleep').click(); await wait(A);
+await sheet(A).locator('.big-btn-start').click(); await wait(A, 1200);
+await closeSheet(A);
+await tile(A, 'Diaper').click(); await wait(A);
+await sheet(A).locator('.big-btn', { hasText: 'Wet' }).click(); await wait(A, 1500);
+const autoToast = await A.locator('ion-toast').last().evaluate((t) => t.message);
+if (!/Sleep ended/.test(autoToast)) problems.push(`diaper did not end the running sleep (toast: ${autoToast})`);
+await expectText(A, 'Awake', '.tile');
+await A.locator('ion-toast').last().evaluate((t) => t.shadowRoot.querySelector('button').click()); await wait(A, 1500);
+await expectText(A, 'Asleep', '.tile'); // sleep reopened by Undo
+await tile(A, 'Sleep').click(); await wait(A);
+await sheet(A).locator('.big-btn-stop').click(); await wait(A, 1000);
+
+// Nursing on the right ends pumping on the right
+await tile(A, 'Pump').click(); await wait(A);
+await sheet(A).locator('ion-segment-button[value="right"]').click(); await wait(A, 300);
+await sheet(A).locator('.big-btn-start').click(); await wait(A, 1200);
+await closeSheet(A);
+await tile(A, 'Nurse').click(); await wait(A);
+await sheet(A).locator('.side-btn', { hasText: 'start right' }).click(); await wait(A, 1500);
+const nurseToast = await A.locator('ion-toast').last().evaluate((t) => t.message);
+if (!/Pumping ended/.test(nurseToast)) problems.push(`right nursing did not end right pumping (toast: ${nurseToast})`);
+await sheet(A).locator('.big-btn-stop').click(); await wait(A, 1000);
+if (await A.locator('.tile.tile-live', { hasText: 'Pump' }).count()) problems.push('pump still running after right-side nursing');
+
 // Pump timer with amounts
 await tile(A, 'Pump').click(); await wait(A);
+await sheet(A).locator('ion-segment-button[value="both"]').click(); await wait(A, 300); // defaults to the last side used
 await sheet(A).locator('.big-btn-start').click(); await wait(A, 1200);
 const amt = sheet(A).locator('ion-input[type="number"] input');
 await amt.nth(0).fill('2'); await amt.nth(1).fill('1.5');

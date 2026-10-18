@@ -77,7 +77,9 @@ export default function PumpLog({ onDone }: { onDone: () => void }) {
       {mode === 'timer' ? (
         <button className="big-btn big-btn-wide big-btn-start" onClick={async () => {
           buzz();
+          const stopped = await data.autoStop({ kind: 'start_pump', side });
           await data.startTimer('pump', new Date(), { pump_side: side });
+          if (stopped.length) logged('Pumping started', undefined, stopped);
         }}><span>🥛</span>Start pumping</button>
       ) : (
         <ManualRange defaultMinutes={15} onSave={async (start, end, notes) => {

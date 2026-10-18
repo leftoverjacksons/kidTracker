@@ -46,7 +46,9 @@ export default function TimerLog({ type, onDone }: { type: 'sleep' | 'tummy_time
       {mode === 'timer' ? (
         <button className="big-btn big-btn-wide big-btn-start" onClick={async () => {
           buzz();
+          const stopped = await data.autoStop({ kind: type === 'sleep' ? 'start_sleep' : 'start_tummy' });
           await data.startTimer(type);
+          if (stopped.length) logged(`${label} started`, undefined, stopped);
         }}><span>{META[type].emoji}</span>Start {label.toLowerCase()}</button>
       ) : (
         <ManualRange defaultMinutes={type === 'sleep' ? 60 : 10} onSave={async (start, end, notes) => {
