@@ -14,7 +14,11 @@ import Sheet from './Sheet';
 export default function LogSheet({ type, onClose }: { type: EventType | null; onClose: () => void }) {
   return (
     <Sheet open={type != null} title={type ? `${META[type].emoji} ${META[type].label}` : ''} onClose={onClose}>
-      {type && <Body type={type} onDone={onClose} />}
+      {type && (
+        <div className="log-body" style={{ ['--acc' as string]: `var(--acc-${type})` }}>
+          <Body type={type} onDone={onClose} />
+        </div>
+      )}
     </Sheet>
   );
 }

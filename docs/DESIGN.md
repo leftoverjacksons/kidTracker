@@ -599,6 +599,18 @@ Fix:
 - The **Pump screen** shows the same gauges large (140 px). Tapping a breast picks that side; tapping the other one too selects both; tapping a selected one when both are picked leaves only the other. The Left/Right/Both control stays as well.
 - As built: each gauge is a 270° dial (blue below target, green once ≥ 8) with the 8–12 band marked in green on the outer edge. The count sits in a soft round warm centre, on a faint round warm backdrop, with L/R below. `pumpCounts()` in `src/lib/pump.ts` (tested): a running session counts once it reaches 15 min; deleted entries never count.
 
+**E4. Visual style — built (2026-10-18): tinted cards (option B).** Each category has an accent colour, and tiles carry a soft diagonal wash of it, with tuned light and dark variants (`--acc-*` in `app.css`). Big tiles put the icon top-right and the label and status bottom-left. Logging-screen choice buttons wear their category's wash. Options A (soft accents) and C (minimal outline) were mocked up and not chosen.
+
+**E5. "Still running?" check — proposed (2026-10-18).** When a timer runs unusually long, ask the person who started it whether it's still valid.
+- **Phase 1, app-only:**
+  - Show a banner on Home and on the running sheet once a timer passes a threshold, e.g. "Sleep has been running 5 h 10 m — still asleep?", with **Yes, still going** / **It ended at…** (time picker) / **Discard**.
+  - Show it to everyone, but address the starter by name.
+  - Snoozing hides it for another threshold interval.
+- **Phase 2, needs Supabase (owner steps):**
+  - Real push notifications to the starter's phone even when the app is closed: Web Push from a scheduled Supabase Edge Function (pg_cron), plus a `push_subscriptions` table.
+  - Android Chrome supports this for installed PWAs.
+- Proposed thresholds (to confirm): sleep 4 h · nursing 60 min · pumping 45 min · tummy time 30 min.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).

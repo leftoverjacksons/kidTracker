@@ -236,3 +236,50 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .gauge-btn:active { transform: scale(0.96); }
 .gauge-btn .pump-gauge { width: 140px; height: 163px; }
 .gauge-caption { flex-basis: 100%; margin-top: 0; }
+
+/* ── Tinted cards (style B, 2026-10-18): one soft colour wash per category ── */
+:root {
+  --acc-sleep: #5b6fe0; --acc-nursing: #d9638e; --acc-bottle: #d98a2b; --acc-diaper: #24a08b; --acc-pump: #d77a52;
+  --acc-growth: #5aa64c; --acc-medicine: #a86fd6; --acc-temperature: #e05252; --acc-tummy_time: #c08a3e; --acc-bath: #3d9fd6;
+  --wash-strong: 26%; --wash-weak: 8%; --wash-border: 38%;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --acc-sleep: #7b8cf5; --acc-nursing: #ec86ad; --acc-bottle: #f2a94e; --acc-diaper: #45c2ad; --acc-pump: #ee9a74;
+    --acc-growth: #85cc76; --acc-medicine: #cb98f2; --acc-temperature: #f27474; --acc-tummy_time: #dcae63; --acc-bath: #64bcec;
+    --wash-strong: 24%; --wash-weak: 7%; --wash-border: 34%;
+  }
+}
+.tile[data-type] {
+  --acc: var(--acc-sleep);
+  position: relative;
+  border-radius: 24px;
+  background: linear-gradient(145deg,
+    color-mix(in srgb, var(--acc) var(--wash-strong), var(--tile-bg)),
+    color-mix(in srgb, var(--acc) var(--wash-weak), var(--tile-bg)) 70%);
+  border: 1px solid color-mix(in srgb, var(--acc) var(--wash-border), transparent);
+}
+.tile[data-type="sleep"] { --acc: var(--acc-sleep); }
+.tile[data-type="nursing"] { --acc: var(--acc-nursing); }
+.tile[data-type="bottle"] { --acc: var(--acc-bottle); }
+.tile[data-type="diaper"] { --acc: var(--acc-diaper); }
+.tile[data-type="pump"] { --acc: var(--acc-pump); }
+.tile[data-type="growth"] { --acc: var(--acc-growth); }
+.tile[data-type="medicine"] { --acc: var(--acc-medicine); }
+.tile[data-type="temperature"] { --acc: var(--acc-temperature); }
+.tile[data-type="tummy_time"] { --acc: var(--acc-tummy_time); }
+.tile[data-type="bath"] { --acc: var(--acc-bath); }
+/* Big tiles: icon top-right, label and status bottom-left (less empty space). */
+.tile:not(.tile-small):not(.tile-pump) .tile-emoji { position: absolute; top: 12px; right: 14px; font-size: 34px; }
+.tile:not(.tile-small):not(.tile-pump) { justify-content: flex-end; }
+.tile:not(.tile-small) .tile-label { font-size: 19px; font-weight: 700; }
+.tile.tile-live { box-shadow: inset 0 0 0 2px var(--live); }
+.more-toggle { border: 1px solid color-mix(in srgb, var(--tile-fg) 12%, transparent); }
+
+/* Logging screens: choice buttons wear their category's wash. */
+.log-body .big-btn:not(.big-btn-start):not(.big-btn-stop) {
+  background: linear-gradient(145deg,
+    color-mix(in srgb, var(--acc) var(--wash-strong), var(--tile-bg)),
+    color-mix(in srgb, var(--acc) var(--wash-weak), var(--tile-bg)) 70%);
+  border: 1px solid color-mix(in srgb, var(--acc) var(--wash-border), transparent);
+}
