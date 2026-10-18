@@ -9,10 +9,10 @@ Run them **in order**. Every script is safe to run twice.
 - [ ] **`supabase/migrations/0003_temperature_precision.sql`**: stop temperatures shifting (98.0 °F showing as 98.1 °F).
   - Afterwards: re-save any temperature logged before the script (open it → Edit → Save), so it shows the exact value.
   - Urgency: low. Nothing gets worse before it runs.
-
-## Planned, not written yet (I'll add the file when we build it)
-
-- [ ] **`0004_feed_sessions.sql`**: group nursing entries less than 20 minutes apart into one feed for all reports, CSVs, the pediatrician summary and the Google Sheet. It also covers time between feeds, and the daily charts following the timeline's day cutoff. See design doc §8a A and C.
+- [ ] **`supabase/migrations/0004_feed_sessions.sql`**: nursing entries (and bottle top-ups) that start less than 20 minutes after the previous one ends count as **one feed** in the Reports tab, CSVs, pediatrician summary and Google Sheet. It also adds time between feeds, and a report day-start hour setting.
+  - The day-start hour defaults to midnight, so reports stay the same until we choose another hour.
+  - Your logged entries are not changed. Grouping happens when reports read the data, so past days are regrouped too.
+  - After it runs, the "Feeds" chart will show fewer, larger feeds. That is expected.
 
 ## Done
 

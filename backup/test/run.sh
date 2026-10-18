@@ -9,7 +9,7 @@ SECRET=local-test-secret-local-test-secret-123
 SNAP=$(mktemp); SQL=$(mktemp)
 for db in $SRC $DST; do dropdb --if-exists $db; createdb $db
   psql -q -v ON_ERROR_STOP=1 -d $db -f supabase/tests/supabase_stub.sql -f supabase/migrations/0001_init.sql \
-    -f supabase/migrations/0002_reports.sql -f supabase/migrations/0003_temperature_precision.sql -f supabase/tests/post_grants.sql -f e2e/seed.sql 2>&1 | grep -v NOTICE || true
+    -f supabase/migrations/0002_reports.sql -f supabase/migrations/0003_temperature_precision.sql -f supabase/migrations/0004_feed_sessions.sql -f supabase/tests/post_grants.sql -f e2e/seed.sql 2>&1 | grep -v NOTICE || true
 done
 psql -q -v ON_ERROR_STOP=1 -d $SRC -f backup/test/seed.sql
 psql -q -v ON_ERROR_STOP=1 -d $DST -c "insert into babies(name) values ('junk')"
