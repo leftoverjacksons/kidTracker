@@ -126,7 +126,7 @@
 
 /* ── Reports ── */
 .summary-row-3 { grid-template-columns: repeat(3, 1fr); row-gap: 8px; }
-.chart-card { margin: 20px 0 0; padding: 12px 12px 8px; border-radius: 16px; background: var(--ion-item-background, var(--ion-background-color)); }
+.chart-card { margin: 20px 0 0; padding: 12px 12px 8px; border-radius: 16px; background: var(--tile-bg); color: var(--tile-fg); }
 .chart-title { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
 .chart-box { position: relative; height: 180px; }
 .chart-box-tall { height: 240px; }
@@ -154,6 +154,8 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 
 /* ── Week timeline (History → Timeline) ── */
 .tl { position: relative; user-select: none; -webkit-user-select: none; padding-bottom: 150px; }
+/* The plot sits on the same tinted surface as the chart cards (chart theme `surface`). */
+.tl-col { background: var(--tile-bg); }
 .tl-toolbar { display: flex; align-items: center; gap: 2px; }
 .tl-range { font-weight: 600; font-size: 15px; min-width: 112px; text-align: center; }
 .tl-cutoff { margin-left: auto; font-size: 13px; max-width: 150px; }

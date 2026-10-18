@@ -58,7 +58,7 @@ export default function GrowthChart({ title, sex, measure, points, toDisplay, fo
           legend: { display: false },
           tooltip: {
             filter: (item) => item.datasetIndex === CURVES.length,
-            backgroundColor: theme.dark ? '#2a2a28' : '#ffffff', titleColor: theme.text, bodyColor: theme.text,
+            backgroundColor: theme.dark ? '#2a3550' : '#ffffff', titleColor: theme.text, bodyColor: theme.text,
             borderColor: theme.grid, borderWidth: 1, padding: 10,
             callbacks: {
               title: (items) => (items[0] ? `${Number(items[0].parsed.x).toFixed(1)} months` : ''),

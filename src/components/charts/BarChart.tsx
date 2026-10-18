@@ -11,7 +11,7 @@ export interface Series { label: string; data: number[] }
 /** A reference drawn as a thin stepped line in the colour of series `seriesIndex`; null = no guide that day. */
 export interface Guide { label: string; data: (number | null)[]; seriesIndex: number }
 
-const fade = (hex: string) => hex + '66'; // 40% alpha for the unfinished day
+const fade = (hex: string) => hex + '99'; // 60% alpha for the unfinished day
 
 /** Daily bar chart. One series → no legend (the title names it); two → legend + stacked or grouped. */
 /** Tick step (minutes) at whole/half hours for a minutes axis whose largest value is `max`. */
@@ -91,7 +91,7 @@ export default function BarChart({ title, labels, series, stacked = false, forma
             },
           },
           tooltip: {
-            backgroundColor: theme.dark ? '#2a2a28' : '#ffffff', titleColor: theme.text, bodyColor: theme.text,
+            backgroundColor: theme.dark ? '#2a3550' : '#ffffff', titleColor: theme.text, bodyColor: theme.text,
             borderColor: theme.grid, borderWidth: 1, padding: 10, boxPadding: 4, usePointStyle: true,
             callbacks: {
               title: (items) => (items[0] ? `${items[0].label}${partialLast && items[0].dataIndex === lastBar ? ' (so far)' : ''}` : ''),

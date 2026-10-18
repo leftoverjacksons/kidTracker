@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 
-/** Validated categorical slots (dataviz reference palette, checked on #fff / #121212). */
+/**
+ * Categorical slots taken from the Home tiles: Sleep periwinkle, then Nurse rose
+ * (2026-10-18). Validated with the dataviz checker against the chart-card
+ * surfaces (#eef1f8 light, #1c2438 dark): lightness band, CVD and contrast all pass.
+ */
 export const SLOTS = {
-  light: ['#2a78d6', '#eb6834'],
-  dark: ['#3987e5', '#d95926'],
+  light: ['#5b6fe0', '#d9638e'],
+  dark: ['#6d7fec', '#d9688f'],
 };
 
 export interface ChartTheme {
@@ -30,6 +34,6 @@ export function useChartTheme(): ChartTheme {
     return () => m.removeEventListener('change', on);
   }, []);
   return dark
-    ? { dark, series: SLOTS.dark, gain: '#3987e5', loss: '#e66767', surface: '#121212', text: '#f0efec', muted: '#a8a79f', grid: '#2a2a28', reference: '#5c5b56' }
-    : { dark, series: SLOTS.light, gain: '#2a78d6', loss: '#e34948', surface: '#ffffff', text: '#0b0b0b', muted: '#6b6a65', grid: '#ebeae6', reference: '#b9b8b1' };
+    ? { dark, series: SLOTS.dark, gain: SLOTS.dark[0], loss: SLOTS.dark[1], surface: '#1c2438', text: '#e8ecf6', muted: '#a3adc6', grid: '#2d3852', reference: '#5d6886' }
+    : { dark, series: SLOTS.light, gain: SLOTS.light[0], loss: SLOTS.light[1], surface: '#eef1f8', text: '#1f2a44', muted: '#5f6a85', grid: '#dbe1ee', reference: '#a7b1c9' };
 }

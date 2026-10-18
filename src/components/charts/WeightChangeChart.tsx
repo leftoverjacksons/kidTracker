@@ -141,7 +141,7 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
           legend: { display: false },
           tooltip: {
             filter: (item) => item.datasetIndex === 0,
-            backgroundColor: theme.dark ? '#2a2a28' : '#ffffff', titleColor: theme.text, bodyColor: theme.text,
+            backgroundColor: theme.dark ? '#2a3550' : '#ffffff', titleColor: theme.text, bodyColor: theme.text,
             borderColor: theme.grid, borderWidth: 1, padding: 10,
             callbacks: {
               title: (items) => {
