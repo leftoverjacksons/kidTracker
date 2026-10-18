@@ -6,7 +6,8 @@ Run them **in order**. Every script is safe to run twice.
 
 ## Waiting
 
-Nothing right now.
+- [ ] **`supabase/migrations/0005_mom_meds.sql`**: lets a medication be marked **for Mom**. Mom's doses are then kept out of the baby's reports, CSV and pediatrician summary.
+  - Run it **before** adding Mom's medicines in the app. Until it runs, saving a "For Mom" medication shows an error.
 
 ## Done
 

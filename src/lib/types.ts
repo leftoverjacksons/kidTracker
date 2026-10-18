@@ -85,6 +85,8 @@ export interface Medication {
   min_interval_hours: number | null;
   max_doses_per_24h: number | null;
   active: boolean;
+  /** Whose medicine (migration 0005; missing before it runs = baby). */
+  for_whom?: 'baby' | 'mom';
 }
 
 export const TIMED_TYPES = ['sleep', 'nursing', 'pump', 'tummy_time'] as const;

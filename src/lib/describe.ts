@@ -61,7 +61,7 @@ export function summarize(e: EventRow, s: HouseholdSettings, meds: Medication[],
     }
     case 'medicine': {
       const med = meds.find((m) => m.id === e.medication_id);
-      parts.push([med?.name ?? 'Medicine', e.dose_amount != null ? `${e.dose_amount}${e.dose_unit ? ' ' + e.dose_unit : ''}` : ''].filter(Boolean).join(' '));
+      parts.push([med?.for_whom === 'mom' ? `Mom · ${med.name}` : med?.name ?? 'Medicine', e.dose_amount != null ? `${e.dose_amount}${e.dose_unit ? ' ' + e.dose_unit : ''}` : ''].filter(Boolean).join(' '));
       break;
     }
     case 'temperature':

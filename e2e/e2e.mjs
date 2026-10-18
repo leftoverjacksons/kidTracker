@@ -31,6 +31,8 @@ const srv = http.createServer((req, res) => {
   fs.createReadStream(p).pipe(res);
 }).listen(4174);
 
+const psql = (q) => execFileSync('psql', ['-qtA', '-d', 'kidtracker_e2e', '-c', q], { encoding: 'utf8' }).trim();
+
 const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
 const problems = [];
 let step = 0;
@@ -221,19 +223,34 @@ await expectText(A, '3.5 oz', '.tile');
 // Meds, Temp, Tummy and Bath live under More
 if (await A.locator('.tile', { hasText: 'Bath' }).count()) problems.push('Bath tile visible before More was opened');
 await A.locator('.more-toggle').click(); await wait(A, 400);
-// Meds: add, give
+// Meds: a baby medicine typed in, a Mom medicine from the presets; buttons grey out until allowed
 await tile(A, 'Meds').click(); await wait(A);
 await sheet(A).getByRole('button', { name: 'Add medication' }).click(); await wait(A, 300);
+await sheet(A).locator('ion-segment-button[value="baby"]').click(); await wait(A, 200);
 await sheet(A).locator('ion-input').nth(0).locator('input').fill('Vitamin D');
 await sheet(A).locator('ion-input').nth(1).locator('input').fill('1');
 await sheet(A).locator('ion-input').nth(2).locator('input').fill('drop');
 await sheet(A).locator('ion-input').nth(3).locator('input').fill('24');
 await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
-await sheet(A).getByRole('button', { name: 'Give' }).click(); await wait(A, 1000);
+await sheet(A).getByRole('button', { name: 'Add medication' }).click(); await wait(A, 300);
+await sheet(A).locator('ion-select').click(); await wait(A, 400);
+await A.locator('ion-popover ion-item', { hasText: 'Ibuprofen' }).click(); await wait(A, 400);
+await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
+const medBtn = (name) => sheet(A).locator(`.med-row[data-med="${name}"] ion-button`);
+const greyed = (name) => medBtn(name).evaluate((el) => el.disabled === true);
+if (!(await sheet(A).getByText('Mom', { exact: true }).count())) problems.push('no Mom section in meds');
+if (await greyed('Ibuprofen')) problems.push('Ibuprofen greyed out before any dose');
+await medBtn('Vitamin D').click(); await wait(A, 1000);
+await tile(A, 'Meds').click(); await wait(A);
+await medBtn('Ibuprofen').click(); await wait(A, 1000);
 await tile(A, 'Meds').click(); await wait(A);
 await shot(A, 'meds-sheet');
-await expectText(A, 'Next allowed tomorrow');
+for (const n of ['Ibuprofen', 'Vitamin D']) if (!(await greyed(n))) problems.push(`${n} button not greyed out after a dose`);
+await expectText(A, 'in 6h', '.med-row[data-med="Ibuprofen"]');
 await closeSheet(A);
+await expectText(A, 'Ibuprofen', '.tile'); // the Meds tile shows when the soonest one is next available
+const medDoses = psql(`select med_doses from v_daily_summary where day = public.local_day(now())`);
+if (medDoses !== '1') problems.push(`baby's daily med_doses is ${medDoses}; Mom's ibuprofen must not count`);
 
 // Pump tile shows two gauges (L/R); the short test sessions don't count (need 15+ min)
 const gauges = await A.locator('.tile', { hasText: 'Pump' }).locator('.pump-gauge').count();
@@ -347,7 +364,6 @@ if (!(await sheet(A).locator('ion-title', { hasText: 'Bottle' }).count())) probl
 await closeSheet(A);
 
 // ── "Still running?" check: a tummy timer Parent B started 45 min ago (threshold 30)
-const psql = (q) => execFileSync('psql', ['-qtA', '-d', 'kidtracker_e2e', '-c', q], { encoding: 'utf8' }).trim();
 psql(`insert into events (baby_id, type, started_at, created_by) select id, 'tummy_time', now() - interval '45 minutes',
   '00000000-0000-0000-0000-00000000000b' from babies limit 1`);
 await refresh(A); await wait(A, 600);

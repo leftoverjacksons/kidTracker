@@ -81,7 +81,8 @@ export async function runExport(
         break;
       }
       case 'meds': {
-        const d = await fetch('v_meds', 'started_at', fromDate.toISOString());
+        // Mom's medicines (migration 0005) are not the baby's and stay out of the export.
+        const d = (await fetch('v_meds', 'started_at', fromDate.toISOString())).filter((r) => r.for_whom !== 'mom');
         header = ['time', 'medication', 'dose', 'unit', 'notes', 'logged_by'];
         rows = d.map((r) => [localStamp(s(r.started_at)), r.medication, r.dose_amount, r.dose_unit, r.notes, who(r)]);
         break;

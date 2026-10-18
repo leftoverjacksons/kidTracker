@@ -26,3 +26,16 @@ export function medStatus(med: Medication, events: EventRow[], now: Date = new D
   }
   return { last, dosesLast24h: recent.length, nextAllowed: next > now.getTime() ? new Date(next) : null };
 }
+
+export const isMom = (m: Pick<Medication, 'for_whom'> | undefined) => m?.for_whom === 'mom';
+
+/**
+ * Presets for the "Add medication" picker. Intervals are the ones the household asked for;
+ * doses are left blank because they come from the prescription or label.
+ */
+export const MED_PRESETS: { name: string; for_whom: 'baby' | 'mom'; unit: string; min_interval_hours: number | null }[] = [
+  { name: 'Ibuprofen', for_whom: 'mom', unit: 'mg', min_interval_hours: 6 },
+  { name: 'Acetaminophen', for_whom: 'mom', unit: 'mg', min_interval_hours: 6 },
+  { name: 'Oxycodone', for_whom: 'mom', unit: 'mg', min_interval_hours: 6 },
+  { name: 'Vitamin D', for_whom: 'baby', unit: 'drop', min_interval_hours: null },
+];

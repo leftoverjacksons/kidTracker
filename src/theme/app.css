@@ -313,3 +313,9 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .big-btn-start .type-icon { width: 34px; height: 34px; }
 /* The navy outlines need a faint light edge on dark backgrounds. */
 @media (prefers-color-scheme: dark) { .type-icon { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.35)); } }
+
+/* Medicines (design doc §8a F) */
+.med-row .med-status { font-size: 13px; }
+.med-wait .med-status { color: var(--ion-color-medium); }
+.med-ready .med-status { color: var(--live); }
+.med-row ion-button[disabled] { opacity: 0.35; }

@@ -616,6 +616,21 @@ Fix:
 - Thresholds (confirmed): sleep 4 h · nursing 60 min · pumping 30 min · tummy time 30 min (`src/lib/longRunning.ts`).
 - As built: the card shows on Home and at the top of that timer's sheet, on both phones, with "Started … by <name / you>". **Yes, still going** snoozes on that phone only, for one more threshold interval. **It ended at…** stops the timer at the chosen time, with Undo. **Discard** deletes the entry, with Undo.
 
+### F. Medicines for Mom — built (2026-10-18)
+
+- Request: track Mom's ibuprofen, acetaminophen and oxycodone (each every 6 h) in the Meds tracker. Each medicine's button is greyed out until its interval since the last dose has passed.
+- `medications.for_whom` ('baby' | 'mom', default 'baby') comes from migration 0005. Doses are ordinary `medicine` events, stored under the baby's id because `events.baby_id` is required.
+  - `v_daily_summary.med_doses` counts the baby's medicines only.
+  - `v_meds` exposes `for_whom`. The app's CSV and pediatrician summary leave Mom's out; the Google Sheet keeps them, with a "for" column.
+- Meds sheet:
+  - Medicines are grouped under Mom and Baby.
+  - Each row shows the last dose, who logged it, and either "Available now" or "Next at … · in …".
+  - The Take/Give button is disabled until the interval (and the optional 24 h maximum) allows the next dose.
+  - "Log a dose at another time" has a medication drop-down and a time field, for doses taken but not logged. It is not limited by the interval.
+  - "Add medication" has a For Mom / For baby switch and a preset picker (Ibuprofen, Acetaminophen, Oxycodone at 6 h; Vitamin D). The preset leaves the dose blank, because it comes from the prescription.
+- The Home Meds tile shows the medicine that becomes available soonest, with its time.
+- Limit: each medicine is tracked separately. A combination product (e.g. oxycodone + acetaminophen) does not count toward a separate acetaminophen limit.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).

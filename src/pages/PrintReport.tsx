@@ -30,7 +30,7 @@ export default function PrintReport({ days }: { days: number }) {
       const [d, g, m, t, sl] = await Promise.all([
         supabase!.from('v_daily_summary').select('*').eq('baby_id', baby.id).gte('day', isoDay(from)),
         supabase!.from('v_growth').select('*').eq('baby_id', baby.id).order('started_at'),
-        supabase!.from('v_meds').select('*').eq('baby_id', baby.id).gte('started_at', from.toISOString()).order('started_at'),
+        supabase!.from('v_meds').select('*').eq('baby_id', baby.id).gte('started_at', from.toISOString()).order('started_at'), // Mom's filtered below
         supabase!.from('v_temps').select('*').eq('baby_id', baby.id).gte('started_at', from.toISOString()).order('started_at'),
         supabase!.from('v_sleep').select('start_date,duration_min').eq('baby_id', baby.id).gte('start_date', isoDay(from)),
       ]);
@@ -38,7 +38,7 @@ export default function PrintReport({ days }: { days: number }) {
       if (err) return setError(err.message);
       setDaily(trimLeading(fillDays((d.data ?? []) as DailyRow[], days)));
       setGrowth(g.data ?? []);
-      setMeds(m.data ?? []);
+      setMeds((m.data ?? []).filter((r) => r.for_whom !== 'mom'));
       setTemps(t.data ?? []);
       setLongest(longestSleepByDay((sl.data ?? []) as { start_date: string; duration_min: number }[]));
     })();

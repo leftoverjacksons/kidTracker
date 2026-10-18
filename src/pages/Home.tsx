@@ -6,7 +6,8 @@ import EventList from '../components/EventList';
 import LogSheet from '../components/LogSheet';
 import { useData, useNow } from '../lib/data';
 import { diaperLabel, META } from '../lib/describe';
-import { formatAgo, formatClock, formatDuration, formatTemp, formatVolume, formatWeight, startOfDay } from '../lib/format';
+import { formatAgo, formatClock, formatDuration, formatTemp, formatVolume, formatWeight, formatWhen, startOfDay } from '../lib/format';
+import { medStatus } from '../lib/meds';
 import { useHousehold } from '../lib/household';
 import { activeSide, countFeeds, lastFeedStart, lastSide, sideTotals } from '../lib/nursing';
 import type { EventRow, EventType } from '../lib/types';
@@ -76,6 +77,11 @@ export default function Home() {
       case 'bottle': return { text: last ? `${ago(last)} · ${formatVolume(last.bottle_ml, settings)}` : '—', live: false };
       case 'diaper': return { text: last ? `${ago(last)} · ${diaperLabel(last)}` : '—', live: false };
       case 'medicine': {
+        // The medicine that becomes available soonest; otherwise the last dose.
+        const waiting = data.meds.filter((m) => m.active)
+          .map((m) => ({ m, next: medStatus(m, data.events, now).nextAllowed }))
+          .filter((x) => x.next).sort((a, b) => a.next!.getTime() - b.next!.getTime());
+        if (waiting.length) return { text: `${waiting[0].m.name} ${formatWhen(waiting[0].next!, now)}`, live: false };
         const med = last && data.meds.find((m) => m.id === last.medication_id);
         return { text: last ? `${ago(last)}${med ? ` · ${med.name}` : ''}` : '—', live: false };
       }

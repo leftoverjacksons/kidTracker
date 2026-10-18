@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { medStatus } from './meds';
+import { isMom, MED_PRESETS, medStatus } from './meds';
 import type { EventRow, Medication } from './types';
 
 const med: Medication = { id: 'm', name: 'Test', default_dose: 1, unit: 'ml', min_interval_hours: 6, max_doses_per_24h: 3, active: true };
@@ -20,5 +20,19 @@ describe('medStatus', () => {
   it('is null when nothing restricts', () => {
     expect(medStatus({ ...med, min_interval_hours: null, max_doses_per_24h: null }, [dose('2026-10-11T19:00:00Z')], now).nextAllowed).toBeNull();
     expect(medStatus(med, [], now).last).toBeNull();
+  });
+});
+
+describe('mom medicines', () => {
+  it('presets: the three pain medicines are for Mom, every 6 h, no preset dose', () => {
+    for (const n of ['Ibuprofen', 'Acetaminophen', 'Oxycodone']) {
+      const p = MED_PRESETS.find((x) => x.name === n)!;
+      expect(p.for_whom).toBe('mom');
+      expect(p.min_interval_hours).toBe(6);
+    }
+  });
+  it('treats a missing for_whom (before migration 0005) as baby', () => {
+    expect(isMom({})).toBe(false);
+    expect(isMom({ for_whom: 'mom' })).toBe(true);
   });
 });
