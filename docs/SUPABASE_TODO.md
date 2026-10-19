@@ -6,11 +6,11 @@ Run them **in order**. Every script is safe to run twice.
 
 ## Waiting
 
-- [ ] **`supabase/migrations/0005_mom_meds.sql`**: lets a medication be marked **for Mom**. Mom's doses are then kept out of the baby's reports, CSV and pediatrician summary.
-  - Run it **before** adding Mom's medicines in the app. Until it runs, saving a "For Mom" medication shows an error.
+Nothing right now.
 
 ## Done
 
+- [x] `0005_mom_meds.sql`: medicines for Mom (run by 2026-10-20; Mom's doses are showing in the app)
 - [x] `0004_feed_sessions.sql`: feeds grouped into sessions, time between feeds, day-start hour (run 2026-10-18)
 - [x] `0003_temperature_precision.sql`: temperatures saved to 0.01 °C (run 2026-10-18). Re-save older temperatures by hand.
 - [x] `0001_init.sql`: tables, security rules, timer functions
