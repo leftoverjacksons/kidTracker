@@ -14,7 +14,8 @@ import type { EventRow, EventType } from '../lib/types';
 import { ageLabel } from '../lib/units';
 import PumpGauge from '../components/PumpGauge';
 import StillRunning from '../components/StillRunning';
-import { pumpCounts } from '../lib/pump';
+import PumpReminder from '../components/PumpReminder';
+import { pumpCounts, pumpDue, pumpEveryMin } from '../lib/pump';
 import TypeIcon from '../components/TypeIcon';
 
 const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'growth'];
@@ -67,6 +68,11 @@ export default function Home() {
       }
       case 'pump':
         if (run) return { text: `Pumping ${elapsed(run)}`, live: true };
+        {
+          // Next session due (reminder interval set per phone in Settings).
+          const due = pumpDue(data.events, now, pumpEveryMin());
+          if (due) return { text: due.due <= now ? `Due now · last ${formatAgo(due.last, now)}` : `Next ${formatWhen(due.due, now)}`, live: false };
+        }
         return { text: last ? `${ago(last)}${last.pump_left_ml || last.pump_right_ml ? ` · ${formatVolume((last.pump_left_ml ?? 0) + (last.pump_right_ml ?? 0), settings)}` : ''}` : '—', live: false };
       case 'tummy_time': {
         if (run) return { text: elapsed(run), live: true };
@@ -113,6 +119,7 @@ export default function Home() {
         {!data.ready ? <div className="centered"><IonSpinner /></div> : (
           <>
             <StillRunning />
+            <PumpReminder onStart={() => setOpen('pump')} />
             <div className="tile-grid">
               {PRIMARY.map((t) => {
                 const s = sub(t);

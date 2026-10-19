@@ -655,6 +655,18 @@ Fix:
 - Line ends carry short labels, pushed apart when lines meet. Curves use monotone interpolation, so they never overshoot the data.
 - Diapers (with the day-0 guide steps) and tummy time stay as bars.
 
+### I. Pumping reminder — Phase 1 built (2026-10-20)
+
+- Goal: help keep pace with 12 pumping sessions a day.
+- Rule (`pumpDue`): the next session is due at the start of the last 15+ minute session plus the interval. Only sessions that count toward the gauges count here. When one side has waited longer (one-sided sessions), the reminder names that side.
+- The interval is set per phone in Settings: 2 h (12/day, the default), 2½ h, 3 h (8/day) or off.
+- Home:
+  - Once a session is due, a card says "Time to pump (… side). Last session …", with the 24 h L/R counts.
+  - Its buttons are **Start pumping**, which opens the pump sheet, and **In 30 min**, which snoozes on that phone only. A new session clears the snooze.
+  - The Pump tile shows "Next 3:40 PM" or "Due now · last …".
+  - Nothing shows while a session is running or before any session is logged.
+- **Limit:** this only shows when the app is open. A real alert on a closed phone needs Web Push. That is Phase 2, shared with E5 Phase 2: a `push_subscriptions` table, a scheduled Supabase Edge Function and VAPID keys, all of which are owner steps in Supabase.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).

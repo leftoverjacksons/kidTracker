@@ -444,6 +444,16 @@ if (!(await pumpCard.count())) problems.push('no milk-pumped chart on Reports');
 if (await A.locator('.chart-card', { hasText: 'Pumped (oz) per day' }).count()) problems.push('old pumped bar chart still shown');
 if (await pumpCard.count()) { await pumpCard.scrollIntoViewIfNeeded(); await wait(A, 400); await pumpCard.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-pump-per-breast.png` }); }
 
+// Pumping reminder: the seeded sessions are days old, so Home says it's time to pump
+await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 800);
+await expectText(A, 'Time to pump', '.pump-reminder');
+await expectText(A, 'Due now', '.tile');
+await A.locator('.ion-page:not(.ion-page-hidden) ion-content').first().evaluate((el) => el.scrollToTop(0)); await wait(A, 300);
+await shot(A, 'pump-reminder');
+await A.locator('.pump-reminder ion-button', { hasText: 'In 30 min' }).click(); await wait(A, 400);
+if (await A.locator('.pump-reminder').count()) problems.push('pump reminder still shown after "In 30 min"');
+await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 600);
+
 // The line charts with several days of data (sleep, feeds and nursing over the last days)
 psql(`insert into events (baby_id, type, started_at, ended_at)
   select b.id, 'sleep'::event_type, now() - (d || ' days')::interval - interval '6 hours', now() - (d || ' days')::interval - interval '6 hours' + ((120 + d * 25) || ' minutes')::interval

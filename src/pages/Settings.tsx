@@ -4,6 +4,7 @@ import {
 } from '@ionic/react';
 import { useEffect, useState } from 'react';
 import { useHousehold } from '../lib/household';
+import { pumpEveryMin, setPumpEveryMin } from '../lib/pump';
 import { supabase } from '../lib/supabase';
 import type { HouseholdSettings } from '../lib/types';
 
@@ -14,6 +15,7 @@ export default function Settings() {
   const [babyName, setBabyName] = useState(baby?.name ?? '');
   const [birthDate, setBirthDate] = useState(baby?.birth_date ?? '');
   const [newPassword, setNewPassword] = useState('');
+  const [pumpEvery, setPumpEvery] = useState<number | null>(pumpEveryMin);
 
   useEffect(() => setDisplayName(me?.display_name ?? ''), [me]);
   useEffect(() => { setBabyName(baby?.name ?? ''); setBirthDate(baby?.birth_date ?? ''); }, [baby]);
@@ -116,6 +118,20 @@ export default function Settings() {
               <IonSelectOption value="cm">cm</IonSelectOption>
             </IonSelect>
           </IonItem>
+        </IonList>
+
+        <IonList inset>
+          <IonListHeader><IonLabel>Pumping reminder (this phone)</IonLabel></IonListHeader>
+          <IonItem>
+            <IonSelect label="Remind me to pump" value={String(pumpEvery ?? 'off')} interface="action-sheet"
+              onIonChange={(e) => { const v = e.detail.value === 'off' ? null : Number(e.detail.value); setPumpEveryMin(v); setPumpEvery(v); }}>
+              <IonSelectOption value="120">Every 2 h (12 a day)</IonSelectOption>
+              <IonSelectOption value="150">Every 2½ h (about 10 a day)</IonSelectOption>
+              <IonSelectOption value="180">Every 3 h (8 a day)</IonSelectOption>
+              <IonSelectOption value="off">Off</IonSelectOption>
+            </IonSelect>
+          </IonItem>
+          <IonItem lines="none"><IonNote className="hint">Counted from the start of the last 15+ minute session. Shows on Home while the app is open; it can't buzz the phone yet.</IonNote></IonItem>
         </IonList>
 
         <div className="ion-padding">
