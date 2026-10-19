@@ -4,13 +4,14 @@ import {
 } from '@ionic/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import BarChart from '../components/charts/BarChart';
+import LineChart from '../components/charts/LineChart';
 import GrowthChart from '../components/charts/GrowthChart';
 import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
-import { averages, completeDays, diaperGuide, fillDays, isoDay, longestSleepByDay, trimLeading, type DailyRow } from '../lib/reports';
+import { averages, completeDays, diaperGuide, fillDays, isoDay, longestSleepByDay, pumpBySide, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
 import { cmToIn, mlToOz } from '../lib/units';
@@ -26,15 +27,17 @@ export default function Reports() {
   const [rows, setRows] = useState<DailyRow[] | null>(null);
   const [growth, setGrowth] = useState<GrowthRow[]>([]);
   const [sleeps, setSleeps] = useState<{ start_date: string; duration_min: number }[]>([]);
+  const [pumps, setPumps] = useState<{ start_date: string; pump_left_ml: number | null; pump_right_ml: number | null }[]>([]);
   const [missing, setMissing] = useState(false);
 
   const load = useCallback(async () => {
     if (!supabase || !baby) return;
     const from = isoDay(new Date(startOfDay(new Date()).getTime() - (days - 1) * 86_400_000));
-    const [d, g, sl] = await Promise.all([
+    const [d, g, sl, pu] = await Promise.all([
       supabase.from('v_daily_summary').select('*').eq('baby_id', baby.id).gte('day', from),
       supabase.from('v_growth').select('started_at,weight_g,length_cm,head_cm').eq('baby_id', baby.id).order('started_at'),
       supabase.from('v_sleep').select('start_date,duration_min').eq('baby_id', baby.id).gte('start_date', from),
+      supabase.from('v_pumps').select('start_date,pump_left_ml,pump_right_ml').eq('baby_id', baby.id).gte('start_date', from),
     ]);
     if (d.error) {
       // View not created yet: migration 0002 has not been run.
@@ -46,6 +49,7 @@ export default function Reports() {
     setRows(trimLeading(fillDays((d.data ?? []) as DailyRow[], days)));
     setGrowth((g.data ?? []) as GrowthRow[]);
     setSleeps((sl.data ?? []) as { start_date: string; duration_min: number }[]);
+    setPumps((pu.data ?? []) as typeof pumps);
   }, [baby, days, toast]);
 
   // Reload when the range changes or anything is logged.
@@ -96,13 +100,20 @@ export default function Reports() {
         { label: 'Dirty', data: rows.map((r) => r.dirty_diapers) },
       ],
       pump: [{ label: 'Pumped', data: rows.map((r) => toVol(r.pump_ml)) }],
+      pumpSides: (() => {
+        const p = pumpBySide(pumps, rows.map((r) => r.day));
+        return [
+          { label: 'Left breast', short: 'L', data: p.left.map(toVol) },
+          { label: 'Right breast', short: 'R', data: p.right.map(toVol) },
+        ];
+      })(),
       tummy: [{ label: 'Tummy time', data: rows.map((r) => r.tummy_min) }],
       // Averages use complete days only; today's partial day would pull them down.
       avg: averages(completeDays(rows)),
       avgDays: completeDays(rows).length,
       has: (k: keyof DailyRow) => rows.some((r) => Number(r[k]) > 0),
     };
-  }, [rows, toVol, sleeps, baby?.birth_date]);
+  }, [rows, toVol, sleeps, pumps, baby?.birth_date]);
 
 
   const volUnit = oz ? 'oz' : 'ml';
@@ -155,6 +166,11 @@ export default function Reports() {
               guides={view.diaperGuides}
               note={view.diaperGuides.length ? 'Guide lines: a common first-two-weeks reference, counting the birth date as day 0 (wet ≈ days old up to 6+, dirty ≈ days old up to 3+). Ask your pediatrician what to expect for your baby.' : undefined} />
             {view.has('pump_ml') && <BarChart partialLast={view.partial} title={`Pumped (${volUnit}) per day`} labels={view.labels} series={view.pump} format={fmtVolAxis} hues={['coral']} />}
+            {view.has('pump_ml') && (
+              <LineChart partialLast={view.partial} title={`Milk pumped per breast (${volUnit}) per day`} labels={view.labels}
+                series={view.pumpSides} hues={['blue', 'coral']} format={fmtVolAxis}
+                note="From the amount entered for each side of every pumping session." />
+            )}
             {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} hues={['teal']} />}
 
             <GrowthSection rows={growth} />

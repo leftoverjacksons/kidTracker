@@ -159,3 +159,13 @@ export function longestSleepByDay(sleeps: { start_date: string; duration_min: nu
   }
   return out;
 }
+
+/** Millilitres pumped per breast for each day in `days` (YYYY-MM-DD), 0 where nothing was pumped. */
+export function pumpBySide(rows: { start_date: string; pump_left_ml: number | string | null; pump_right_ml: number | string | null }[], days: string[]) {
+  const left = new Map<string, number>(), right = new Map<string, number>();
+  for (const r of rows) {
+    left.set(r.start_date, (left.get(r.start_date) ?? 0) + Number(r.pump_left_ml ?? 0));
+    right.set(r.start_date, (right.get(r.start_date) ?? 0) + Number(r.pump_right_ml ?? 0));
+  }
+  return { left: days.map((d) => left.get(d) ?? 0), right: days.map((d) => right.get(d) ?? 0) };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { averages, completeDays, csvUnits, daysOld, diaperGuide, feedInterval, fillDays, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
+import { averages, completeDays, csvUnits, daysOld, diaperGuide, feedInterval, fillDays, pumpBySide, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
 import { DEFAULT_SETTINGS } from './types';
 
 describe('reports', () => {
@@ -65,5 +65,16 @@ describe('feedInterval', () => {
     const r = (feeds: number, avg: number) => ({ day: 'x', feeds, avg_feed_interval_min: avg }) as never;
     expect(feedInterval([r(8, 180), r(10, 144), r(0, 0)])).toBe(160);
     expect(feedInterval([])).toBe(0);
+  });
+});
+
+describe('pumpBySide', () => {
+  it('sums each breast per day across sessions; empty days are 0', () => {
+    const rows = [
+      { start_date: '2026-10-17', pump_left_ml: 60, pump_right_ml: 45 },   // both
+      { start_date: '2026-10-17', pump_left_ml: '30.5', pump_right_ml: null }, // left only, numeric as string
+      { start_date: '2026-10-19', pump_left_ml: null, pump_right_ml: 50 },
+    ];
+    expect(pumpBySide(rows, ['2026-10-17', '2026-10-18', '2026-10-19'])).toEqual({ left: [90.5, 0, 0], right: [45, 0, 50] });
   });
 });

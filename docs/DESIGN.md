@@ -641,6 +641,13 @@ Fix:
 - The Home Meds tile shows the medicine that becomes available soonest, with its time.
 - Limit: each medicine is tracked separately. A combination product (e.g. oxycodone + acetaminophen) does not count toward a separate acetaminophen limit.
 
+### G. Milk pumped per breast — built (2026-10-19)
+
+- Reports line chart: millilitres (displayed in oz/ml) pumped per day, with the left breast in blue and the right in coral. That pair was validated on both surfaces.
+- Data comes from `v_pumps.pump_left_ml` / `pump_right_ml`, summed per report day in the app (`pumpBySide`). It needed no migration.
+- The chart has a legend, direct "L"/"R" labels at the line ends, and a crosshair tooltip. Today's segment is dashed and its point hollow, because the day is unfinished.
+- The existing "Pumped per day" total bar chart stays.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).
