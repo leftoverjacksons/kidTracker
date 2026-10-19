@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Categorical slots taken from the Home tiles: Sleep periwinkle, then Nurse rose
- * (2026-10-18). Validated with the dataviz checker against the chart-card
- * surfaces (#eef1f8 light, #1c2438 dark): lightness band, CVD and contrast all pass.
+ * Colours from the illustrated icon set (2026-10-19): blue, coral, teal, amber.
+ * Only these pairs are used together in one chart, and each was validated with the
+ * dataviz checker on the card surfaces (#fbf6ec light, #14213d dark):
+ * blue+coral, blue+amber, teal+coral. Amber and coral are never paired (too close for CVD).
  */
-export const SLOTS = {
-  light: ['#5b6fe0', '#d9638e'],
-  dark: ['#6d7fec', '#d9688f'],
+export const PALETTE = {
+  light: { blue: '#2f74e8', coral: '#e2553a', teal: '#0b8f80', amber: '#b97c0c' },
+  dark: { blue: '#4b8dfc', coral: '#e85e42', teal: '#12a896', amber: '#bd8216' },
 };
+export type Hue = keyof typeof PALETTE.light;
 
 export interface ChartTheme {
   dark: boolean;
+  /** Default series order: blue, coral. */
   series: string[];
+  hue: Record<Hue, string>;
   /** Diverging poles (validated pair): above / below a reference. */
   gain: string;
   loss: string;
@@ -33,7 +37,9 @@ export function useChartTheme(): ChartTheme {
     m.addEventListener('change', on);
     return () => m.removeEventListener('change', on);
   }, []);
+  const h = dark ? PALETTE.dark : PALETTE.light;
+  const base = { dark, hue: h, series: [h.blue, h.coral], gain: h.teal, loss: h.coral };
   return dark
-    ? { dark, series: SLOTS.dark, gain: SLOTS.dark[0], loss: SLOTS.dark[1], surface: '#1c2438', text: '#e8ecf6', muted: '#a3adc6', grid: '#2d3852', reference: '#5d6886' }
-    : { dark, series: SLOTS.light, gain: SLOTS.light[0], loss: SLOTS.light[1], surface: '#eef1f8', text: '#1f2a44', muted: '#5f6a85', grid: '#dbe1ee', reference: '#a7b1c9' };
+    ? { ...base, surface: '#14213d', text: '#e9eefb', muted: '#a3afcb', grid: '#263556', reference: '#56658a' }
+    : { ...base, surface: '#fbf6ec', text: '#13213f', muted: '#6a6556', grid: '#ece3d0', reference: '#c4b99f' };
 }

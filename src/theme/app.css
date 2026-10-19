@@ -1,23 +1,37 @@
 :root {
-  --ion-color-primary: #3d5a99;
-  --ion-color-primary-rgb: 61, 90, 153;
+  /* Palette from the illustrated icon set (2026-10-19): navy ink, cream, blue, coral, teal, amber. */
+  --ion-color-primary: #2563d6;
+  --ion-color-primary-rgb: 37, 99, 214;
   --ion-color-primary-contrast: #ffffff;
   --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: #36508a;
-  --ion-color-primary-tint: #506ba3;
-  --tile-bg: #eef1f8;
-  --tile-fg: #1f2a44;
+  --ion-color-primary-shade: #2157bc;
+  --ion-color-primary-tint: #3b73da;
+  --ion-text-color: #13213f;
+  --ion-text-color-rgb: 19, 33, 63;
+  --tile-bg: #fbf6ec;
+  --tile-fg: #13213f;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --ion-color-primary: #8fa8e0;
-    --ion-color-primary-rgb: 143, 168, 224;
-    --ion-color-primary-contrast: #0e1526;
-    --ion-color-primary-contrast-rgb: 14, 21, 38;
-    --ion-color-primary-shade: #7e94c5;
-    --ion-color-primary-tint: #9ab1e3;
-    --tile-bg: #1c2438;
-    --tile-fg: #e8ecf6;
+  /* :root.md / :root.ios outrank Ionic's own dark palette selectors. */
+  :root, :root.md, :root.ios {
+    --ion-color-primary: #6ea2ff;
+    --ion-color-primary-rgb: 110, 162, 255;
+    --ion-color-primary-contrast: #0b1426;
+    --ion-color-primary-contrast-rgb: 11, 20, 38;
+    --ion-color-primary-shade: #6190e0;
+    --ion-color-primary-tint: #7dabff;
+    --ion-background-color: #0b1426;
+    --ion-background-color-rgb: 11, 20, 38;
+    --ion-text-color: #e9eefb;
+    --ion-text-color-rgb: 233, 238, 251;
+    --ion-toolbar-background: #101c33;
+    --ion-tab-bar-background: #101c33;
+    --ion-item-background: #14213d;
+    --ion-card-background: #14213d;
+    --ion-tab-bar-background-focused: #1a2a4a;
+    --ion-border-color: #263556;
+    --tile-bg: #14213d;
+    --tile-fg: #e9eefb;
   }
 }
 
@@ -69,8 +83,8 @@
 .version { display: block; text-align: center; margin-top: 16px; }
 
 /* ── Live tiles ── */
-:root { --live: #2e7d5b; --stop: #c0392b; }
-@media (prefers-color-scheme: dark) { :root { --live: #5fd3a0; --stop: #ff7b6b; } }
+:root { --live: #087a6d; --stop: #d2462b; }
+@media (prefers-color-scheme: dark) { :root { --live: #2cc3b0; --stop: #f27a5f; } }
 .tile-live { box-shadow: inset 0 0 0 2px var(--live); }
 .live-dot {
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
@@ -144,7 +158,7 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .print-page table.kv th { font-weight: 500; color: #555; width: 18%; }
 .print-actions { display: flex; gap: 8px; margin-bottom: 8px; }
 .print-actions button { font: inherit; padding: 10px 16px; border-radius: 10px; border: 1px solid #bbb; background: #fff; color: #111; }
-.print-actions button.primary { background: #3d5a99; color: #fff; border-color: #3d5a99; }
+.print-actions button.primary { background: #2563d6; color: #fff; border-color: #2563d6; }
 @media print {
   .no-print { display: none !important; }
   .print-page { padding: 0; max-width: none; }
@@ -246,15 +260,17 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 
 /* ── Tinted cards (style B, 2026-10-18): one soft colour wash per category ── */
 :root {
-  --acc-sleep: #5b6fe0; --acc-nursing: #d9638e; --acc-bottle: #d98a2b; --acc-diaper: #24a08b; --acc-pump: #d77a52;
-  --acc-growth: #5aa64c; --acc-medicine: #a86fd6; --acc-temperature: #e05252; --acc-tummy_time: #c08a3e; --acc-bath: #3d9fd6;
-  --wash-strong: 26%; --wash-weak: 8%; --wash-border: 38%;
+  /* Each category takes the icon set's colour closest to its icon (2026-10-19). */
+  --c-blue: #3280fc; --c-coral: #fc6b4c; --c-teal: #00bca8; --c-amber: #eeab27;
+  --acc-sleep: var(--c-blue); --acc-nursing: var(--c-coral); --acc-bottle: var(--c-amber); --acc-diaper: var(--c-teal);
+  --acc-pump: var(--c-coral); --acc-growth: var(--c-amber); --acc-medicine: var(--c-blue); --acc-temperature: var(--c-coral);
+  --acc-tummy_time: var(--c-teal); --acc-bath: var(--c-blue);
+  --wash-strong: 22%; --wash-weak: 6%; --wash-border: 45%;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --acc-sleep: #7b8cf5; --acc-nursing: #ec86ad; --acc-bottle: #f2a94e; --acc-diaper: #45c2ad; --acc-pump: #ee9a74;
-    --acc-growth: #85cc76; --acc-medicine: #cb98f2; --acc-temperature: #f27474; --acc-tummy_time: #dcae63; --acc-bath: #64bcec;
-    --wash-strong: 24%; --wash-weak: 7%; --wash-border: 34%;
+    --c-blue: #5d9bff; --c-coral: #f27a5f; --c-teal: #2cc3b0; --c-amber: #e8ad3a;
+    --wash-strong: 26%; --wash-weak: 6%; --wash-border: 40%;
   }
 }
 .tile[data-type] {
@@ -312,7 +328,7 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .tl-card-title .type-icon { width: 22px; height: 22px; }
 .big-btn-start .type-icon { width: 34px; height: 34px; }
 /* The navy outlines need a faint light edge on dark backgrounds. */
-@media (prefers-color-scheme: dark) { .type-icon { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.35)); } }
+@media (prefers-color-scheme: dark) { .type-icon { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.4)); } }
 
 /* Medicines (design doc §8a F) */
 .med-row .med-status { font-size: 13px; }

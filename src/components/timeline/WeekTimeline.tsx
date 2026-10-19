@@ -258,7 +258,7 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const color = { sleep: theme.series[0], feed: theme.series[1] };
+  const color = { sleep: theme.hue.blue, feed: theme.hue.coral, bottle: theme.hue.amber };
 
   return (
     <div className="tl" onPointerDown={() => !drag && setSelected(null)}>
@@ -286,7 +286,7 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
       <div className="tl-legend">
         <span><i style={{ background: color.sleep }} />Sleep</span>
         <span><i style={{ background: color.feed }} />Nursing</span>
-        <span><i className="dot" style={{ background: color.feed }} />Bottle</span>
+        <span><i className="dot" style={{ background: color.bottle }} />Bottle</span>
         <button className={`tl-toggle ${prefs.diapers ? 'on' : ''}`} onClick={() => update({ diapers: !prefs.diapers })}>
           <i className="tick" style={{ background: theme.muted }} />Diapers {prefs.diapers ? 'on' : 'off'}
         </button>
@@ -352,7 +352,7 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
 }
 
 function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, onDrag }: {
-  b: Block; colH: number; color: { sleep: string; feed: string }; theme: ReturnType<typeof useChartTheme>; wide: boolean;
+  b: Block; colH: number; color: { sleep: string; feed: string; bottle: string }; theme: ReturnType<typeof useChartTheme>; wide: boolean;
   selected: boolean; dragging: boolean;
   onSelect: () => void; onDrag: (ev: React.PointerEvent, mode: Drag['mode']) => void;
 }) {
@@ -391,7 +391,7 @@ function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, 
     return (
       <div className="tl-bottle" style={{ top: top - 12 }} onPointerDown={select}
         role="button" aria-label={`Bottle ${formatTime(new Date(b.event.started_at))}`}>
-        <i style={{ background: color.feed, boxShadow: outline }} />
+        <i style={{ background: color.bottle, boxShadow: outline }} />
       </div>
     );
   }

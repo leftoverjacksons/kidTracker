@@ -30,8 +30,8 @@ export default defineConfig({
         scope: base,
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#1f2a44',
-        theme_color: '#1f2a44',
+        background_color: '#13213f',
+        theme_color: '#13213f',
         // Long-press the app icon for these; each can also be dragged onto the home screen.
         shortcuts: [
           { name: 'Diaper', short_name: 'Diaper', url: `${base}#/home?log=diaper`, icons: [{ src: 'icons/sc-diaper.png', sizes: '96x96', type: 'image/png' }] },

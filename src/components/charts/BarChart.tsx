@@ -3,7 +3,7 @@ import {
   type ChartConfiguration, type ChartDataset,
 } from 'chart.js';
 import { useEffect, useRef } from 'react';
-import { useChartTheme } from './theme';
+import { useChartTheme, type Hue } from './theme';
 
 Chart.register(BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -19,7 +19,7 @@ export function hourStep(max: number): number {
   return [30, 60, 120, 180, 240, 360, 480].find((s) => s * 5 >= max) ?? 720;
 }
 
-export default function BarChart({ title, labels, series, stacked = false, format, integer = false, partialLast = false, guides = [], note, minutesAxis = false }: {
+export default function BarChart({ title, labels, series, stacked = false, format, integer = false, partialLast = false, guides = [], note, minutesAxis = false, hues }: {
   title: string; labels: string[]; series: Series[]; stacked?: boolean; format: (v: number) => string;
   /** Whole-number axis ticks (counts and minutes). */
   integer?: boolean;
@@ -29,18 +29,21 @@ export default function BarChart({ title, labels, series, stacked = false, forma
   note?: string;
   /** Values are minutes: put ticks on whole/half hours. */
   minutesAxis?: boolean;
+  /** Colour per series from the validated palette (default blue, coral). */
+  hues?: Hue[];
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const theme = useChartTheme();
 
   useEffect(() => {
     if (!canvas.current) return;
+    const palette = hues ? hues.map((h) => theme.hue[h]) : theme.series;
     const last = series.length - 1;
     const lastBar = labels.length - 1;
     const colors = (c: string) => labels.map((_, k) => (partialLast && k === lastBar ? fade(c) : c));
     const guideSets: ChartDataset<'line', (number | null)[]>[] = guides.map((g) => ({
       type: 'line', label: g.label, data: g.data, stack: `guide-${g.label}`,
-      borderColor: theme.series[g.seriesIndex], backgroundColor: theme.series[g.seriesIndex],
+      borderColor: palette[g.seriesIndex], backgroundColor: palette[g.seriesIndex],
       borderWidth: 1.5, stepped: 'middle', pointRadius: 0, pointHoverRadius: 0, spanGaps: false, order: -1,
       pointStyle: 'line',
     }));
@@ -55,8 +58,8 @@ export default function BarChart({ title, labels, series, stacked = false, forma
           pointStyle: 'rectRounded' as const,
           label: s.label,
           data: s.data,
-          backgroundColor: colors(theme.series[i]),
-          hoverBackgroundColor: colors(theme.series[i]),
+          backgroundColor: colors(palette[i]),
+          hoverBackgroundColor: colors(palette[i]),
           // Rounded data-end only on the outermost stacked segment; a surface-colored
           // top edge separates stacked segments.
           borderRadius: !stacked || i === last ? { topLeft: 4, topRight: 4 } : 0,
@@ -107,7 +110,7 @@ export default function BarChart({ title, labels, series, stacked = false, forma
     };
     const chart = new Chart(canvas.current, config);
     return () => chart.destroy();
-  }, [labels, series, stacked, format, integer, partialLast, guides, minutesAxis, theme]);
+  }, [labels, series, stacked, format, integer, partialLast, guides, minutesAxis, theme, hues?.join()]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <figure className="chart-card">

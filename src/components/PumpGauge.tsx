@@ -1,7 +1,6 @@
 import { useChartTheme } from './charts/theme';
 import { PUMP_TARGET } from '../lib/pump';
 
-const GOOD = '#0ca30c'; // status "good" (reserved for meaning; paired with the number + label)
 
 /** Point on a circle; angle in degrees, 0 = 12 o'clock, clockwise. */
 function pt(cx: number, cy: number, r: number, deg: number) {
@@ -22,6 +21,7 @@ export default function PumpGauge({ count, side, selected = false }: { count: nu
   const S = 60, c = S / 2, r = 22;
   const START = -135, SWEEP = 270, MAX = PUMP_TARGET.max;
   const at = (n: number) => START + (Math.min(n, MAX) / MAX) * SWEEP;
+  const GOOD = theme.hue.teal; // on target (always paired with the number and the target band)
   const onTarget = count >= PUMP_TARGET.min;
   const fill = onTarget ? GOOD : theme.series[0];
   const areola = theme.series[1] + '40'; // warm, soft centre

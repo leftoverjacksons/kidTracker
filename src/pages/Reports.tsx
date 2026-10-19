@@ -137,25 +137,25 @@ export default function Reports() {
               <div><b>{formatVolume(view.avg.pumpMl, settings)}</b><span>pumped</span></div>
             </div>
 
-            <BarChart partialLast={view.partial} integer minutesAxis title="Sleep per day" labels={view.labels} series={view.sleep} stacked format={fmtHours} />
+            <BarChart partialLast={view.partial} integer minutesAxis title="Sleep per day" labels={view.labels} series={view.sleep} stacked format={fmtHours} hues={['blue', 'amber']} />
             {view.has('sleeps') && (
               <BarChart partialLast={view.partial} integer minutesAxis title="Longest sleep stretch" labels={view.labels} series={view.longest} format={fmtHours}
                 note="The longest single sleep that started that day." />
             )}
-            <BarChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount}
+            <BarChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} hues={['coral']}
               note="Entries less than 20 minutes apart count as one feed." />
             {view.has('longest_feed_interval_min') && (
-              <BarChart partialLast={view.partial} integer minutesAxis title="Time between feeds" labels={view.labels} series={view.feedGap} format={fmtHours}
+              <BarChart partialLast={view.partial} integer minutesAxis title="Time between feeds" labels={view.labels} series={view.feedGap} format={fmtHours} hues={['teal', 'coral']}
                 note={`Start of one feed to the start of the next, by the day the feed started.${view.avg.feedIntervalMin ? ` Typical: every ${formatDuration(view.avg.feedIntervalMin * 60_000)}.` : ''}`} />
             )}
-            {view.has('bottle_ml') && <BarChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle} format={fmtVolAxis} />}
+            {view.has('bottle_ml') && <BarChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle} format={fmtVolAxis} hues={['amber']} />}
             {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
-              <BarChart partialLast={view.partial} integer title="Nursing minutes per day" labels={view.labels} series={view.nursing} stacked format={fmtMin} />}
-            <BarChart partialLast={view.partial} integer title="Diapers per day" labels={view.labels} series={view.diapers} format={fmtCount}
+              <BarChart partialLast={view.partial} integer title="Nursing minutes per day" labels={view.labels} series={view.nursing} stacked format={fmtMin} hues={['blue', 'coral']} />}
+            <BarChart partialLast={view.partial} integer title="Diapers per day" labels={view.labels} series={view.diapers} format={fmtCount} hues={['blue', 'amber']}
               guides={view.diaperGuides}
               note={view.diaperGuides.length ? 'Guide lines: a common first-two-weeks reference, counting the birth date as day 0 (wet ≈ days old up to 6+, dirty ≈ days old up to 3+). Ask your pediatrician what to expect for your baby.' : undefined} />
-            {view.has('pump_ml') && <BarChart partialLast={view.partial} title={`Pumped (${volUnit}) per day`} labels={view.labels} series={view.pump} format={fmtVolAxis} />}
-            {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} />}
+            {view.has('pump_ml') && <BarChart partialLast={view.partial} title={`Pumped (${volUnit}) per day`} labels={view.labels} series={view.pump} format={fmtVolAxis} hues={['coral']} />}
+            {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} hues={['teal']} />}
 
             <GrowthSection rows={growth} />
 
