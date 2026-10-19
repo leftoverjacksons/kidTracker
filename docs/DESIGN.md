@@ -613,7 +613,7 @@ Fix:
   - Timeline: sleep blue, nursing coral, bottle amber.
   - Pump gauge: "on target" is teal.
 
-**App icon (2026-10-19):** the owner's round icon, a sleeping baby on a moon inside a circle. Browsers and the favicon get the circle as drawn, transparent outside. The maskable icon (for Android launchers) is the circle just inside its thin outline, scaled so that edge sits on the 40% safe radius; past it, the colour just inside the ring is carried outward to the corners, so a launcher that shows more than the safe zone still sees no gap. The long-press shortcut icons are rebuilt from the type icons. The service worker now precaches `.webp`.
+**App icon (2026-10-19, v2):** the owner's bold sleeping-baby-on-moon with a star, on navy `#24396b`. That navy is dark, but light enough that the art's navy outlines (e.g. the hair curl) still show. The art is centred on its smallest enclosing circle, which reaches 39.5% of the width (inside the 40% safe radius) in the maskable icon. Browsers get the same on a round disc. The long-press shortcut icons are rebuilt from the type icons. The service worker now precaches `.webp`.
 
 **E5. "Still running?" check — Phase 1 built (2026-10-18).** When a timer runs unusually long, ask the person who started it whether it's still valid.
 - **Phase 1, app-only:**
