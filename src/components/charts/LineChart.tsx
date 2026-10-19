@@ -4,7 +4,7 @@ import { useChartTheme, type Hue } from './theme';
 
 Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend);
 
-export interface LineSeries { label: string; short?: string; data: number[] }
+export interface LineSeries { label: string; short?: string; data: number[]; /** Line width (default 2). */ width?: number }
 
 /**
  * Daily line chart (one value per day per series). Legend plus a short direct label at
@@ -54,7 +54,7 @@ export default function LineChart({ title, labels, series, hues, format, partial
         labels,
         datasets: series.map((s, i) => ({
           label: s.label, data: s.data,
-          borderColor: colors[i], backgroundColor: colors[i], borderWidth: 2, tension: 0.25,
+          borderColor: colors[i], backgroundColor: colors[i], borderWidth: s.width ?? 2, tension: 0.25,
           pointRadius: labels.length > 20 ? 2.5 : 4, pointHoverRadius: 6,
           pointBorderColor: labels.map((_, k) => (partialLast && k === last ? colors[i] : theme.surface)), pointBorderWidth: 2,
           // Today's point is hollow and the segment into it dashed: the day isn't over.
@@ -65,7 +65,7 @@ export default function LineChart({ title, labels, series, hues, format, partial
       },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
-        layout: { padding: { right: 16 } },
+        layout: { padding: { right: Math.max(16, ...series.map((s) => (s.short?.length ?? 0) * 7 + 10)) } },
         interaction: { mode: 'index', intersect: false },
         scales: {
           x: { grid: { display: false }, border: { color: theme.grid },

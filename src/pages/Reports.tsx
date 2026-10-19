@@ -99,10 +99,10 @@ export default function Reports() {
         { label: 'Wet', data: rows.map((r) => r.wet_diapers) },
         { label: 'Dirty', data: rows.map((r) => r.dirty_diapers) },
       ],
-      pump: [{ label: 'Pumped', data: rows.map((r) => toVol(r.pump_ml)) }],
       pumpSides: (() => {
         const p = pumpBySide(pumps, rows.map((r) => r.day));
         return [
+          { label: 'Total', short: 'Total', data: p.left.map((l, k) => toVol(l + p.right[k])), width: 3 },
           { label: 'Left breast', short: 'L', data: p.left.map(toVol) },
           { label: 'Right breast', short: 'R', data: p.right.map(toVol) },
         ];
@@ -165,11 +165,10 @@ export default function Reports() {
             <BarChart partialLast={view.partial} integer title="Diapers per day" labels={view.labels} series={view.diapers} format={fmtCount} hues={['blue', 'amber']}
               guides={view.diaperGuides}
               note={view.diaperGuides.length ? 'Guide lines: a common first-two-weeks reference, counting the birth date as day 0 (wet ≈ days old up to 6+, dirty ≈ days old up to 3+). Ask your pediatrician what to expect for your baby.' : undefined} />
-            {view.has('pump_ml') && <BarChart partialLast={view.partial} title={`Pumped (${volUnit}) per day`} labels={view.labels} series={view.pump} format={fmtVolAxis} hues={['coral']} />}
             {view.has('pump_ml') && (
-              <LineChart partialLast={view.partial} title={`Milk pumped per breast (${volUnit}) per day`} labels={view.labels}
-                series={view.pumpSides} hues={['blue', 'coral']} format={fmtVolAxis}
-                note="From the amount entered for each side of every pumping session." />
+              <LineChart partialLast={view.partial} title={`Milk pumped per day (${volUnit})`} labels={view.labels}
+                series={view.pumpSides} hues={['teal', 'blue', 'coral']} format={fmtVolAxis}
+                note="Total and each breast, from the amount entered for each side of every pumping session." />
             )}
             {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} hues={['teal']} />}
 

@@ -439,9 +439,10 @@ psql(`insert into events (baby_id, type, started_at, ended_at, pump_side, pump_l
          40 + d * 6, 30 + d * 4 from babies b, generate_series(1, 5) d`);
 await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 600);
 await refresh(A); await wait(A, 1500);
-const pumpCard = A.locator('.chart-card', { hasText: 'Milk pumped per breast' });
-if (!(await pumpCard.count())) problems.push('no per-breast pumping chart on Reports');
-else { await pumpCard.scrollIntoViewIfNeeded(); await wait(A, 400); await pumpCard.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-pump-per-breast.png` }); }
+const pumpCard = A.locator('.chart-card', { hasText: 'Milk pumped per day' });
+if (!(await pumpCard.count())) problems.push('no milk-pumped chart on Reports');
+if (await A.locator('.chart-card', { hasText: 'Pumped (oz) per day' }).count()) problems.push('old pumped bar chart still shown');
+if (await pumpCard.count()) { await pumpCard.scrollIntoViewIfNeeded(); await wait(A, 400); await pumpCard.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-pump-per-breast.png` }); }
 
 // Light-mode look of Home and a logging sheet
 await A.emulateMedia({ colorScheme: 'light' });
