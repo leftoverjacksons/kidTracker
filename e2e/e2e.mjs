@@ -34,7 +34,8 @@ const srv = http.createServer((req, res) => {
 
 const psql = (q) => execFileSync('psql', ['-qtA', '-d', 'kidtracker_e2e', '-c', q], { encoding: 'utf8' }).trim();
 
-const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
+// The full Chromium build (not the headless shell), which has Push and Notifications.
+const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chromium' });
 const problems = [];
 let step = 0;
 
