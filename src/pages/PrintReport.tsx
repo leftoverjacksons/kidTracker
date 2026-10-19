@@ -152,7 +152,7 @@ export default function PrintReport({ days }: { days: number }) {
           </table></div>
         </>
       )}
-      <p className="meta">Recorded by the family with kidTracker. Sleep minutes are split at midnight; "night" = sleep starting 7 pm–6 am.</p>
+      <p className="meta">Recorded by the family with LakTrak. Sleep minutes are split at midnight; "night" = sleep starting 7 pm–6 am.</p>
     </div>
   );
 }

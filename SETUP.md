@@ -56,7 +56,7 @@ No email templates or URL settings are needed: the app signs in with email + pas
 2. Sign in with your email and password.
 3. The first person to sign in adds the baby's name and birth date.
 4. Chrome menu **⋮ → Install app** (on some phones it says **Add to Home screen → Install**). From then on, open it from the home-screen icon. It opens full-screen, appears in the app drawer and app switcher, and you stay signed in.
-5. **Shortcuts:** long-press the kidTracker icon to get **Diaper, Bottle, Nurse, Sleep**. Each opens straight to that screen. Drag one onto the home screen to make it a one-tap icon of its own.
+5. **Shortcuts:** long-press the LakTrak icon to get **Diaper, Bottle, Nurse, Sleep**. Each opens straight to that screen. Drag one onto the home screen to make it a one-tap icon of its own.
 
 ## 6. Nightly backups to Google Drive (about 10 minutes)
 
@@ -118,3 +118,9 @@ This replaces all logged data with the snapshot. Sign-in accounts are not affect
    where email = 'you@example.com';
   ```
 - **Wiping test data:** paste [`supabase/reset_data.sql`](supabase/reset_data.sql) into the Supabase **SQL Editor** and click **Run**. It deletes all entries, medications, and the baby profile, and keeps both accounts and settings. The app then asks for the baby's details again. This cannot be undone.
+
+## 7. Phone notifications (optional)
+
+Pumping reminders and "still running?" checks as real notifications, even when the app is closed.
+The steps (about 15–20 minutes) are in [docs/SUPABASE_TODO.md](docs/SUPABASE_TODO.md) under "Phone notifications".
+Without them the app works the same; reminders just show inside the app only.

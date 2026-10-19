@@ -615,7 +615,7 @@ Fix:
 
 **App icon (2026-10-19, v2):** the owner's bold sleeping-baby-on-moon with a star, on navy `#24396b`. That navy is dark, but light enough that the art's navy outlines (e.g. the hair curl) still show. The art is centred on its smallest enclosing circle, which reaches 39.5% of the width (inside the 40% safe radius) in the maskable icon. Browsers get the same on a round disc. The long-press shortcut icons are rebuilt from the type icons. The service worker now precaches `.webp`.
 
-**E5. "Still running?" check — Phase 1 built (2026-10-18).** When a timer runs unusually long, ask the person who started it whether it's still valid.
+**E5. "Still running?" check — Phase 1 built (2026-10-18); Phase 2 (push) built 2026-10-20.** When a timer runs unusually long, ask the person who started it whether it's still valid.
 - **Phase 1, app-only:**
   - Show a banner on Home and on the running sheet once a timer passes a threshold, e.g. "Sleep has been running 5 h 10 m — still asleep?", with **Yes, still going** / **It ended at…** (time picker) / **Discard**.
   - Show it to everyone, but address the starter by name.
@@ -666,6 +666,28 @@ Fix:
   - The Pump tile shows "Next 3:40 PM" or "Due now · last …".
   - Nothing shows while a session is running or before any session is logged.
 - **Limit:** this only shows when the app is open. A real alert on a closed phone needs Web Push. That is Phase 2, shared with E5 Phase 2: a `push_subscriptions` table, a scheduled Supabase Edge Function and VAPID keys, all of which are owner steps in Supabase.
+
+### J. Phone notifications (Web Push) — built 2026-10-20, live once the owner does the Supabase steps
+
+This is Phase 2 of E5 and I.
+- **Pieces:**
+  - `push_subscriptions` (one row per phone, RLS: own rows; prefs `pump_every_min` and `still_running`) and `push_log` (dedupe keys, service role only), from migration 0006.
+  - The Edge Function `push-tick`, a single self-contained file so it can be pasted into the dashboard editor.
+  - A pg_cron job every minute that POSTs to it via pg_net (`supabase/push_schedule.sql`).
+  - `public/push-sw.js` (imported into the PWA service worker): it shows the notification, and a tap opens/focuses the app (`#/home?log=pump` for pumping).
+- **Rules:** the same as in-app (`decide()`).
+  - A timer past its threshold notifies its starter's phones, falling back to everyone's, and again at each further threshold.
+  - Pumping due notifies each phone with an interval, at the due time and once 30 min later.
+  - Each message goes out once (claimed in `push_log` before sending). Subscriptions answering 404/410 are deleted.
+- **Crypto:** RFC 8291 aes128gcm and RFC 8292 VAPID, with Web Crypto only (no dependencies).
+  - The VAPID keys are made in the owner's browser (`public/vapid.html`) and stored as Edge Function secrets.
+  - GET `?vapid` returns the public key to the app.
+  - The function reads PostgREST with the service key: the legacy `SUPABASE_SERVICE_ROLE_KEY`, or the first of `SUPABASE_SECRET_KEYS`.
+- **Tests:**
+  - Unit: a payload encrypted here is decrypted by the reference `http_ece`; the VAPID JWT verifies; `decide()` cases; parity with the app's rules.
+  - Integration (`supabase/functions/push-tick/test/run.sh`): local PostgREST and a fake push service that decrypts, checking targeting, dedupe, the 410 cleanup and RLS.
+  - e2e: Settings shows "not set up"; the service worker turns a DevTools-delivered push into a notification; vapid.html keys sign valid tokens.
+- **Fails soft:** without the Supabase steps, the function URL fails, Settings shows "not set up", and nothing else changes.
 
 ### C. Report ideas saved for later (2026-10-16)
 

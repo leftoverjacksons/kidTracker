@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LakTrak notification keys</title>
+  <style>
+    :root { --bg: #fff; --fg: #13213f; --muted: #555; --line: #ddd; --accent: #2563d6; color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0b1426; --fg: #e9eefb; --muted: #a3afcb; --line: #263556; --accent: #6ea2ff; } }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 22px; } .muted { color: var(--muted); }
+    .row { margin: 14px 0; } label { font-weight: 600; display: block; }
+    code.key { display: block; word-break: break-all; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font: 13px ui-monospace, monospace; }
+    button { font: inherit; padding: 8px 14px; border-radius: 10px; border: 0; background: var(--accent); color: var(--bg); margin-top: 6px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Notification keys for LakTrak</h1>
+  <p class="muted">Made in this browser just now; nothing is sent anywhere. Do this <b>once</b>.
+    Add both as Edge Function secrets in Supabase (<b>Edge Functions → Secrets</b>), with exactly these names.
+    Keep the private key private: don't paste it in chats or GitHub. Reloading makes a new pair; that's fine before you've saved them.</p>
+  <div class="row"><label>Name: VAPID_PUBLIC_KEY</label><code class="key" id="pub">…</code><button data-copy="pub">Copy value</button></div>
+  <div class="row"><label>Name: VAPID_PRIVATE_KEY</label><code class="key" id="priv">…</code><button data-copy="priv">Copy value</button></div>
+  <p id="status" class="muted"></p>
+</main>
+<script type="module">
+  const b64u = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const fromB64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+  document.getElementById('pub').textContent = b64u(new Uint8Array([4, ...fromB64u(jwk.x), ...fromB64u(jwk.y)]));
+  document.getElementById('priv').textContent = jwk.d;
+  for (const b of document.querySelectorAll('button[data-copy]')) {
+    b.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent);
+      document.getElementById('status').textContent = 'Copied.';
+    });
+  }
+</script>
+</body>
+</html>

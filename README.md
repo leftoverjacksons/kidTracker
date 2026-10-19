@@ -1,4 +1,6 @@
-# kidTracker
+# LakTrak
+
+(Repository and web address still say kidTracker.)
 
 A minimal shared baby tracker for two caregivers: sleep, nursing, bottle, diaper, pumping, medicine, temperature, growth, tummy time, and bath. The data is yours, in your own Postgres database.
 

@@ -18,6 +18,7 @@ psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0004_feed_sessions.sql -f .
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f feed_sessions_test.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0005_mom_meds.sql -f ../migrations/0005_mom_meds.sql -f post_grants.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f mom_meds_test.sql
+psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0006_push.sql -f ../migrations/0006_push.sql -f post_grants.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../reset_data.sql
 test "$(psql -qtA -d "$DB" -c 'select (select count(*) from events) + (select count(*) from babies) + (select count(*) from nursing_segments)')" = 0
 test "$(psql -qtA -d "$DB" -c 'select count(*) from caregivers')" = 2

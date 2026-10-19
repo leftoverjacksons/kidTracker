@@ -1,4 +1,4 @@
-# Supabase to-do (things only you can do)
+# Supabase to-do (things only you can do) — LakTrak
 
 A running checklist of database steps waiting for you. Updated whenever a change needs one.
 Each step is a SQL file: open it on GitHub, **copy raw file**, then in Supabase go to **SQL Editor → New query**, paste it, and click **Run**.
@@ -6,7 +6,31 @@ Run them **in order**. Every script is safe to run twice.
 
 ## Waiting
 
-Nothing right now.
+### Phone notifications (pumping reminders + "still running?" checks)
+
+Do these in order, about 15–20 minutes in all. Until they're done, the app works as before:
+reminders show inside the app, and Settings says notifications are "not set up".
+
+- [ ] **1. Run `supabase/migrations/0006_push.sql`** (copy raw file → SQL Editor → New query → Run).
+- [ ] **2. Make the notification keys.** On a computer or phone, open
+      https://leftoverjacksons.github.io/kidTracker/vapid.html and leave the tab open.
+- [ ] **3. Save the keys as secrets.** In Supabase, open **Edge Functions → Secrets**
+      (https://supabase.com/dashboard/project/lusbippzmyvukzpswxxr/functions/secrets). Add two secrets, with names exactly as written:
+  - `VAPID_PUBLIC_KEY`: the first value from the page
+  - `VAPID_PRIVATE_KEY`: the second value. Keep it private: don't paste it anywhere else.
+- [ ] **4. Create the function.** In **Edge Functions**, click **Deploy a new function → Via Editor**.
+  - Name it exactly `push-tick`.
+  - Delete the sample code. Paste the whole of `supabase/functions/push-tick/index.ts` (open it on GitHub → copy raw file).
+  - Click **Deploy function**.
+- [ ] **5. Start the every-minute timer.** Open `supabase/push_schedule.sql` on GitHub and copy it into a new SQL Editor query.
+  - Replace `PASTE_ANON_KEY_HERE` with your anon key. It's the same value as the `VITE_SUPABASE_ANON_KEY` variable in GitHub; in Supabase it's under Project Settings → API Keys.
+  - Click **Run**.
+- [ ] **6. Turn it on, on each phone.** Open LakTrak → **Settings → Reminders → Phone notifications → Turn on**, and allow notifications when the phone asks.
+  - On iPhone, LakTrak must be added to the Home Screen first.
+  - Each phone chooses its own pumping interval (or Off), and whether it gets "still running?" checks.
+
+**If notifications don't arrive,** run this in the SQL Editor a couple of minutes after step 5 and send me the result:
+`select status_code, left(content::text, 200) from net._http_response order by created desc limit 3;`
 
 ## Done
 

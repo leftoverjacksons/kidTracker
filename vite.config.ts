@@ -23,8 +23,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/favicon-64.png', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'kidTracker',
-        short_name: 'kidTracker',
+        name: 'LakTrak',
+        short_name: 'LakTrak',
         description: 'Shared baby tracker',
         start_url: base,
         scope: base,
@@ -51,7 +51,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // restore.html is a standalone page, not part of the app shell.
-        navigateFallbackDenylist: [/restore\.html$/],
+        navigateFallbackDenylist: [/restore\.html$/, /vapid\.html$/],
+        // Push notification handlers (public/push-sw.js).
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

@@ -1,10 +1,11 @@
 import {
   IonButton, IonContent, IonHeader, IonInput, IonInputPasswordToggle, IonItem, IonLabel, IonList, IonListHeader, IonNote,
-  IonPage, IonSelect, IonSelectOption, IonTitle, IonToolbar, useIonToast,
+  IonPage, IonSelect, IonSelectOption, IonTitle, IonToggle, IonToolbar, useIonToast,
 } from '@ionic/react';
 import { useEffect, useState } from 'react';
 import { useHousehold } from '../lib/household';
 import { pumpEveryMin, setPumpEveryMin } from '../lib/pump';
+import { disablePush, enablePush, pushState, setStillRunningPref, stillRunningPref, syncPushPrefs, type PushState } from '../lib/push';
 import { supabase } from '../lib/supabase';
 import type { HouseholdSettings } from '../lib/types';
 
@@ -16,6 +17,10 @@ export default function Settings() {
   const [birthDate, setBirthDate] = useState(baby?.birth_date ?? '');
   const [newPassword, setNewPassword] = useState('');
   const [pumpEvery, setPumpEvery] = useState<number | null>(pumpEveryMin);
+  const [push, setPush] = useState<PushState | null>(null);
+  const [stillOn, setStillOn] = useState(stillRunningPref);
+  const [pushBusy, setPushBusy] = useState(false);
+  useEffect(() => { void pushState().then(setPush); }, []);
 
   useEffect(() => setDisplayName(me?.display_name ?? ''), [me]);
   useEffect(() => { setBabyName(baby?.name ?? ''); setBirthDate(baby?.birth_date ?? ''); }, [baby]);
@@ -121,17 +126,42 @@ export default function Settings() {
         </IonList>
 
         <IonList inset>
-          <IonListHeader><IonLabel>Pumping reminder (this phone)</IonLabel></IonListHeader>
+          <IonListHeader><IonLabel>Reminders (this phone)</IonLabel></IonListHeader>
+          <IonItem>
+            <IonLabel>
+              <h3>Phone notifications</h3>
+              <p className="push-status">{{
+                unsupported: 'Not supported in this browser. On iPhone, add LakTrak to the Home Screen first.',
+                'not-set-up': 'Not set up in Supabase yet (see docs/SUPABASE_TODO.md). Reminders still show inside the app.',
+                blocked: 'Blocked for this site. Allow notifications in the phone\'s settings for Chrome, then reopen.',
+                off: 'Off. Turn on to get reminders even when the app is closed.',
+                on: 'On for this phone.',
+              }[push ?? 'off']}</p>
+            </IonLabel>
+            {(push === 'off' || push === 'on') && (
+              <IonButton slot="end" disabled={pushBusy} fill={push === 'on' ? 'outline' : 'solid'} onClick={async () => {
+                setPushBusy(true);
+                const err = push === 'on' ? (await disablePush(), null) : await enablePush({ pumpEveryMin: pumpEvery, stillRunning: stillOn });
+                if (err) void toast({ message: err, color: 'danger', duration: 4000 });
+                setPush(await pushState()); setPushBusy(false);
+              }}>{push === 'on' ? 'Turn off' : 'Turn on'}</IonButton>
+            )}
+          </IonItem>
           <IonItem>
             <IonSelect label="Remind me to pump" value={String(pumpEvery ?? 'off')} interface="action-sheet"
-              onIonChange={(e) => { const v = e.detail.value === 'off' ? null : Number(e.detail.value); setPumpEveryMin(v); setPumpEvery(v); }}>
+              onIonChange={(e) => { const v = e.detail.value === 'off' ? null : Number(e.detail.value); setPumpEveryMin(v); setPumpEvery(v); void syncPushPrefs({ pumpEveryMin: v }); }}>
               <IonSelectOption value="120">Every 2 h (12 a day)</IonSelectOption>
               <IonSelectOption value="150">Every 2½ h (about 10 a day)</IonSelectOption>
               <IonSelectOption value="180">Every 3 h (8 a day)</IonSelectOption>
               <IonSelectOption value="off">Off</IonSelectOption>
             </IonSelect>
           </IonItem>
-          <IonItem lines="none"><IonNote className="hint">Counted from the start of the last 15+ minute session. Shows on Home while the app is open; it can't buzz the phone yet.</IonNote></IonItem>
+          <IonItem>
+            <IonToggle checked={stillOn} onIonChange={(e) => { const v = e.detail.checked; setStillOn(v); setStillRunningPref(v); void syncPushPrefs({ stillRunning: v }); }}>
+              "Still running?" checks for timers I start
+            </IonToggle>
+          </IonItem>
+          <IonItem lines="none"><IonNote className="hint">Pumping: counted from the start of the last 15+ minute session; a notification at the due time and once more 30 minutes later. Reminders always show on Home too.</IonNote></IonItem>
         </IonList>
 
         <div className="ion-padding">

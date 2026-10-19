@@ -20,6 +20,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - name: Typecheck push-tick Edge Function
+        run: npx tsc -p supabase/functions
       - run: npm test
       - run: npm run build
 
@@ -70,6 +72,8 @@ jobs:
       - run: e2e/run.sh
       - name: Backup round trip (Apps Script + restore)
         run: backup/test/run.sh
+      - name: Push notifications (push-tick against PostgREST + fake push service)
+        run: supabase/functions/push-tick/test/run.sh
       - if: always()
         uses: actions/upload-artifact@v4
         with:

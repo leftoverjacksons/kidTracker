@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { vapidAuth } from '../supabase/functions/push-tick/index.ts';
 
 const DIR = process.argv[2], OUT = process.argv[3];
 const SECRET = 'local-test-secret-local-test-secret-123';
@@ -390,6 +391,27 @@ if (await B.locator('.still-running').count()) problems.push('check still showin
 await A.locator('ion-tab-button[tab="settings"]').click(); await wait(A, 800);
 await A.locator('ion-select', { hasText: 'Sex' }).click(); await wait(A, 600);
 await A.locator('ion-action-sheet button', { hasText: 'Female' }).click(); await wait(A, 1200);
+// Notifications: the push-tick function isn't deployed here, so Settings says so and nothing breaks
+await expectText(A, 'Not set up in Supabase yet');
+// The service worker turns a push message into a notification (delivered via DevTools, as a push service would).
+{
+  await A.context().grantPermissions(['notifications'], { origin: 'http://localhost:4174' });
+  const cdp = await A.context().newCDPSession(A);
+  const regId = new Promise((ok) => cdp.on('ServiceWorker.workerRegistrationUpdated', (e) => {
+    const r = e.registrations.find((x) => x.scopeURL.startsWith('http://localhost:4174') && !x.isDeleted);
+    if (r) ok(r.registrationId);
+  }));
+  await cdp.send('ServiceWorker.enable');
+  const id = await Promise.race([regId, new Promise((ok) => setTimeout(() => ok(null), 5000))]);
+  if (!id) problems.push('no service worker registration to deliver a push to');
+  else {
+    await cdp.send('ServiceWorker.deliverPushMessage', { origin: 'http://localhost:4174', registrationId: id,
+      data: JSON.stringify({ title: 'Time to pump', body: 'Last session 2h ago.', tag: 'pump', url: '#/home?log=pump' }) });
+    await wait(A, 1000);
+    const titles = await A.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => n.title));
+    if (!titles.includes('Time to pump')) problems.push(`push did not show a notification: ${JSON.stringify(titles)}`);
+  }
+}
 
 // ── Reports
 await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 2000);
@@ -479,6 +501,18 @@ await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 800);
 await shot(A, 'home-light');
 await tile(A, 'Sleep').click(); await wait(A); await shot(A, 'sleep-sheet-light'); await closeSheet(A);
 if (await A.locator('.tile img.type-icon').count() < 6) problems.push('tile icons missing');
+
+// The notification-keys page makes keys the push-tick function can sign with.
+{
+  const kp = await browser.newPage();
+  await kp.goto('http://localhost:4174/vapid.html'); await kp.waitForTimeout(800);
+  const pub = (await kp.locator('#pub').textContent()).trim(), priv = (await kp.locator('#priv').textContent()).trim();
+  const hdr = await vapidAuth('https://fcm.googleapis.com/fcm/send/x', pub, priv, 'https://example.org/');
+  const [, t] = /t=([^,]+),/.exec(hdr); const [h, c, sig] = t.split('.');
+  const pk = crypto.createPublicKey({ key: { kty: 'EC', crv: 'P-256', x: Buffer.from(pub, 'base64url').subarray(1, 33).toString('base64url'), y: Buffer.from(pub, 'base64url').subarray(33).toString('base64url') }, format: 'jwk' });
+  if (!crypto.verify('sha256', Buffer.from(`${h}.${c}`), { key: pk, dsaEncoding: 'ieee-p1363' }, Buffer.from(sig, 'base64url'))) problems.push('keys from vapid.html do not work with push-tick');
+  await kp.close();
+}
 
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'E2E OK');
 await browser.close(); srv.close();

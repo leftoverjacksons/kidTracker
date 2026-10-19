@@ -29,7 +29,7 @@ export default function Login() {
       <IonContent className="ion-padding">
         <form className="login" onSubmit={(e) => { e.preventDefault(); void signIn(); }}>
           <div className="login-logo">🌙</div>
-          <h1>kidTracker</h1>
+          <h1>LakTrak</h1>
           <IonList inset>
             <IonItem>
               <IonInput
