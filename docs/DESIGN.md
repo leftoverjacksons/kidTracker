@@ -648,6 +648,13 @@ Fix:
 - The chart has a legend, direct "L"/"R" labels at the line ends, and a crosshair tooltip. Today's segment is dashed and its point hollow, because the day is unfinished.
 - 2026-10-19 update: the chart is now titled "Milk pumped per day". A **Total** line in teal (3 px) sits above L and R; blue, coral and teal were validated as a set on both surfaces. The separate "Pumped per day" bar chart was removed as redundant.
 
+### H. Daily charts as lines (2026-10-20)
+
+- Owner request: sleep per day and nursing minutes per day became stacked shaded line charts (areas stack, so the top edge is the total). Longest sleep stretch, feeds per day and bottle per day became line charts, and time between feeds a two-line chart (average, longest).
+- Days with no value (no sleep logged, fewer than two feeds) are gaps in the line, not dips to zero.
+- Line ends carry short labels, pushed apart when lines meet. Curves use monotone interpolation, so they never overshoot the data.
+- Diapers (with the day-0 guide steps) and tummy time stay as bars.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).

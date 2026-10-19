@@ -1,19 +1,24 @@
-import { CategoryScale, Chart, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip, type ChartConfiguration, type Plugin } from 'chart.js';
+import { CategoryScale, Chart, Filler, Legend, LinearScale, LineController, LineElement, PointElement, Tooltip, type ChartConfiguration, type Plugin } from 'chart.js';
 import { useEffect, useRef } from 'react';
+import { hourStep } from './BarChart';
 import { useChartTheme, type Hue } from './theme';
 
-Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend);
+Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Filler);
 
-export interface LineSeries { label: string; short?: string; data: number[]; /** Line width (default 2). */ width?: number }
+/** null = no value that day (a gap in the line, e.g. no sleep logged). */
+export interface LineSeries { label: string; short?: string; data: (number | null)[]; /** Line width (default 2). */ width?: number }
 
 /**
  * Daily line chart (one value per day per series). Legend plus a short direct label at
  * each line's end; crosshair + tooltip on touch. When `partialLast`, the segment into
- * today is dashed and today's point hollow, since the day isn't over.
+ * today is dashed and today's point hollow, since the day isn't over. `stacked` draws
+ * shaded areas stacked on each other (the top line is the total).
  */
-export default function LineChart({ title, labels, series, hues, format, partialLast = false, note }: {
+export default function LineChart({ title, labels, series, hues, format, partialLast = false, note, stacked = false, minutesAxis = false, integer = false }: {
   title: string; labels: string[]; series: LineSeries[]; hues: Hue[]; format: (v: number) => string;
-  partialLast?: boolean; note?: string;
+  partialLast?: boolean; note?: string; stacked?: boolean;
+  /** Values are minutes: ticks on whole/half hours. */ minutesAxis?: boolean;
+  /** Whole-number ticks (counts). */ integer?: boolean;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const theme = useChartTheme();
@@ -22,6 +27,9 @@ export default function LineChart({ title, labels, series, hues, format, partial
     if (!canvas.current) return;
     const last = labels.length - 1;
     const colors = hues.map((h) => theme.hue[h]);
+    const shade = (c: string) => c + (theme.dark ? '59' : '47'); // ~35% / 28% fill under stacked lines
+    const totals = labels.map((_, k) => series.reduce((a, s) => (stacked ? a + (s.data[k] ?? 0) : Math.max(a, s.data[k] ?? 0)), 0));
+    const stepSize = minutesAxis ? hourStep(Math.max(1, ...totals)) : undefined;
     // Direct labels ("L", "R") just right of each line's last point.
     const endLabels: Plugin<'line'> = {
       id: 'endLabels',
@@ -29,11 +37,17 @@ export default function LineChart({ title, labels, series, hues, format, partial
         const { ctx } = chart;
         ctx.save();
         ctx.font = '600 11px system-ui, sans-serif'; ctx.fillStyle = theme.text; ctx.textBaseline = 'middle';
-        chart.data.datasets.forEach((_, i) => {
+        // Each label sits at its line's last point; labels closer than 13px are pushed apart.
+        const labs = chart.data.datasets.map((_, i) => {
           const pts = chart.getDatasetMeta(i).data;
           const p = pts[pts.length - 1];
-          if (p && series[i].short) ctx.fillText(series[i].short!, p.x + 8, p.y);
-        });
+          return p && !(p as unknown as { skip?: boolean }).skip && Number.isFinite(p.y) && series[i].short
+            ? { text: series[i].short!, x: p.x + 8, y: p.y } : null;
+        }).filter((l): l is { text: string; x: number; y: number } => l != null).sort((p, q) => p.y - q.y);
+        for (let k = 1; k < labs.length; k++) labs[k].y = Math.max(labs[k].y, labs[k - 1].y + 13);
+        const over = labs.length ? labs[labs.length - 1].y - (chart.chartArea.bottom + 6) : 0;
+        if (over > 0) labs.forEach((l) => { l.y -= over; });
+        labs.forEach((l) => ctx.fillText(l.text, l.x, l.y));
         ctx.restore();
       },
     };
@@ -54,7 +68,8 @@ export default function LineChart({ title, labels, series, hues, format, partial
         labels,
         datasets: series.map((s, i) => ({
           label: s.label, data: s.data,
-          borderColor: colors[i], backgroundColor: colors[i], borderWidth: s.width ?? 2, tension: 0.25,
+          borderColor: colors[i], backgroundColor: stacked ? shade(colors[i]) : colors[i], borderWidth: s.width ?? 2, tension: 0.3, cubicInterpolationMode: 'monotone', // no overshoot between points
+          fill: stacked ? (i === 0 ? 'origin' : '-1') : false, spanGaps: false,
           pointRadius: labels.length > 20 ? 2.5 : 4, pointHoverRadius: 6,
           pointBorderColor: labels.map((_, k) => (partialLast && k === last ? colors[i] : theme.surface)), pointBorderWidth: 2,
           // Today's point is hollow and the segment into it dashed: the day isn't over.
@@ -68,20 +83,21 @@ export default function LineChart({ title, labels, series, hues, format, partial
         layout: { padding: { right: Math.max(16, ...series.map((s) => (s.short?.length ?? 0) * 7 + 10)) } },
         interaction: { mode: 'index', intersect: false },
         scales: {
-          x: { grid: { display: false }, border: { color: theme.grid },
+          x: { stacked, grid: { display: false }, border: { color: theme.grid },
                ticks: { color: theme.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 7, font: { size: 11 } } },
-          y: { beginAtZero: true, border: { display: false }, grid: { color: theme.grid },
-               ticks: { color: theme.muted, maxTicksLimit: 5, font: { size: 11 }, callback: (v) => format(Number(v)) } },
+          y: { stacked, beginAtZero: true, border: { display: false }, grid: { color: theme.grid },
+               ticks: { color: theme.muted, maxTicksLimit: 5, font: { size: 11 }, precision: integer ? 0 : undefined, stepSize, callback: (v) => format(Number(v)) } },
         },
         plugins: {
           legend: { display: series.length > 1, position: 'top', align: 'start',
-            labels: { color: theme.text, boxWidth: 14, boxHeight: 2, font: { size: 12 } } },
+            labels: { color: theme.text, boxWidth: stacked ? 10 : 14, boxHeight: stacked ? 10 : 2, font: { size: 12 } } },
           tooltip: {
             backgroundColor: theme.dark ? '#2a3550' : '#ffffff', titleColor: theme.text, bodyColor: theme.text,
             borderColor: theme.grid, borderWidth: 1, padding: 10, boxPadding: 4, usePointStyle: true,
             callbacks: {
               title: (items) => (items[0] ? `${items[0].label}${partialLast && items[0].dataIndex === last ? ' (so far)' : ''}` : ''),
-              label: (c) => ` ${c.dataset.label}: ${format(Number(c.raw))}`,
+              label: (c) => (c.raw == null ? '' : ` ${series.length > 1 ? `${c.dataset.label}: ` : ''}${format(Number(c.raw))}`),
+              footer: (items) => (stacked && items.length > 1 ? `Total: ${format(items.reduce((a, c) => a + Number(c.raw ?? 0), 0))}` : ''),
             },
           },
         },
@@ -90,7 +106,7 @@ export default function LineChart({ title, labels, series, hues, format, partial
     };
     const chart = new Chart(canvas.current, config);
     return () => chart.destroy();
-  }, [labels, series, format, partialLast, theme, hues.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [labels, series, format, partialLast, theme, hues.join(), stacked, minutesAxis, integer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <figure className="chart-card">

@@ -444,6 +444,25 @@ if (!(await pumpCard.count())) problems.push('no milk-pumped chart on Reports');
 if (await A.locator('.chart-card', { hasText: 'Pumped (oz) per day' }).count()) problems.push('old pumped bar chart still shown');
 if (await pumpCard.count()) { await pumpCard.scrollIntoViewIfNeeded(); await wait(A, 400); await pumpCard.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-pump-per-breast.png` }); }
 
+// The line charts with several days of data (sleep, feeds and nursing over the last days)
+psql(`insert into events (baby_id, type, started_at, ended_at)
+  select b.id, 'sleep'::event_type, now() - (d || ' days')::interval - interval '6 hours', now() - (d || ' days')::interval - interval '6 hours' + ((120 + d * 25) || ' minutes')::interval
+    from babies b, generate_series(1, 5) d
+  union all
+  select b.id, 'sleep'::event_type, now() - (d || ' days')::interval - interval '2 hours', now() - (d || ' days')::interval - interval '2 hours' + interval '50 minutes'
+    from babies b, generate_series(1, 5) d
+  union all
+  select b.id, 'bottle'::event_type, now() - (d || ' days')::interval - (h || ' hours')::interval, null
+    from babies b, generate_series(1, 5) d, generate_series(1, 3) h`);
+psql(`update events set bottle_ml = 60 where type = 'bottle' and bottle_ml is null`);
+await refresh(A); await wait(A, 1500);
+for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Time between feeds', 'Bottle (oz) per day']) {
+  const card = A.locator('.chart-card', { hasText: t });
+  if (!(await card.count())) { problems.push(`chart missing: ${t}`); continue; }
+  await card.scrollIntoViewIfNeeded(); await wait(A, 300);
+  await card.screenshot({ path: `${OUT}/line-${t.replace(/[^a-z]+/gi, '-').toLowerCase()}.png` });
+}
+
 // Light-mode look of Home and a logging sheet
 await A.emulateMedia({ colorScheme: 'light' });
 await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 800);
