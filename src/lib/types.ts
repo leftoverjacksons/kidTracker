@@ -50,6 +50,8 @@ export interface EventRow {
   bottle_ml: number | null;
   /** In the bottle at the start (migration 0007); bottle_ml is what was drunk. */
   bottle_start_ml?: number | null;
+  /** Which bottle was used, e.g. 'Comotomo' (migration 0008). */
+  bottle_brand?: string | null;
   bottle_contents: 'breast_milk' | 'formula' | 'mixed' | null;
   diaper_wet: boolean | null;
   diaper_dirty: boolean | null;

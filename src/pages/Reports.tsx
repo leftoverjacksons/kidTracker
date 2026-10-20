@@ -11,7 +11,7 @@ import { weightChange } from '../lib/weight';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
-import { flowByDay } from '../lib/bottle';
+import BottleReport from '../components/BottleReport';
 import { averages, bottleByContents, completeDays, diaperGuide, fillDays, isoDay, longestSleepByDay, pumpBySide, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
@@ -25,6 +25,9 @@ export default function Reports() {
   const data = useData();
   const [toast] = useIonToast();
   const [days, setDays] = useState(14);
+  // Overview (daily charts) or Bottles (per-feed comparison by bottle brand), remembered per phone.
+  const [tab, setTab] = useState<'overview' | 'bottles'>(() => { try { return localStorage.getItem('kt.reportsTab') === 'bottles' ? 'bottles' : 'overview'; } catch { return 'overview'; } });
+  const pickTab = (t: 'overview' | 'bottles') => { setTab(t); try { localStorage.setItem('kt.reportsTab', t); } catch { /* ignore */ } };
   const [rows, setRows] = useState<DailyRow[] | null>(null);
   const [growth, setGrowth] = useState<GrowthRow[]>([]);
   const [sleeps, setSleeps] = useState<{ start_date: string; duration_min: number }[]>([]);
@@ -64,7 +67,6 @@ export default function Reports() {
   const fmtCount = useCallback((v: number) => String(Math.round(v * 10) / 10), []);
   const fmtHours = useCallback((m: number) => (m < 60 ? `${Math.round(m)}m` : `${Math.round((m / 60) * 10) / 10}h`), []);
   const fmtMin = useCallback((m: number) => `${Math.round(m)}m`, []);
-  const fmtFlowAxis = useCallback((v: number) => (oz ? v.toFixed(2) : v.toFixed(1)), [oz]);
   const toVol = useCallback((ml: number) => (oz ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml)), [oz]);
 
   const view = useMemo(() => {
@@ -108,8 +110,6 @@ export default function Reports() {
           ],
         };
       })(),
-      // Timed bottles only (total amount ÷ total minutes that day); gaps on days without one.
-      flow: [{ label: 'Flow', data: flowByDay(data.events, rows.map((r) => r.day)).map((f) => (f == null ? null : oz ? Math.round(mlToOz(f) * 100) / 100 : Math.round(f * 10) / 10)) }],
       nursing: [
         { label: 'Left', short: 'L', data: rows.map((r) => r.nursing_left_min) },
         { label: 'Right', short: 'R', data: rows.map((r) => r.nursing_right_min) },
@@ -132,7 +132,7 @@ export default function Reports() {
       avgDays: completeDays(rows).length,
       has: (k: keyof DailyRow) => rows.some((r) => Number(r[k]) > 0),
     };
-  }, [rows, toVol, sleeps, pumps, bottles, baby?.birth_date, data.events, oz]);
+  }, [rows, toVol, sleeps, pumps, bottles, baby?.birth_date]);
 
 
   const volUnit = oz ? 'oz' : 'ml';
@@ -156,6 +156,11 @@ export default function Reports() {
               <IonSegmentButton value="14">14 days</IonSegmentButton>
               <IonSegmentButton value="30">30 days</IonSegmentButton>
             </IonSegment>
+            <IonSegment className="reports-tabs" value={tab} onIonChange={(e) => pickTab(e.detail.value as 'overview' | 'bottles')}>
+              <IonSegmentButton value="overview">Overview</IonSegmentButton>
+              <IonSegmentButton value="bottles">Bottles</IonSegmentButton>
+            </IonSegment>
+            {tab === 'bottles' ? <BottleReport days={days} /> : <>
 
             <h2 className="section-title">Daily average <span className="subtle">({view.avgDays === 1 && view.partial ? 'today so far' : `${view.avgDays} complete day${view.avgDays === 1 ? '' : 's'}`})</span></h2>
             <div className="summary-row summary-row-3">
@@ -181,11 +186,6 @@ export default function Reports() {
             )}
             {view.has('bottle_ml') && <LineChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle.series} format={fmtVolAxis} hues={['teal', 'blue', 'coral']}
                 note={`Amount drunk.${view.bottle.hasMixed ? ' Mixed bottles count in the total only.' : ''}`} />}
-            {view.flow[0].data.some((v) => v != null) && (
-              <LineChart partialLast={view.partial} title={`Bottle flow rate (${volUnit}/min)`} labels={view.labels} series={view.flow} hues={['amber']}
-                format={fmtFlowAxis}
-                note="Timed bottles only: amount drunk ÷ minutes, per day. Use the Bottle timer to add points." />
-            )}
             {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
               <LineChart partialLast={view.partial} integer stacked title="Nursing minutes per day" labels={view.labels} series={view.nursing} format={fmtMin} hues={['blue', 'coral']}
                 note="Shaded areas stack: the top edge is total nursing time." />}
@@ -200,6 +200,7 @@ export default function Reports() {
             {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} hues={['teal']} />}
 
             <GrowthSection rows={growth} />
+            </>}
 
             <IonList inset>
               <IonListHeader><IonLabel>Export (last {days} days)</IonLabel></IonListHeader>

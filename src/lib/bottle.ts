@@ -1,6 +1,9 @@
 import { isoDay } from './reports';
 import type { EventRow } from './types';
 
+/** Bottles the household compares (design doc §8a L). */
+export const BOTTLE_BRANDS = ['Comotomo', 'Philips Avent', 'MAM', "Dr. Brown's", 'Other'] as const;
+
 /** Shortest timed bottle that counts for flow rate (shorter ones are treated as untimed). */
 export const MIN_TIMED_MIN = 1;
 
@@ -31,4 +34,34 @@ export function flowByDay(events: EventRow[], days: string[]): (number | null)[]
     min.set(d, (min.get(d) ?? 0) + m);
   }
   return days.map((d) => (min.get(d) ? ml.get(d)! / min.get(d)! : null));
+}
+
+export interface TimedBottle { e: EventRow; brand: string; minutes: number; ml: number; rate: number }
+
+/** Finished, timed bottles with an amount, newest first. */
+export function timedBottles(events: EventRow[], since: Date): TimedBottle[] {
+  const out: TimedBottle[] = [];
+  for (const e of events) {
+    if (e.type !== 'bottle' || e.deleted_at || Date.parse(e.started_at) < since.getTime()) continue;
+    const minutes = bottleMinutes(e), rate = flowRate(e);
+    if (!minutes || !rate) continue;
+    out.push({ e, brand: e.bottle_brand || 'Not set', minutes, ml: Number(e.bottle_ml), rate });
+  }
+  return out.sort((a, b) => b.e.started_at.localeCompare(a.e.started_at));
+}
+
+export function median(xs: number[]): number | null {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b), m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/** Per brand: feeds, median flow (ml/min), median minutes, median ml. Brands in list order, "Not set" last. */
+export function byBrand(feeds: TimedBottle[]) {
+  const order = [...BOTTLE_BRANDS, 'Not set'] as string[];
+  const names = [...new Set(feeds.map((f) => f.brand))].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+  return names.map((brand) => {
+    const f = feeds.filter((x) => x.brand === brand);
+    return { brand, feeds: f.length, rate: median(f.map((x) => x.rate))!, minutes: median(f.map((x) => x.minutes))!, ml: median(f.map((x) => x.ml))! };
+  });
 }

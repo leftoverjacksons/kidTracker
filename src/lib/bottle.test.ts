@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bottleMinutes, flowByDay, flowRate } from './bottle';
+import { bottleMinutes, byBrand, flowByDay, flowRate, median, timedBottles } from './bottle';
 import type { EventRow } from './types';
 
 const b = (start: string, min: number | null, ml: number | null) => ({
@@ -18,5 +18,21 @@ describe('bottle flow', () => {
   it('averages per day as total ml over total minutes', () => {
     const ev = [b('2026-10-20T08:00:00', 10, 60), b('2026-10-20T14:00:00', 20, 60), b('2026-10-20T18:00:00', 0, 90)];
     expect(flowByDay(ev, ['2026-10-19', '2026-10-20'])).toEqual([null, 4]);
+  });
+});
+
+describe('brand comparison', () => {
+  const t = (start: string, min: number, ml: number, brand: string | null) => ({ ...b(start, min, ml), bottle_brand: brand }) as EventRow;
+  const ev = [t('2026-10-20T08:00:00', 10, 60, 'MAM'), t('2026-10-20T11:00:00', 20, 60, 'MAM'), t('2026-10-20T14:00:00', 15, 90, 'Comotomo'),
+    t('2026-10-20T16:00:00', 0, 60, 'MAM') /* untimed: ignored */, t('2026-10-20T18:00:00', 12, 60, null)];
+  it('keeps timed bottles with amounts, newest first', () => {
+    const f = timedBottles(ev, new Date('2026-10-19T00:00:00'));
+    expect(f.map((x) => x.brand)).toEqual(['Not set', 'Comotomo', 'MAM', 'MAM']);
+  });
+  it('medians per brand, in list order with "Not set" last', () => {
+    expect(median([3, 1, 2])).toBe(2);
+    expect(median([1, 2, 3, 4])).toBe(2.5);
+    const r = byBrand(timedBottles(ev, new Date('2026-10-19T00:00:00')));
+    expect(r.map((x) => [x.brand, x.feeds, x.rate, x.minutes])).toEqual([['Comotomo', 1, 6, 15], ['MAM', 2, 4.5, 15], ['Not set', 1, 5, 12]]);
   });
 });

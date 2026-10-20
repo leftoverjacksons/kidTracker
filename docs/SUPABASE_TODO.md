@@ -13,6 +13,10 @@ Run them **in order**. Every script is safe to run twice.
   - Until it runs, the Bottle screen works as before, without the Timer tab.
   - Updated 2026-10-20: it also adds `bottle_start_ml` (how much was in the bottle at the start). If you already ran an earlier copy, run it again; that's safe.
 
+### Bottle brand (compare Comotomo / Avent / MAM / Dr. Brown's)
+
+- [ ] **Run `supabase/migrations/0008_bottle_brand.sql`** (after 0007). It's one step, and safe to run again. It adds the "Bottle" picker to the bottle screen; until then the picker is hidden.
+
 ### Phone notifications (pumping reminders + "still running?" checks)
 
 Do these in order, about 15–20 minutes in all. Until they're done, the app works as before:

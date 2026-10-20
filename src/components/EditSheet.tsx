@@ -1,5 +1,8 @@
-import { IonButton, IonCheckbox, IonInput, IonItem, IonList, IonNote, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonToast } from '@ionic/react';
+import {
+  IonButton, IonCheckbox, IonInput, IonItem, IonList, IonNote, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonToast,
+} from '@ionic/react';
 import { useState } from 'react';
+import { BOTTLE_BRANDS } from '../lib/bottle';
 import { useData } from '../lib/data';
 import { META } from '../lib/describe';
 import { useHousehold } from '../lib/household';
@@ -41,6 +44,7 @@ function EditForm({ event: e, onDone }: { event: EventRow; onDone: () => void })
   // type-specific
   const [bottle, setBottle] = useState<number | null>(e.bottle_ml != null ? v.toShow(e.bottle_ml) : null);
   const [contents, setContents] = useState(e.bottle_contents ?? 'breast_milk');
+  const [brand, setBrand] = useState<string | null>(e.bottle_brand ?? null);
   const [wet, setWet] = useState(!!e.diaper_wet);
   const [dirty, setDirty] = useState(!!e.diaper_dirty);
   const [color, setColor] = useState<string | null>(e.poop_color);
@@ -75,7 +79,7 @@ function EditForm({ event: e, onDone }: { event: EventRow; onDone: () => void })
     else if (e.type === 'bottle' && !running) f.ended_at = f.started_at; // an untimed bottle stays an instant
     switch (e.type) {
       case 'bottle':
-        Object.assign(f, { bottle_ml: bottle != null ? v.toStore(bottle) : null, bottle_contents: contents });
+        Object.assign(f, { bottle_ml: bottle != null ? v.toStore(bottle) : null, bottle_contents: contents, ...(data.features.bottleBrand ? { bottle_brand: brand } : {}) });
         break;
       case 'diaper':
         Object.assign(f, { diaper_wet: wet, diaper_dirty: dirty, poop_color: dirty ? color : null,
@@ -143,6 +147,14 @@ function EditForm({ event: e, onDone }: { event: EventRow; onDone: () => void })
                 <IonSegmentButton value="mixed">Mixed</IonSegmentButton>
               </IonSegment>
             </IonItem>
+            {data.features.bottleBrand && (
+              <IonItem>
+                <IonSelect label="Bottle" labelPlacement="stacked" interface="action-sheet" placeholder="Not set"
+                  value={brand ?? ''} onIonChange={(x) => setBrand(x.detail.value || null)}>
+                  {BOTTLE_BRANDS.map((b) => <IonSelectOption key={b} value={b}>{b}</IonSelectOption>)}
+                </IonSelect>
+              </IonItem>
+            )}
           </>
         )}
         {e.type === 'diaper' && (

@@ -134,13 +134,15 @@ await expectText(A, '3 oz', '.tile');
 // Bottle, timed: type what's in the bottle → Start → Stop → type what's left → drank + flow rate
 await tile(A, 'Bottle').click(); await wait(A);
 await sheet(A).locator('ion-input').nth(0).locator('input').fill('3'); await wait(A, 200);
+await sheet(A).locator('ion-select', { hasText: 'Bottle' }).click(); await wait(A, 500);
+await A.locator('ion-action-sheet button', { hasText: 'Comotomo' }).click(); await wait(A, 500);
 await sheet(A).locator('.big-btn-start', { hasText: 'Start' }).click(); await wait(A, 1200);
 await closeSheet(A);
 await expectText(A, 'Feeding', '.tile');
 psql(`update events set started_at = now() - interval '12 minutes' where type = 'bottle' and ended_at is null`);
 await refresh(A);
 await tile(A, 'Bottle').click(); await wait(A);
-await expectText(A, 'In the bottle: 3 oz');
+await expectText(A, 'In the bottle: 3 oz · Comotomo');
 await sheet(A).locator('.big-btn-stop', { hasText: 'Stop' }).click(); await wait(A, 1200);
 // Closing before typing the left-over amount: reopening picks the bottle up again.
 await closeSheet(A);
@@ -151,8 +153,8 @@ await expectText(A, 'Drank 2 oz', '.bottle-drank');
 await expectText(A, 'oz/min', '.bottle-drank');
 await shot(A, 'bottle-timer-finish');
 await sheet(A).locator('.big-btn-start', { hasText: 'Save' }).click(); await wait(A, 1200);
-const timed = psql(`select round(extract(epoch from ended_at - started_at) / 60) || ' ' || round(bottle_ml) || ' ' || round(bottle_start_ml) from events where type = 'bottle' and ended_at > started_at`);
-if (!/^1[12] 59 89$/.test(timed)) problems.push(`timed bottle saved as "${timed}" (expected ~12 min, drank 59 ml of 89 ml)`);
+const timed = psql(`select round(extract(epoch from ended_at - started_at) / 60) || ' ' || round(bottle_ml) || ' ' || round(bottle_start_ml) || ' ' || bottle_brand from events where type = 'bottle' and ended_at > started_at`);
+if (!/^1[12] 59 89 Comotomo$/.test(timed)) problems.push(`timed bottle saved as "${timed}" (expected ~12 min, drank 59 ml of 89 ml)`);
 await expectText(A, 'oz/min');  // the entry in Today's list shows its flow rate
 
 // Sleep start on A
@@ -521,6 +523,25 @@ for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Tim
   await card.scrollIntoViewIfNeeded(); await wait(A, 300);
   await card.screenshot({ path: `${OUT}/line-${t.replace(/[^a-z]+/gi, '-').toLowerCase()}.png` });
 }
+
+// Reports → Bottles: compare bottle brands (seed a few more timed feeds)
+psql(`insert into events (baby_id, type, started_at, ended_at, bottle_ml, bottle_start_ml, bottle_contents, bottle_brand)
+  select b.id, 'bottle'::event_type, now() - (k || ' hours')::interval, now() - (k || ' hours')::interval + ((8 + k * 2) || ' minutes')::interval,
+         50 + k * 3, 90, case when k % 3 = 0 then 'formula' else 'breast_milk' end,
+         (array['Comotomo', 'Philips Avent', 'MAM', 'Dr. Brown''s'])[1 + k % 4]
+    from babies b, generate_series(20, 31) k`);
+await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 800);
+await refresh(A);
+await A.locator('.reports-tabs ion-segment-button[value="bottles"]').click(); await wait(A, 1200);
+for (const t of ['Comotomo', 'Philips Avent', 'MAM', "Dr. Brown's"]) await expectText(A, t, '.brand-table');
+if (await A.locator('.chart-card', { hasText: 'Bottle flow rate' }).count()) problems.push('old daily flow chart still shown');
+const bottlesPage = A.locator('.ion-page:not(.ion-page-hidden)').last();
+await shot(A, 'reports-bottles');
+const flowCard = bottlesPage.locator('.chart-card', { hasText: 'Flow per feed' });
+if (!(await flowCard.count())) problems.push('no flow-per-feed chart'); else { await flowCard.scrollIntoViewIfNeeded(); await flowCard.screenshot({ path: `${OUT}/bottles-flow.png` }); }
+const lenCard = bottlesPage.locator('.chart-card', { hasText: 'Feed length' });
+if (await lenCard.count()) { await lenCard.scrollIntoViewIfNeeded(); await lenCard.screenshot({ path: `${OUT}/bottles-length.png` }); }
+await A.locator('.reports-tabs ion-segment-button[value="overview"]').click(); await wait(A, 500);
 
 // Light-mode look of Home and a logging sheet
 await A.emulateMedia({ colorScheme: 'light' });

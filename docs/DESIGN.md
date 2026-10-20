@@ -722,23 +722,23 @@ This is Phase 2 of E5 and I.
 - "Forgot to time it? Enter a past bottle" opens a typed form: start − left over, or amount drunk; plus contents, time and an optional duration. Before migration 0007 only this form shows.
 - Reports "Bottle per day": a Total line (teal, 3 px), plus **Breast milk** (blue) and **Formula** (coral), from `v_feeds.bottle_contents`. Mixed bottles count only in the total, and the note says so. The teal/blue/coral set was validated earlier.
 
-### L. Flow rate per feeding — PROPOSAL, not built (2026-10-20)
+### L. Bottles view: compare bottle brands — built 2026-10-20 (brand picker needs migration 0008)
 
-Owner: "I need to see it by feeding, not by day … maybe an entire sub-tab for the results that zooms in. Open to suggestions." The daily "Bottle flow rate" chart stays on Reports until this is decided.
-
-Proposal: a **Bottles** view inside Reports, chosen from a segment at the top: **Overview | Bottles**. It would hold:
-1. **Flow per feed:** one point per timed bottle (ml or oz per minute), placed at its actual time across the selected 7/14/30 days, and coloured by contents (breast milk blue, formula coral). Tapping a point shows time, start, left, drank, duration, rate and who logged it. A faint line links the points in order. Optionally a median line for the period.
-2. **Feed list:** the timed bottles, newest first. Each row: time · drank (of start) · duration · rate. Tapping a row opens it for editing.
-3. **Summary tiles:** median rate this week vs last week; typical feed length; share of bottles timed.
-4. Move the daily flow chart here too, as a smaller trend.
-
-Optional addition for troubleshooting flow: tag each bottle with the **nipple/bottle type** (e.g. "Slow / Size 1 / Size 2"), then colour or filter the per-feed chart by it.
-- Needs one small migration (a text column), plus a picker on the Start screen remembering the last choice.
-
-Open questions for the owner:
-- (a) x-axis by clock time (default) or by feed number?
-- (b) add nipple/bottle-type tagging?
-- (c) keep the daily flow chart on Overview as well?
+- Owner answers to the proposal:
+  - The goal is to compare bottle brands (Comotomo, Philips Avent, MAM, Dr. Brown's), with a drop-down tag in the bottle dialogue.
+  - Drop the daily flow chart once this exists.
+  - Focus on individual bottles and feeds, not clock-time trends.
+- Migration 0008:
+  - Adds `events.bottle_brand` (text).
+  - `app_features()` now reads the schema (start_timer accepts bottle → `bottle_timer`; `bottle_start_ml` column → `bottle_start`; `bottle_brand` column → `bottle_brand`). So 0007 and 0008 can be run in any order or again, and the app shows only what exists.
+- Bottle screen: a "Bottle" drop-down (Comotomo, Philips Avent, MAM, Dr. Brown's, Other), remembered from the last bottle. It's on Start and in "Forgot to time it?", and editable in the edit sheet. The running screen shows "In the bottle: 3 oz · Comotomo". Entries include the brand.
+- Reports gets **Overview | Bottles** (remembered per phone). The daily "Bottle flow rate" chart is removed. Bottles shows, for timed feeds with an amount in the selected 7/14/30 days:
+  1. **By bottle** table: feeds, median flow, median length, median amount drunk.
+  2. **Flow per feed:** a strip chart, one column per brand and one dot per feed, coloured breast milk (blue), formula (coral), mixed/not set (teal), with a median bar per brand. Tapping a dot shows when, drank (of start), length and flow.
+  3. **Feed length:** the same strip chart, with a shaded 10–20 min band labelled "often suggested for a paced feed".
+  4. **Feeds** list (filter chips by brand; tap to edit).
+- No official flow target exists. Feeding guidance is about feed length: paced bottle feeds of roughly 10–20 min (some guidance says at least 20), with pauses. Lab tests of nipples (Pados et al. 2016) found flow varies widely, even within one "slow" label (1.7 to over 15 ml/min). Comparing brands on this family's own feeds, plus asking their lactation consultant, is the approach.
+- Tests: unit (timedBottles, median, byBrand); DB (0008, feature detection after re-running 0007); e2e (pick Comotomo, the saved brand, the Bottles tab table and charts, the old chart gone).
 
 ### C. Report ideas saved for later (2026-10-16)
 

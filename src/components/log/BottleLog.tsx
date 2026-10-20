@@ -1,6 +1,6 @@
-import { IonButton, IonItem, IonList, IonSegment, IonSegmentButton, useIonAlert } from '@ionic/react';
+import { IonButton, IonItem, IonList, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonAlert } from '@ionic/react';
 import { useState } from 'react';
-import { flowRate } from '../../lib/bottle';
+import { BOTTLE_BRANDS, flowRate } from '../../lib/bottle';
 import { useData } from '../../lib/data';
 import { formatDuration, formatFlow, formatVolume } from '../../lib/format';
 import { buzz, useLogged } from '../../lib/feedback';
@@ -62,6 +62,18 @@ function ContentsPicker({ value, onChange }: { value: Contents; onChange: (c: Co
   );
 }
 
+/** Which bottle (brand), to compare flow (migration 0008). */
+function BrandPicker({ value, onChange }: { value: string | null; onChange: (b: string | null) => void }) {
+  return (
+    <IonItem>
+      <IonSelect label="Bottle" labelPlacement="stacked" interface="action-sheet" placeholder="Choose the bottle"
+        value={value ?? ''} onIonChange={(e) => onChange(e.detail.value || null)}>
+        {BOTTLE_BRANDS.map((b) => <IonSelectOption key={b} value={b}>{b}</IonSelectOption>)}
+      </IonSelect>
+    </IonItem>
+  );
+}
+
 /** 1. How much is in the bottle → Start. */
 function Start() {
   const { settings } = useHousehold();
@@ -70,19 +82,21 @@ function Start() {
   const v = vol(settings);
   const [inBottle, setInBottle] = useState<number | null>(null);
   const [contents, setContents] = useState<Contents>(data.latest.bottle?.bottle_contents ?? 'breast_milk');
+  const [brand, setBrand] = useState<string | null>(data.latest.bottle?.bottle_brand ?? null);
   const ok = inBottle != null && inBottle > 0;
   return (
     <>
       <IonList inset>
         <NumberField label="In the bottle" unit={v.unit} value={inBottle} onChange={setInBottle} autoFocus />
         <ContentsPicker value={contents} onChange={setContents} />
+        {data.features.bottleBrand && <BrandPicker value={brand} onChange={setBrand} />}
       </IonList>
       <button className="big-btn big-btn-wide big-btn-start" disabled={!ok} onClick={async () => {
         if (!ok) return;
         buzz();
         const stopped = await data.autoStop({ kind: 'bottle' });
         const e = await data.startTimer('bottle');
-        if (e) await data.update(e.id, { bottle_contents: contents, ...(data.features.bottleStart ? { bottle_start_ml: v.toStore(inBottle!) } : {}) });
+        if (e) await data.update(e.id, { bottle_contents: contents, ...(data.features.bottleStart ? { bottle_start_ml: v.toStore(inBottle!) } : {}), ...(data.features.bottleBrand ? { bottle_brand: brand } : {}) });
         if (stopped.length) logged('Bottle started', undefined, stopped);
       }}><TypeIcon type="bottle" />{ok ? 'Start' : 'Type the amount, then Start'}</button>
     </>
@@ -97,7 +111,7 @@ function Running({ running, onStopped, onDone }: { running: EventRow; onStopped:
   return (
     <>
       <RunningHeader event={running} />
-      {running.bottle_start_ml != null && <p className="hint center bottle-q">In the bottle: <b>{formatVolume(running.bottle_start_ml, settings)}</b></p>}
+      {running.bottle_start_ml != null && <p className="hint center bottle-q">In the bottle: <b>{formatVolume(running.bottle_start_ml, settings)}</b>{running.bottle_brand ? ` · ${running.bottle_brand}` : ''}</p>}
       <button className="big-btn big-btn-wide big-btn-stop" onClick={async () => {
         buzz();
         if (await data.stopTimer(running.id)) onStopped(running.id);
@@ -169,9 +183,11 @@ function ManualForm({ onDone }: { onDone: () => void }) {
   const [at, setAt] = useState<Date | null>(new Date());
   const [minutes, setMinutes] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
+  const [brand, setBrand] = useState<string | null>(latest.bottle?.bottle_brand ?? null);
   const { ui, drankMl, startMl } = useBottleAmounts(settings, null, (
     <>
       <ContentsPicker value={contents} onChange={setContents} />
+      {features.bottleBrand && <BrandPicker value={brand} onChange={setBrand} />}
       <TimeField label="Time" value={at} onChange={setAt} />
       <NumberField label="How long it took (optional)" unit="min" value={minutes} onChange={setMinutes} />
       <NotesField value={notes} onChange={setNotes} />
@@ -187,6 +203,7 @@ function ManualForm({ onDone }: { onDone: () => void }) {
     const e = await add('bottle', {
       started_at: when.toISOString(), ended_at: end.toISOString(), bottle_ml: drankMl,
       bottle_contents: contents, notes: notes.trim() || null, ...(features.bottleStart && startMl ? { bottle_start_ml: startMl } : {}),
+      ...(features.bottleBrand && brand ? { bottle_brand: brand } : {}),
     });
     if (e) { logged(`Bottle logged: ${formatVolume(e.bottle_ml, settings)}`, e.id, stopped); onDone(); } else if (stopped.length) void reopen(stopped);
   }

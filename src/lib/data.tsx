@@ -13,7 +13,7 @@ interface Data {
   events: EventRow[];
   running: Partial<Record<TimedType, EventRow>>;
   /** Optional database features (public.app_features(); empty before those migrations). */
-  features: { bottleTimer: boolean; bottleStart: boolean };
+  features: { bottleTimer: boolean; bottleStart: boolean; bottleBrand: boolean };
   latest: Partial<Record<EventType, EventRow>>;
   meds: Medication[];
   names: Record<string, string>;
@@ -47,10 +47,10 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
   const [events, setEvents] = useState<EventRow[]>([]);
   const [meds, setMeds] = useState<Medication[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
-  const [features, setFeatures] = useState<Data['features']>({ bottleTimer: false, bottleStart: false });
+  const [features, setFeatures] = useState<Data['features']>({ bottleTimer: false, bottleStart: false, bottleBrand: false });
   useEffect(() => {
     if (!supabase || !babyId) return;
-    void supabase.rpc('app_features').then(({ data }) => setFeatures({ bottleTimer: Array.isArray(data) && data.includes('bottle_timer'), bottleStart: Array.isArray(data) && data.includes('bottle_start') }));
+    void supabase.rpc('app_features').then(({ data }) => setFeatures({ bottleTimer: Array.isArray(data) && data.includes('bottle_timer'), bottleStart: Array.isArray(data) && data.includes('bottle_start'), bottleBrand: Array.isArray(data) && data.includes('bottle_brand') }));
   }, [babyId]);
   const [ready, setReady] = useState(false);
   const since = useRef(new Date(Date.now() - WINDOW_DAYS * 86_400_000));
