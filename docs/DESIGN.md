@@ -762,6 +762,17 @@ This is Phase 2 of E5 and I.
   - DB: viewer reads `events_visible` without notes or Mom's doses, sees zero rows in `events`, reports work, and insert, start_timer, self-promotion and push sign-up are all refused. Caregivers are unchanged.
   - e2e: a third phone, "Grandma", can't open sheets or the edit sheet, sees no secret note and no Mom's medicines, has no exports, sees the guest Settings, and a direct write to the API is rejected.
 
+### N. Rainy day: rename the GitHub repository to LakTrak (tabled 2026-10-20)
+
+- The app already shows "LakTrak" (icon label, tab title, sign-in, printout). Only the web address and repository still say kidTracker.
+- Renaming changes the address to `leftoverjacksons.github.io/LakTrak/`. GitHub does not redirect Pages project sites, so every installed copy must be reinstalled from the new link. Logins survive: same origin, so the same storage.
+- Steps when it's time:
+  1. Code: build the base path from the repository name (`VITE_BASE=/${{ github.event.repository.name }}/` in CI) instead of the hard-coded `/kidTracker/`. This is safe to land before the rename.
+  2. Everyone turns phone notifications **off** in Settings, so the old app copy doesn't keep receiving duplicates.
+  3. Owner: GitHub → Settings → General → Repository name → `LakTrak`.
+  4. Update links in docs (SETUP, SUPABASE_TODO, vapid/restore pages, the push function's VAPID_SUBJECT default). Everyone reinstalls and turns notifications back on. Re-grant this assistant's access to the renamed repository if needed.
+- Unaffected: Supabase data and accounts (including guests), the notification timer (calls Supabase), the Google Drive backup.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).
