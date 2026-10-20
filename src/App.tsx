@@ -42,9 +42,19 @@ function Tabs() {
 }
 
 function Gate() {
-  const { loading, session, notAllowed, baby } = useHousehold();
+  const { loading, session, notAllowed, unreachable, baby, reload } = useHousehold();
   if (loading) return <Centered><IonSpinner /></Centered>;
   if (!session) return <Login />;
+  if (unreachable) {
+    return (
+      <Centered>
+        <p><b>Can't reach the LakTrak database.</b></p>
+        <p className="hint">Check the phone's internet connection (try Wi-Fi off/on), then retry. Your data is safe on the server.</p>
+        <p className="hint">Details: {unreachable}</p>
+        <IonButton onClick={() => void reload()}>Retry</IonButton>
+      </Centered>
+    );
+  }
   if (notAllowed) {
     return (
       <Centered>

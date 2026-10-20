@@ -9,6 +9,8 @@ interface Household {
   me: Caregiver | null;
   /** True when signed in but the account is not on the caregiver list. */
   notAllowed: boolean;
+  /** Set when the database couldn't be reached (network), so 'not allowed' isn't claimed wrongly. */
+  unreachable: string | null;
   baby: Baby | null;
   settings: HouseholdSettings;
   reload: () => Promise<void>;
@@ -23,6 +25,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Caregiver | null>(null);
   const [baby, setBaby] = useState<Baby | null>(null);
   const [settings, setSettings] = useState<HouseholdSettings>(DEFAULT_SETTINGS);
+  const [unreachable, setUnreachable] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -43,6 +46,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
       supabase.from('babies').select('*').order('created_at').limit(1).maybeSingle(),
       supabase.from('household_settings').select('*').maybeSingle(),
     ]);
+    setUnreachable(meRes.error ? meRes.error.message || 'network error' : null);
     setMe(meRes.data ?? null);
     setBaby(babyRes.data ?? null);
     setSettings(settingsRes.data ?? DEFAULT_SETTINGS);
@@ -75,7 +79,8 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     loading: !authReady || (!!userId && !dataReady),
     session,
     me,
-    notAllowed: !!userId && dataReady && !me,
+    notAllowed: !!userId && dataReady && !me && !unreachable,
+    unreachable,
     baby,
     settings,
     reload,
