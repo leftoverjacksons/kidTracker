@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 /**
  * Colours from the illustrated icon set (2026-10-19): blue, coral, teal, amber.
@@ -25,9 +25,15 @@ export interface ChartTheme {
   muted: string;
   grid: string;
   reference: string;
+  /** Set inside the printable summary: render the canvas at this pixel ratio so it prints sharply. */
+  dpr?: number;
 }
 
+/** True inside the pediatrician summary: charts always use the light colours on white paper. */
+export const PrintCharts = createContext(false);
+
 export function useChartTheme(): ChartTheme {
+  const print = useContext(PrintCharts);
   const q = '(prefers-color-scheme: dark)';
   const [dark, setDark] = useState(() => window.matchMedia?.(q).matches ?? false);
   useEffect(() => {
@@ -37,6 +43,11 @@ export function useChartTheme(): ChartTheme {
     m.addEventListener('change', on);
     return () => m.removeEventListener('change', on);
   }, []);
+  if (print) {
+    const h = PALETTE.light;
+    return { dark: false, hue: h, series: [h.blue, h.coral], gain: h.teal, loss: h.coral, dpr: 3,
+      surface: '#ffffff', text: '#111111', muted: '#555555', grid: '#e6e6e6', reference: '#bbbbbb' };
+  }
   const h = dark ? PALETTE.dark : PALETTE.light;
   const base = { dark, hue: h, series: [h.blue, h.coral], gain: h.teal, loss: h.coral };
   return dark

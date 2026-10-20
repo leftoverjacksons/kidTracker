@@ -73,7 +73,7 @@ export default function BarChart({ title, labels, series, stacked = false, forma
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: false, ...(theme.dpr ? { devicePixelRatio: theme.dpr } : {}),
         animation: false,
         interaction: { mode: 'index', intersect: false },
         scales: {

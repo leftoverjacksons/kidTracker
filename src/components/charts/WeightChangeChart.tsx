@@ -105,7 +105,7 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
         ],
       },
       options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
+        responsive: true, maintainAspectRatio: false, ...(theme.dpr ? { devicePixelRatio: theme.dpr } : {}), animation: false,
         interaction: { mode: 'nearest', axis: 'x', intersect: false },
         scales: {
           x: {

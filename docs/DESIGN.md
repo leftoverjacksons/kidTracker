@@ -783,13 +783,23 @@ This is Phase 2 of E5 and I.
   4. Update links in docs (SETUP, SUPABASE_TODO, vapid/restore pages, the push function's VAPID_SUBJECT default). Everyone reinstalls and turns notifications back on. Re-grant this assistant's access to the renamed repository if needed.
 - Unaffected: Supabase data and accounts (including guests), the notification timer (calls Supabase), the Google Drive backup.
 
+### O. Pediatrician summary: charts first, raw numbers after — built 2026-10-20 (app-only)
+
+Reports → Export → Pediatrician summary (Print → Save as PDF).
+
+- **Page 1 (overview):** daily averages; a **Weight** box with birth (or first) weight, lowest weight with % change and day of life, the day weight got back to birth weight (or "Not yet"), and the latest weight with % change and WHO percentile. Then the charts, two per row on paper: weight vs. birth weight (once there are two weights), feeds per day, time between feeds, bottle per day (total, breast milk, formula), nursing minutes (L/R stacked), diapers per day (with the first-two-weeks guide lines), sleep per day (night/naps stacked).
+- **Charts use complete days only.** A half-finished today would look like a drop. Today's numbers are still in the day-by-day table, marked "(so far)".
+- **Following pages (raw numbers):** start on a new page. Day-by-day table, now with a **Day** column (days old, birth date = day 0) so diapers and feeds can be read against day of life. Then growth with WHO percentiles, baby medicines (Mom's are never included) and temperatures.
+- Left out on purpose: pumping and tummy time (they're in Reports and the CSVs); the WHO percentile charts (the growth table gives the percentiles).
+- **How it's built:** the summary draws the same series as Reports (`dailyCharts` in `src/lib/reports.ts`). Charts inside the summary always use the light colours on white, whatever the phone's dark mode setting, and are drawn at 3× resolution so they print sharply. Chart cards have a fixed width (334 px), the same on screen and on paper, so nothing has to be redrawn when printing; two fit side by side on Letter or A4.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).
 - **Growth charts in weeks** for the first 3 months (age axis currently in months).
 - **Time between feeds** — built 2026-10-18: Reports chart (daily average and longest, start to start), typical interval in the chart note, columns in the daily CSV and pediatrician summary. Home's "Today · feeds" uses the same 20-min grouping (`countFeeds`).
 - **Daily charts on the timeline's day cutoff** instead of midnight, so "sleep per day" means the same in both places. Needs a view change, so it also goes with 0004.
-- **Pediatrician summary:** add weight-change numbers (birth weight, lowest %, regain age) and diapers by day of life.
+- **Pediatrician summary:** add weight-change numbers (birth weight, lowest %, regain age) and diapers by day of life — built 2026-10-20, see §O.
 - **Discoverability:** a "tap a bar for details" hint or a direct label on the latest bar.
 
 ## 9. Sources consulted

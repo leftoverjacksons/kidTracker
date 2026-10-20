@@ -1,21 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import BarChart from '../components/charts/BarChart';
+import LineChart from '../components/charts/LineChart';
+import { PrintCharts } from '../components/charts/theme';
+import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { formatDuration, formatLength, formatTemp, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
-import { averages, completeDays, fillDays, isoDay, localStamp, longestSleepByDay, shortDay, trimLeading, type DailyRow } from '../lib/reports';
+import { averages, completeDays, dailyCharts, daysOld, fillDays, isoDay, localStamp, longestSleepByDay, shortDay, trimLeading, type DailyRow } from '../lib/reports';
 import { supabase } from '../lib/supabase';
-import { ageLabel } from '../lib/units';
+import { ageLabel, mlToOz } from '../lib/units';
+import { formatPct, weightChange } from '../lib/weight';
 import { ageInMonths, percentile, type Measure } from '../lib/who';
 
 type Row = Record<string, unknown>;
+type Sleep = { start_date: string; duration_min: number };
+type Bottle = { start_date: string; bottle_ml: number | null; bottle_contents: string | null };
 
-/** One-page pediatrician summary; plain HTML so it prints cleanly (Print → Save as PDF). */
+const DAY = 86_400_000;
+// Module-level so the charts don't redraw on every render.
+const fmtCount = (v: number) => String(Math.round(v * 10) / 10);
+const fmtHours = (m: number) => (m < 60 ? `${Math.round(m)}m` : `${Math.round((m / 60) * 10) / 10}h`);
+const fmtMin = (m: number) => `${Math.round(m)}m`;
+const fmtVol = (v: number) => `${Math.round(v * 10) / 10}`;
+const NO_PUMPS: never[] = [];
+
+/**
+ * Pediatrician summary (Print → Save as PDF). Page 1 is the overview: daily averages,
+ * weight change and the main charts (complete days only). The pages after it hold the
+ * raw numbers: one row per day, growth, medicines and temperatures.
+ */
 export default function PrintReport({ days }: { days: number }) {
   const { baby, settings } = useHousehold();
   const [daily, setDaily] = useState<DailyRow[] | null>(null);
   const [growth, setGrowth] = useState<Row[]>([]);
   const [meds, setMeds] = useState<Row[]>([]);
   const [temps, setTemps] = useState<Row[]>([]);
-  const [longest, setLongest] = useState<Map<string, number>>(new Map());
+  const [sleeps, setSleeps] = useState<Sleep[]>([]);
+  const [bottles, setBottles] = useState<Bottle[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,12 +47,13 @@ export default function PrintReport({ days }: { days: number }) {
     if (!supabase || !baby) return;
     const from = new Date(startOfDay(new Date()).getTime() - (days - 1) * 86_400_000);
     void (async () => {
-      const [d, g, m, t, sl] = await Promise.all([
+      const [d, g, m, t, sl, bo] = await Promise.all([
         supabase!.from('v_daily_summary').select('*').eq('baby_id', baby.id).gte('day', isoDay(from)),
         supabase!.from('v_growth').select('*').eq('baby_id', baby.id).order('started_at'),
         supabase!.from('v_meds').select('*').eq('baby_id', baby.id).gte('started_at', from.toISOString()).order('started_at'), // Mom's filtered below
         supabase!.from('v_temps').select('*').eq('baby_id', baby.id).gte('started_at', from.toISOString()).order('started_at'),
         supabase!.from('v_sleep').select('start_date,duration_min').eq('baby_id', baby.id).gte('start_date', isoDay(from)),
+        supabase!.from('v_feeds').select('start_date,bottle_ml,bottle_contents').eq('baby_id', baby.id).eq('feed_type', 'bottle').gte('start_date', isoDay(from)),
       ]);
       const err = d.error ?? g.error ?? m.error ?? t.error;
       if (err) return setError(err.message);
@@ -40,14 +61,26 @@ export default function PrintReport({ days }: { days: number }) {
       setGrowth(g.data ?? []);
       setMeds((m.data ?? []).filter((r) => r.for_whom !== 'mom'));
       setTemps(t.data ?? []);
-      setLongest(longestSleepByDay((sl.data ?? []) as { start_date: string; duration_min: number }[]));
+      setSleeps((sl.data ?? []) as Sleep[]);
+      setBottles((bo.data ?? []) as Bottle[]);
     })();
   }, [baby, days]);
+
+  const oz = settings.volume_unit === 'oz';
+  const longest = useMemo(() => longestSleepByDay(sleeps), [sleeps]);
+  // Charts show complete days only: a half-finished today would look like a drop.
+  const charts = useMemo(() => (daily ? dailyCharts(completeDays(daily), {
+    sleeps, bottles, pumps: NO_PUMPS, birthDate: baby?.birth_date ?? null,
+    toVol: (ml) => (oz ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml)),
+  }) : null), [daily, sleeps, bottles, baby?.birth_date, oz]);
+  const wc = useMemo(() => weightChange(growth as { started_at: string; weight_g: number | null }[]), [growth]);
+  const gToUnit = useMemo(() => (g: number) => (settings.weight_unit === 'lb_oz' ? g / 453.59237 : g / 1000), [settings.weight_unit]);
+  const fmtGrams = useMemo(() => (g: number) => formatWeight(g, settings), [settings]);
 
   if (!baby) return null;
   const back = () => { window.location.hash = '#/reports'; };
   if (error) return <div className="print-page"><p>{error}</p><button onClick={back}>Back</button></div>;
-  if (!daily) return <div className="print-page"><p>Loading…</p></div>;
+  if (!daily || !charts) return <div className="print-page"><p>Loading…</p></div>;
 
   const full = completeDays(daily);
   const avg = averages(full); // complete days only; today is still in progress
@@ -60,8 +93,17 @@ export default function PrintReport({ days }: { days: number }) {
     return p == null ? '' : ` (${p < 1 ? '<1' : p > 99 ? '>99' : Math.round(p)}th)`;
   };
   const first = daily[0].day, last = daily[daily.length - 1].day;
+  const bd = baby.birth_date;
+  const birth = bd ? (() => { const [y, m, d] = bd.split('-').map(Number); return new Date(y, m - 1, d).getTime(); })() : null;
+  // Day of life (birth date = day 0), as on the weight chart.
+  const dol = (t: number) => (bd ? daysOld(isoDay(new Date(t)), bd) : null);
+  const onDay = (t: number) => { const n = dol(t); return n == null ? new Date(t).toLocaleDateString() : `day ${n}`; };
+  const baseLabel = wc && birth != null && wc.base.t - birth < 2 * DAY ? 'Birth weight' : 'First weight';
+  const volUnit = oz ? 'oz' : 'ml';
+  const has = charts.has;
 
   return (
+    <PrintCharts.Provider value>
     <div className="print-page">
       <div className="no-print print-actions">
         <button onClick={back}>‹ Back</button>
@@ -70,7 +112,7 @@ export default function PrintReport({ days }: { days: number }) {
 
       <h1>{baby.name}</h1>
       <p className="meta">
-        {baby.birth_date && <>Born {new Date(baby.birth_date + 'T00:00').toLocaleDateString()} · {ageLabel(baby.birth_date)} · </>}
+        {bd && <>Born {new Date(bd + 'T00:00').toLocaleDateString()} · {ageLabel(bd)} · </>}
         Summary of {shortDay(first)} to {shortDay(last)} ({daily.length} day{daily.length === 1 ? '' : 's'}) · generated {new Date().toLocaleString()}
       </p>
 
@@ -85,14 +127,54 @@ export default function PrintReport({ days }: { days: number }) {
         </tbody>
       </table></div>
 
-      <h2>By day</h2>
+      {wc && (
+        <>
+          <h2>Weight</h2>
+          <div className="table-wrap">
+          <table className="kv">
+            <tbody>
+              <tr><th>{baseLabel}</th><td>{formatWeight(wc.base.grams, settings)} <span className="meta">({onDay(wc.base.t)})</span></td>
+                <th>Latest</th><td>{formatWeight(wc.latest.grams, settings)} ({formatPct(wc.latest.pct)}){pct('weight', new Date(wc.latest.t).toISOString(), wc.latest.grams / 1000)} <span className="meta">({onDay(wc.latest.t)})</span></td></tr>
+              <tr><th>Lowest</th><td>{wc.lowest.pct < 0 ? <>{formatWeight(wc.lowest.grams, settings)} ({formatPct(wc.lowest.pct)}) <span className="meta">({onDay(wc.lowest.t)})</span></> : 'No loss recorded'}</td>
+                <th>Back to {baseLabel.toLowerCase()}</th><td>{wc.lowest.pct < 0 ? (wc.regainedAt ? onDay(wc.regainedAt) : 'Not yet') : '–'}</td></tr>
+            </tbody>
+          </table></div>
+        </>
+      )}
+
+      <div className="print-charts">
+        {wc && wc.points.length > 1 && (
+          <WeightChangeChart data={wc} toDisplay={gToUnit} unit={settings.weight_unit === 'lb_oz' ? 'lb' : 'kg'}
+            formatWeight={fmtGrams} dayZero={birth ?? new Date(isoDay(new Date(wc.base.t)) + 'T00:00').getTime()} baseLabel={baseLabel} />
+        )}
+        <LineChart partialLast={charts.partial} integer title="Feeds per day" labels={charts.labels} series={charts.feeds} format={fmtCount} hues={['coral']}
+          note="Nursing and bottle; entries under 20 min apart count as one feed." />
+        {has('longest_feed_interval_min') && (
+          <LineChart partialLast={charts.partial} integer minutesAxis title="Time between feeds" labels={charts.labels} series={charts.feedGap} format={fmtHours} hues={['teal', 'coral']}
+            note="Start of one feed to the start of the next." />
+        )}
+        {has('bottle_ml') && (
+          <LineChart partialLast={charts.partial} title={`Bottle per day (${volUnit})`} labels={charts.labels} series={charts.bottle.series} format={fmtVol} hues={['teal', 'blue', 'coral']}
+            note={`Amount drunk.${charts.bottle.hasMixed ? ' Mixed bottles count in the total only.' : ''}`} />
+        )}
+        {(has('nursing_left_min') || has('nursing_right_min')) && (
+          <LineChart partialLast={charts.partial} integer stacked title="Nursing minutes per day" labels={charts.labels} series={charts.nursing} format={fmtMin} hues={['blue', 'coral']}
+            note="Stacked: the top edge is the total." />
+        )}
+        <BarChart partialLast={charts.partial} integer title="Diapers per day" labels={charts.labels} series={charts.diapers} format={fmtCount} hues={['blue', 'amber']}
+          guides={charts.diaperGuides} note={charts.diaperGuides.length ? 'Guide lines: common first-two-weeks reference (wet ≈ days old up to 6, dirty ≈ days old up to 3).' : undefined} />
+        {has('sleep_min') && <LineChart partialLast={charts.partial} integer minutesAxis stacked title="Sleep per day" labels={charts.labels} series={charts.sleep} format={fmtHours} hues={['blue', 'amber']}
+          note="Stacked: the top edge is total sleep. Night = sleep starting 7 pm–6 am." />}
+      </div>
+
+      <h2 className="print-break">Day by day <span className="meta">(raw numbers)</span></h2>
       <div className="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Sleep</th><th>Night</th><th>Naps</th><th>Longest</th><th>Feeds</th><th>Longest gap</th><th>Nursing L/R</th><th>Bottle</th><th>Wet</th><th>Dirty</th></tr></thead>
+        <thead><tr><th>Date</th>{bd && <th>Day</th>}<th>Sleep</th><th>Night</th><th>Naps</th><th>Longest</th><th>Feeds</th><th>Longest gap</th><th>Nursing L/R</th><th>Bottle</th><th>Wet</th><th>Dirty</th></tr></thead>
         <tbody>
           {daily.map((r) => (
             <tr key={r.day}>
-              <td className="nowrap">{shortDay(r.day)}{r.day === today ? ' (so far)' : ''}</td><td>{h(r.sleep_min)}</td><td>{h(r.night_sleep_min)}</td><td>{h(r.nap_sleep_min)}</td>
+              <td className="nowrap">{shortDay(r.day)}{r.day === today ? ' (so far)' : ''}</td>{bd && <td>{daysOld(r.day, bd)}</td>}<td>{h(r.sleep_min)}</td><td>{h(r.night_sleep_min)}</td><td>{h(r.nap_sleep_min)}</td>
               <td>{longest.get(r.day) ? h(longest.get(r.day)!) : '–'}</td>
               <td>{r.feeds}</td><td>{r.longest_feed_interval_min ? h(r.longest_feed_interval_min) : '–'}</td><td>{r.nursing_left_min}/{r.nursing_right_min} m</td>
               <td>{r.bottle_ml ? formatVolume(r.bottle_ml, settings) : '–'}</td><td>{r.wet_diapers}</td><td>{r.dirty_diapers}</td>
@@ -152,7 +234,8 @@ export default function PrintReport({ days }: { days: number }) {
           </table></div>
         </>
       )}
-      <p className="meta">Recorded by the family with LakTrak. Sleep minutes are split at midnight; "night" = sleep starting 7 pm–6 am.</p>
+      <p className="meta">Recorded by the family with LakTrak. Sleep minutes are split at midnight; "night" = sleep starting 7 pm–6 am.{bd ? ' "Day" = days old, with the birth date as day 0.' : ''}</p>
     </div>
+    </PrintCharts.Provider>
   );
 }

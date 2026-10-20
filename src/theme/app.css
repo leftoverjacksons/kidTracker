@@ -241,6 +241,23 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
   .print-page th, .print-page td { padding: 3px 5px; }
 }
 @media print { .print-page .table-wrap { overflow: visible; } }
+/* Summary charts: fixed-width cards, two per row on paper (fits Letter and A4 at 14 mm margins).
+   The width is the same on screen and paper, so the canvas never has to be redrawn for print. */
+.print-charts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.print-page .chart-card { width: min(334px, 100%); margin: 0; padding: 6px 8px 6px; border: 1px solid #e3e3e3; border-radius: 8px; background: #fff; color: #111; break-inside: avoid; }
+.print-page .chart-title { font-size: 13px; margin-bottom: 2px; }
+.print-page .chart-box, .print-page .chart-box-tall { height: 132px; }
+.print-page .chart-note { font-size: 10.5px; opacity: 0.75; margin-top: 2px; }
+.print-page .chart-legend-inline { font-size: 11px; margin: 0 0 2px; }
+.print-page h2.print-break { margin-top: 28px; }
+@media print {
+  /* Ionic's app shell is absolutely positioned and contained, which disables page breaks. */
+  body.print-mode ion-app { position: static; display: block; contain: none; overflow: visible; }
+  .print-page h2.print-break { break-before: page; margin-top: 0; }
+  /* Let wide tables wrap on paper instead of running off the page edge. */
+  .print-page td, .print-page th { white-space: normal; padding: 3px 4px; }
+  .print-page tr { break-inside: avoid; }
+}
 
 /* ── Home: More toggle and pump gauges ── */
 .more-toggle {

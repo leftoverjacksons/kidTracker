@@ -182,3 +182,73 @@ export function bottleByContents(rows: { start_date: string; bottle_ml: number |
   };
   return { total: sum(null), breastMilk: sum('breast_milk'), formula: sum('formula'), hasMixed: rows.some((r) => r.bottle_contents === 'mixed' && Number(r.bottle_ml) > 0) };
 }
+
+type SleepRow = { start_date: string; duration_min: number | string | null };
+type BottleRow = { start_date: string; bottle_ml: number | string | null; bottle_contents: string | null };
+type PumpRow = { start_date: string; pump_left_ml: number | string | null; pump_right_ml: number | string | null };
+
+/**
+ * Series for the daily charts, shared by Reports and the pediatrician summary.
+ * `toVol` converts millilitres to the display unit.
+ */
+export function dailyCharts(rows: DailyRow[], { sleeps, bottles, pumps, birthDate, toVol, today = new Date() }: {
+  sleeps: SleepRow[]; bottles: BottleRow[]; pumps: PumpRow[]; birthDate: string | null; toVol: (ml: number) => number; today?: Date;
+}) {
+  const t = isoDay(today);
+  const partial = rows[rows.length - 1]?.day === t; // today's point is unfinished
+  const days = rows.map((r) => r.day);
+  const labels = rows.map((r) => {
+    if (r.day === t) return 'Today';
+    const [, m, d] = r.day.split('-').map(Number);
+    return `${m}/${d}`;
+  });
+  const longest = longestSleepByDay(sleeps);
+  const guide = birthDate ? rows.map((r) => diaperGuide(r.day, birthDate)) : [];
+  const diaperGuides = guide.some(Boolean) ? [
+    { label: 'Wet guide', data: guide.map((x) => x?.wet ?? null), seriesIndex: 0 },
+    { label: 'Dirty guide', data: guide.map((x) => x?.dirty ?? null), seriesIndex: 1 },
+  ] : [];
+  const b = bottleByContents(bottles, days);
+  const p = pumpBySide(pumps, days);
+  return {
+    labels, partial, diaperGuides,
+    // No sleep logged that day → a gap in the line, not a dip to zero.
+    longest: [{ label: 'Longest sleep', data: rows.map((r) => longest.get(r.day) ?? null) }],
+    sleep: [
+      { label: 'Night', short: 'Night', data: rows.map((r) => r.night_sleep_min) },
+      { label: 'Naps', short: 'Naps', data: rows.map((r) => r.nap_sleep_min) },
+    ],
+    feeds: [{ label: 'Feeds', data: rows.map((r) => r.feeds) }],
+    feedGap: [
+      // 0 = no interval that day (fewer than two feeds) → a gap, not zero hours.
+      { label: 'Average', short: 'Avg', data: rows.map((r) => r.avg_feed_interval_min || null) },
+      { label: 'Longest', short: 'Longest', data: rows.map((r) => r.longest_feed_interval_min || null) },
+    ],
+    bottle: {
+      hasMixed: b.hasMixed,
+      series: [
+        { label: 'Total', short: 'Total', data: rows.map((r) => toVol(r.bottle_ml)), width: 3 },
+        { label: 'Breast milk', short: 'BM', data: b.breastMilk.map(toVol) },
+        { label: 'Formula', short: 'F', data: b.formula.map(toVol) },
+      ],
+    },
+    nursing: [
+      { label: 'Left', short: 'L', data: rows.map((r) => r.nursing_left_min) },
+      { label: 'Right', short: 'R', data: rows.map((r) => r.nursing_right_min) },
+    ],
+    diapers: [
+      { label: 'Wet', data: rows.map((r) => r.wet_diapers) },
+      { label: 'Dirty', data: rows.map((r) => r.dirty_diapers) },
+    ],
+    pumpSides: [
+      { label: 'Total', short: 'Total', data: p.left.map((l, k) => toVol(l + p.right[k])), width: 3 },
+      { label: 'Left breast', short: 'L', data: p.left.map(toVol) },
+      { label: 'Right breast', short: 'R', data: p.right.map(toVol) },
+    ],
+    tummy: [{ label: 'Tummy time', data: rows.map((r) => r.tummy_min) }],
+    // Averages use complete days only; today's partial day would pull them down.
+    avg: averages(completeDays(rows, today)),
+    avgDays: completeDays(rows, today).length,
+    has: (k: keyof DailyRow) => rows.some((r) => Number(r[k]) > 0),
+  };
+}

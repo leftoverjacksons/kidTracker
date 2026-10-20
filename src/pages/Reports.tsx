@@ -12,7 +12,7 @@ import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import BottleReport from '../components/BottleReport';
-import { averages, bottleByContents, completeDays, diaperGuide, fillDays, isoDay, longestSleepByDay, pumpBySide, trimLeading, type DailyRow } from '../lib/reports';
+import { dailyCharts, fillDays, isoDay, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
 import { cmToIn, mlToOz } from '../lib/units';
@@ -69,70 +69,8 @@ export default function Reports() {
   const fmtMin = useCallback((m: number) => `${Math.round(m)}m`, []);
   const toVol = useCallback((ml: number) => (oz ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml)), [oz]);
 
-  const view = useMemo(() => {
-    if (!rows) return null;
-    const today = isoDay(new Date());
-    const partial = rows[rows.length - 1]?.day === today; // today's bar is unfinished
-    const labels = rows.map((r) => {
-      if (r.day === today) return 'Today';
-      const [, m, d] = r.day.split('-').map(Number);
-      return `${m}/${d}`;
-    });
-    const longest = longestSleepByDay(sleeps);
-    const bd = baby?.birth_date;
-    const guide = bd ? rows.map((r) => diaperGuide(r.day, bd)) : [];
-    const diaperGuides = guide.some(Boolean) ? [
-      { label: 'Wet guide', data: guide.map((x) => x?.wet ?? null), seriesIndex: 0 },
-      { label: 'Dirty guide', data: guide.map((x) => x?.dirty ?? null), seriesIndex: 1 },
-    ] : [];
-    return {
-      labels, partial, diaperGuides,
-      // No sleep logged that day → a gap in the line, not a dip to zero.
-      longest: [{ label: 'Longest sleep', data: rows.map((r) => longest.get(r.day) ?? null) }],
-      sleep: [
-        { label: 'Night', short: 'Night', data: rows.map((r) => r.night_sleep_min) },
-        { label: 'Naps', short: 'Naps', data: rows.map((r) => r.nap_sleep_min) },
-      ],
-      feeds: [{ label: 'Feeds', data: rows.map((r) => r.feeds) }],
-      feedGap: [
-        // 0 = no interval that day (fewer than two feeds) → a gap, not zero hours.
-        { label: 'Average', short: 'Avg', data: rows.map((r) => r.avg_feed_interval_min || null) },
-        { label: 'Longest', short: 'Longest', data: rows.map((r) => r.longest_feed_interval_min || null) },
-      ],
-      bottle: (() => {
-        const b = bottleByContents(bottles, rows.map((r) => r.day));
-        return {
-          hasMixed: b.hasMixed,
-          series: [
-            { label: 'Total', short: 'Total', data: rows.map((r) => toVol(r.bottle_ml)), width: 3 },
-            { label: 'Breast milk', short: 'BM', data: b.breastMilk.map(toVol) },
-            { label: 'Formula', short: 'F', data: b.formula.map(toVol) },
-          ],
-        };
-      })(),
-      nursing: [
-        { label: 'Left', short: 'L', data: rows.map((r) => r.nursing_left_min) },
-        { label: 'Right', short: 'R', data: rows.map((r) => r.nursing_right_min) },
-      ],
-      diapers: [
-        { label: 'Wet', data: rows.map((r) => r.wet_diapers) },
-        { label: 'Dirty', data: rows.map((r) => r.dirty_diapers) },
-      ],
-      pumpSides: (() => {
-        const p = pumpBySide(pumps, rows.map((r) => r.day));
-        return [
-          { label: 'Total', short: 'Total', data: p.left.map((l, k) => toVol(l + p.right[k])), width: 3 },
-          { label: 'Left breast', short: 'L', data: p.left.map(toVol) },
-          { label: 'Right breast', short: 'R', data: p.right.map(toVol) },
-        ];
-      })(),
-      tummy: [{ label: 'Tummy time', data: rows.map((r) => r.tummy_min) }],
-      // Averages use complete days only; today's partial day would pull them down.
-      avg: averages(completeDays(rows)),
-      avgDays: completeDays(rows).length,
-      has: (k: keyof DailyRow) => rows.some((r) => Number(r[k]) > 0),
-    };
-  }, [rows, toVol, sleeps, pumps, bottles, baby?.birth_date]);
+  const view = useMemo(() => (rows ? dailyCharts(rows, { sleeps, bottles, pumps, birthDate: baby?.birth_date ?? null, toVol }) : null),
+    [rows, toVol, sleeps, pumps, bottles, baby?.birth_date]);
 
 
   const volUnit = oz ? 'oz' : 'ml';

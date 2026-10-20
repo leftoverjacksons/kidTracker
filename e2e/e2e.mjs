@@ -491,11 +491,23 @@ const [dl2] = await Promise.all([
 const feeds = fs.readFileSync(await dl2.path(), 'utf8');
 if (!/,bottle,,,4,breast milk,/.test(feeds)) problems.push(`feeds CSV missing 4 oz bottle row:\n${feeds}`);
 
-// Pediatrician summary
+// Pediatrician summary: earlier weights and a few past days, so page 1 has a weight chart and lines
+psql(`insert into events (baby_id, type, started_at, weight_g)
+  select b.id, 'growth', now() - (d || ' days')::interval, w from babies b, (values (12, 3500), (9, 3250), (5, 3330)) v(d, w)`);
+psql(`insert into events (baby_id, type, started_at, ended_at, diaper_wet, diaper_dirty)
+  select b.id, 'diaper', now() - (d || ' days')::interval - (k || ' hours')::interval, now() - (d || ' days')::interval - (k || ' hours')::interval,
+         true, k % 3 = 0 from babies b, generate_series(1, 6) d, generate_series(1, 5 + d % 3) k`);
+psql(`insert into events (baby_id, type, started_at, ended_at, bottle_ml, bottle_contents)
+  select b.id, 'bottle', now() - (d || ' days')::interval - (k * 3 || ' hours')::interval, now() - (d || ' days')::interval - (k * 3 || ' hours')::interval,
+         60 + d * 5, case when k % 2 = 0 then 'formula' else 'breast_milk' end from babies b, generate_series(1, 6) d, generate_series(1, 6) k`);
 await reports.locator('ion-item', { hasText: 'Pediatrician summary' }).click(); await wait(A, 1500);
-await expectText(A, 'By day');
+await expectText(A, 'Day by day');
 await expectText(A, 'Medicine given');
+await expectText(A, 'Feeds per day');
+const printCharts = await A.locator('.print-charts canvas').count();
+if (printCharts < 3) problems.push(`pediatrician summary: expected its charts on page 1, found ${printCharts}`);
 await A.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-print.png`, fullPage: true });
+await A.pdf({ path: `${OUT}/pediatrician-summary.pdf`, format: 'Letter', printBackground: true }).catch((e) => problems.push(`summary PDF: ${e.message}`));
 await A.getByRole('button', { name: /back/i }).click(); await wait(A, 1000);
 await expectText(A, 'Daily average');
 

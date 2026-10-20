@@ -45,7 +45,7 @@ export default function GrowthChart({ title, sex, measure, points, toDisplay, fo
         ],
       },
       options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
+        responsive: true, maintainAspectRatio: false, ...(theme.dpr ? { devicePixelRatio: theme.dpr } : {}), animation: false,
         interaction: { mode: 'nearest', intersect: false },
         scales: {
           x: { type: 'linear', min: 0, max: maxMonths, grid: { color: theme.grid }, border: { color: theme.grid },

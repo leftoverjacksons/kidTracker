@@ -79,7 +79,7 @@ export default function LineChart({ title, labels, series, hues, format, partial
         })),
       },
       options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
+        responsive: true, maintainAspectRatio: false, ...(theme.dpr ? { devicePixelRatio: theme.dpr } : {}), animation: false,
         layout: { padding: { right: Math.max(16, ...series.map((s) => (s.short?.length ?? 0) * 7 + 10)) } },
         interaction: { mode: 'index', intersect: false },
         scales: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { averages, bottleByContents, completeDays, csvUnits, daysOld, diaperGuide, feedInterval, fillDays, pumpBySide, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
+import { averages, bottleByContents, completeDays, csvUnits, dailyCharts, daysOld, diaperGuide, feedInterval, fillDays, pumpBySide, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
 import { DEFAULT_SETTINGS } from './types';
 
 describe('reports', () => {
@@ -17,6 +17,23 @@ describe('reports', () => {
     expect(t.map((r) => r.day)).toEqual(['2026-10-10', '2026-10-11']);
     expect(averages(t).feeds).toBe(1);
     expect(trimLeading(fillDays([], 3, new Date(2026, 9, 11)))).toHaveLength(1);
+  });
+  it('builds chart series; complete days have no partial point', () => {
+    const today = new Date(2026, 9, 16, 9);
+    const rows = fillDays([
+      { day: '2026-10-14', feeds: 8, wet_diapers: 2, avg_feed_interval_min: 0 } as unknown as DailyRow,
+      { day: '2026-10-15', feeds: 9, bottle_ml: 120 } as unknown as DailyRow,
+    ], 3, today);
+    const all = dailyCharts(rows, { sleeps: [], bottles: [{ start_date: '2026-10-15', bottle_ml: 120, bottle_contents: 'formula' }], pumps: [], birthDate: '2026-10-14', toVol: (ml) => ml, today });
+    expect(all.labels).toEqual(['10/14', '10/15', 'Today']);
+    expect(all.partial).toBe(true);
+    expect(all.feedGap[0].data[0]).toBeNull(); // no interval → gap, not 0
+    expect(all.bottle.series[2].data).toEqual([0, 120, 0]); // formula
+    expect(all.diaperGuides[0].data).toEqual([0, 1, 2]); // day of life 0, 1, 2
+    const done = dailyCharts(completeDays(rows, today), { sleeps: [], bottles: [], pumps: [], birthDate: null, toVol: (ml) => ml, today });
+    expect(done.partial).toBe(false);
+    expect(done.labels).toEqual(['10/14', '10/15']);
+    expect(done.diaperGuides).toEqual([]);
   });
   it('escapes CSV cells', () => {
     expect(toCsv(['a', 'b'], [['x,y', 'say "hi"'], [null, 3]])).toBe('a,b\r\n"x,y","say ""hi"""\r\n,3\r\n');
