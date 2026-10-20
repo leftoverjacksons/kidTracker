@@ -30,7 +30,10 @@ function EditForm({ event: e, onDone }: { event: EventRow; onDone: () => void })
   const data = useData();
   const [toast] = useIonToast();
   const v = vol(settings), t = temp(settings), l = len(settings);
-  const running = TIMED.has(e.type) && !e.ended_at;
+  // A bottle is timed if it lasted (start < end) or is the running bottle timer (migration 0007).
+  const bottleTimed = e.type === 'bottle' && (e.ended_at ? Date.parse(e.ended_at) > Date.parse(e.started_at) : data.running.bottle?.id === e.id);
+  const timed = TIMED.has(e.type) || bottleTimed;
+  const running = timed && !e.ended_at;
 
   const [start, setStart] = useState<Date | null>(new Date(e.started_at));
   const [end, setEnd] = useState<Date | null>(e.ended_at ? new Date(e.ended_at) : null);
@@ -68,7 +71,8 @@ function EditForm({ event: e, onDone }: { event: EventRow; onDone: () => void })
   async function save() {
     if (!start || badRange) return;
     const f: EventFields = { started_at: start.toISOString(), notes: notes.trim() || null };
-    if (!running && (TIMED.has(e.type) || e.type === 'bath')) f.ended_at = end ? end.toISOString() : null;
+    if (!running && (timed || e.type === 'bath')) f.ended_at = end ? end.toISOString() : null;
+    else if (e.type === 'bottle' && !running) f.ended_at = f.started_at; // an untimed bottle stays an instant
     switch (e.type) {
       case 'bottle':
         Object.assign(f, { bottle_ml: bottle != null ? v.toStore(bottle) : null, bottle_contents: contents });
@@ -120,8 +124,8 @@ function EditForm({ event: e, onDone }: { event: EventRow; onDone: () => void })
     <>
       {running && <IonNote className="hint">This timer is still running. Stop it from the Home screen.</IonNote>}
       <IonList inset>
-        <TimeField label={TIMED.has(e.type) ? 'Start' : 'Time'} value={start} onChange={setStart} />
-        {!running && (TIMED.has(e.type) && e.type !== 'nursing') && <TimeField label="End" value={end} onChange={setEnd} />}
+        <TimeField label={timed ? 'Start' : 'Time'} value={start} onChange={setStart} />
+        {!running && (timed && e.type !== 'nursing') && <TimeField label="End" value={end} onChange={setEnd} />}
 
         {e.type === 'nursing' && !running && (
           <>

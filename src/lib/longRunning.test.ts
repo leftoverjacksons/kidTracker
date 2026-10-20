@@ -9,7 +9,7 @@ const ev = (id: string, type: EventRow['type'], startedMinAgo: number) =>
 
 describe('still running check', () => {
   it('uses the agreed thresholds', () => {
-    expect(STILL_RUNNING_MIN).toEqual({ sleep: 240, nursing: 60, pump: 30, tummy_time: 30 });
+    expect(STILL_RUNNING_MIN).toEqual({ sleep: 240, nursing: 60, pump: 30, tummy_time: 30, bottle: 45 });
   });
   it('flags timers at or past their threshold, oldest first', () => {
     const r = { sleep: ev('s', 'sleep', 239), nursing: ev('n', 'nursing', 60), pump: ev('p', 'pump', 90) };

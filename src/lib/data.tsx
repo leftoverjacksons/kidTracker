@@ -12,6 +12,8 @@ interface Data {
   /** Non-deleted events, newest first. */
   events: EventRow[];
   running: Partial<Record<TimedType, EventRow>>;
+  /** Optional database features (public.app_features(); empty before those migrations). */
+  features: { bottleTimer: boolean };
   latest: Partial<Record<EventType, EventRow>>;
   meds: Medication[];
   names: Record<string, string>;
@@ -45,6 +47,11 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
   const [events, setEvents] = useState<EventRow[]>([]);
   const [meds, setMeds] = useState<Medication[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [features, setFeatures] = useState<Data['features']>({ bottleTimer: false });
+  useEffect(() => {
+    if (!supabase || !babyId) return;
+    void supabase.rpc('app_features').then(({ data }) => setFeatures({ bottleTimer: Array.isArray(data) && data.includes('bottle_timer') }));
+  }, [babyId]);
   const [ready, setReady] = useState(false);
   const since = useRef(new Date(Date.now() - WINDOW_DAYS * 86_400_000));
   const err = useRef(onError);
@@ -110,7 +117,8 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
     const running: Data['running'] = {};
     const latest: Data['latest'] = {};
     for (const e of events) {
-      if (!e.ended_at && (e.type === 'sleep' || e.type === 'nursing' || e.type === 'pump' || e.type === 'tummy_time')) {
+      // Before migration 0007, bottles had no end time without being timers.
+      if (!e.ended_at && (e.type === 'sleep' || e.type === 'nursing' || e.type === 'pump' || e.type === 'tummy_time' || (e.type === 'bottle' && features.bottleTimer))) {
         running[e.type] = e;
       }
       if (!latest[e.type]) latest[e.type] = e; // events are newest first
@@ -235,10 +243,10 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
     };
 
     return {
-      ready, events, running, latest, meds, names, reload, loadOlder, since: since.current, retime,
+      ready, events, running, features, latest, meds, names, reload, loadOlder, since: since.current, retime,
       add, update, remove, restore, startTimer, stopTimer, setNursingSide, addManualNursing, replaceNursingSegments, saveMedication, autoStop, reopen,
     };
-  }, [events, meds, names, ready, babyId, reload, loadOlder]); // since.current changes only via loadOlder → reload → events
+  }, [events, meds, names, ready, babyId, reload, loadOlder, features]); // since.current changes only via loadOlder → reload → events
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

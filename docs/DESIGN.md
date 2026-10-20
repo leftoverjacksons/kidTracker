@@ -689,6 +689,25 @@ This is Phase 2 of E5 and I.
   - e2e: Settings shows "not set up"; the service worker turns a DevTools-delivered push into a notification; vapid.html keys sign valid tokens.
 - **Fails soft:** without the Supabase steps, the function URL fails, Settings shows "not set up", and nothing else changes.
 
+### K. Bottle timer and flow rate — built 2026-10-20 (live after migration 0007)
+
+- Goal: time bottle feeds to troubleshoot flow, alongside breastfeeding.
+- Migration 0007:
+  - Existing bottles get `ended_at = started_at`: they were instants, and a null end now means "running".
+  - `one_running_timer` and `start_timer` include `bottle`.
+  - `app_features()` returns `{bottle_timer}`. The app calls it and offers the timer only when it's present (missing function = none), so the app works unchanged before the migration.
+- The app always writes an end time for untimed bottles (end = start), so new bottles never look like running timers.
+  - The restore page does the same for older backups.
+- Bottle sheet:
+  - **Timer** (default, remembered per phone): Start bottle → a shared running timer (Home tile "Feeding 6:12").
+  - Then "How much did he drink?" (chips or a number) and contents, with live "2 oz in 12m = 0.17 oz/min", then **Finish**.
+  - **Enter amount**: the old quick entry, plus an optional "How long it took (min)".
+- Conflicts: starting a bottle ends sleep and nursing (as before). A running bottle ends when sleep starts. Its "still running?" check fires at 45 min ("Still feeding?"), in-app and in push.
+- Flow: `flowRate` = ml ÷ minutes, only for bottles with an amount that took ≥ 1 minute.
+  - Entries show the duration and flow ("2 oz breast milk · 12m · 0.17 oz/min").
+  - Reports adds "Bottle flow rate" per day: total ml ÷ total minutes of that day's timed bottles, with gaps where none were timed.
+- Edit: a timed bottle shows Start and End; an untimed one keeps end = start.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).

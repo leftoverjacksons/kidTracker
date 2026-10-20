@@ -1,7 +1,7 @@
 import type { EventRow, TimedType } from './types';
 
 /** Minutes after which a running timer gets a "still running?" check (design doc §8a E5). */
-export const STILL_RUNNING_MIN: Record<TimedType, number> = { sleep: 240, nursing: 60, pump: 30, tummy_time: 30 };
+export const STILL_RUNNING_MIN: Record<TimedType, number> = { sleep: 240, nursing: 60, pump: 30, tummy_time: 30, bottle: 45 };
 
 /** Snoozes per phone: event id → time (ms) until which the check stays hidden. */
 export type Snoozes = Record<string, number>;

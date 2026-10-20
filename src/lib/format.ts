@@ -9,6 +9,11 @@ export function formatVolume(ml: number | null | undefined, s: HouseholdSettings
   return s.volume_unit === 'oz' ? `${trim(mlToOz(ml))} oz` : `${Math.round(ml)} ml`;
 }
 
+/** Bottle flow rate, from ml per minute, in the display unit. */
+export function formatFlow(mlPerMin: number, s: HouseholdSettings): string {
+  return s.volume_unit === 'oz' ? `${(mlToOz(mlPerMin)).toFixed(2)} oz/min` : `${mlPerMin.toFixed(1)} ml/min`;
+}
+
 export function formatTemp(c: number | null | undefined, s: HouseholdSettings): string {
   if (c == null) return '';
   return s.temp_unit === 'F' ? `${trim(cToF(c))} °F` : `${trim(c)} °C`;

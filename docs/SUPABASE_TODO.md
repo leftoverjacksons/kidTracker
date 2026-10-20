@@ -6,6 +6,12 @@ Run them **in order**. Every script is safe to run twice.
 
 ## Waiting
 
+### Bottle timer (flow rate)
+
+- [ ] **Run `supabase/migrations/0007_bottle_timer.sql`** (copy raw file → SQL Editor → New query → Run). It's one step, and separate from notifications.
+  - It gives every existing bottle an end time equal to its start, so a blank end time can mean "bottle timer running", and it allows the bottle timer.
+  - Until it runs, the Bottle screen works as before, without the Timer tab.
+
 ### Phone notifications (pumping reminders + "still running?" checks)
 
 Do these in order, about 15–20 minutes in all. Until they're done, the app works as before:

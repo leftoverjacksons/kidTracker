@@ -1,4 +1,5 @@
-import { formatDuration, formatLength, formatTemp, formatVolume, formatWeight } from './format';
+import { bottleMinutes, flowRate } from './bottle';
+import { formatDuration, formatFlow, formatLength, formatTemp, formatVolume, formatWeight } from './format';
 import { sideTotals } from './nursing';
 import type { EventRow, EventType, HouseholdSettings, Medication } from './types';
 
@@ -43,9 +44,13 @@ export function summarize(e: EventRow, s: HouseholdSettings, meds: Medication[],
       if (!e.ended_at) parts.push('in progress');
       break;
     }
-    case 'bottle':
+    case 'bottle': {
       parts.push([formatVolume(e.bottle_ml, s), e.bottle_contents && CONTENTS[e.bottle_contents]].filter(Boolean).join(' '));
+      const min = bottleMinutes(e), rate = flowRate(e);
+      if (min) parts.push(formatDuration(min * 60_000));
+      if (rate) parts.push(formatFlow(rate, s));
       break;
+    }
     case 'diaper':
       parts.push(diaperLabel(e));
       if (e.poop_color) parts.push(e.poop_color);

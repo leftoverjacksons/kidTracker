@@ -27,9 +27,9 @@ export interface Msg { key: string; subs: Sub[]; title: string; body: string; ta
 
 // ───────────── What is due (mirrors src/lib/longRunning.ts and src/lib/pump.ts) ─────────────
 
-export const STILL_RUNNING_MIN: Record<string, number> = { sleep: 240, nursing: 60, pump: 30, tummy_time: 30 };
-const LABEL: Record<string, string> = { sleep: 'Sleep', nursing: 'Nursing', pump: 'Pumping', tummy_time: 'Tummy time' };
-const QUESTION: Record<string, string> = { sleep: 'Still asleep?', nursing: 'Still nursing?', pump: 'Still pumping?', tummy_time: 'Still going?' };
+export const STILL_RUNNING_MIN: Record<string, number> = { sleep: 240, nursing: 60, pump: 30, tummy_time: 30, bottle: 45 };
+const LABEL: Record<string, string> = { sleep: 'Sleep', nursing: 'Nursing', pump: 'Pumping', tummy_time: 'Tummy time', bottle: 'Bottle' };
+const QUESTION: Record<string, string> = { sleep: 'Still asleep?', nursing: 'Still nursing?', pump: 'Still pumping?', tummy_time: 'Still going?', bottle: 'Still feeding?' };
 const PUMP_MIN_MINUTES = 15;
 const SIDE: Record<string, string> = { left: ' (left side)', right: ' (right side)', both: '' };
 

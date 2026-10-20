@@ -89,5 +89,6 @@ export interface Medication {
   for_whom?: 'baby' | 'mom';
 }
 
-export const TIMED_TYPES = ['sleep', 'nursing', 'pump', 'tummy_time'] as const;
+/** Types that can run as a timer. 'bottle' only once migration 0007 has run (see Data.features). */
+export const TIMED_TYPES = ['sleep', 'nursing', 'pump', 'tummy_time', 'bottle'] as const;
 export type TimedType = (typeof TIMED_TYPES)[number];

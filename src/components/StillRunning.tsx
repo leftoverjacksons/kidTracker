@@ -12,6 +12,7 @@ const QUESTION: Record<TimedType, [string, string]> = {
   nursing: ['Nursing', 'Still nursing?'],
   pump: ['Pumping', 'Still pumping?'],
   tummy_time: ['Tummy time', 'Still going?'],
+  bottle: ['Bottle', 'Still feeding?'],
 };
 
 /** "Sleep has been running 5h 10m — still asleep?" for timers past their threshold (design doc §8a E5). */

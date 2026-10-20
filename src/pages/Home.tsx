@@ -80,7 +80,11 @@ export default function Home() {
           .reduce((a, e) => a + new Date(e.ended_at!).getTime() - new Date(e.started_at).getTime(), 0);
         return { text: ms ? `${formatDuration(ms)} today` : '—', live: false };
       }
-      case 'bottle': return { text: last ? `${ago(last)} · ${formatVolume(last.bottle_ml, settings)}` : '—', live: false };
+      case 'bottle': {
+        const run = data.running.bottle;
+        if (run) return { text: `Feeding ${elapsed(run)}`, live: true };
+        return { text: last ? `${ago(last)} · ${formatVolume(last.bottle_ml, settings)}` : '—', live: false };
+      }
       case 'diaper': return { text: last ? `${ago(last)} · ${diaperLabel(last)}` : '—', live: false };
       case 'medicine': {
         // The medicine that becomes available soonest; otherwise the last dose.

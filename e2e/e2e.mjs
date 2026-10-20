@@ -122,12 +122,30 @@ await sheet(A).locator('ion-chip', { hasText: 'yellow' }).click();
 await sheet(A).locator('ion-chip', { hasText: 'seedy' }).click();
 await sheet(A).locator('.big-btn', { hasText: 'Both' }).click(); await wait(A, 1000);
 
-// Bottle
+// Bottle: quick amount entry (the Timer tab is the default once migration 0007 is in)
 await tile(A, 'Bottle').click(); await wait(A);
+await sheet(A).locator('ion-segment-button[value="amount"]').click(); await wait(A, 300);
 await sheet(A).locator('ion-chip', { hasText: '3 oz' }).click();
 await shot(A, 'bottle-sheet');
 await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
 await expectText(A, '3 oz', '.tile');
+
+// Bottle timer: start, the other phone sees it running, finish with an amount → flow rate
+await tile(A, 'Bottle').click(); await wait(A);
+await sheet(A).locator('ion-segment-button[value="timer"]').click(); await wait(A, 300);
+await sheet(A).locator('.big-btn-start', { hasText: 'Start bottle' }).click(); await wait(A, 1200);
+await closeSheet(A);
+await expectText(A, 'Feeding', '.tile');
+psql(`update events set started_at = now() - interval '12 minutes' where type = 'bottle' and ended_at is null`);
+await refresh(A);
+await tile(A, 'Bottle').click(); await wait(A);
+await sheet(A).locator('ion-chip', { hasText: '2 oz' }).click(); await wait(A, 300);
+await expectText(A, 'oz/min', '.bottle-rate');
+await shot(A, 'bottle-timer-finish');
+await sheet(A).locator('.big-btn-stop', { hasText: 'Finish' }).click(); await wait(A, 1200);
+const timed = psql(`select round(extract(epoch from ended_at - started_at) / 60) || ' ' || round(bottle_ml) from events where type = 'bottle' and ended_at > started_at`);
+if (!/^1[12] 59$/.test(timed)) problems.push(`timed bottle saved as "${timed}" (expected ~12 min, 59 ml)`);
+await expectText(A, 'oz/min');  // the entry in Today's list shows its flow rate
 
 // Sleep start on A
 await tile(A, 'Sleep').click(); await wait(A);
@@ -485,7 +503,7 @@ psql(`insert into events (baby_id, type, started_at, ended_at)
   select b.id, 'sleep'::event_type, now() - (d || ' days')::interval - interval '2 hours', now() - (d || ' days')::interval - interval '2 hours' + interval '50 minutes'
     from babies b, generate_series(1, 5) d
   union all
-  select b.id, 'bottle'::event_type, now() - (d || ' days')::interval - (h || ' hours')::interval, null
+  select b.id, 'bottle'::event_type, now() - (d || ' days')::interval - (h || ' hours')::interval, now() - (d || ' days')::interval - (h || ' hours')::interval
     from babies b, generate_series(1, 5) d, generate_series(1, 3) h`);
 psql(`update events set bottle_ml = 60 where type = 'bottle' and bottle_ml is null`);
 await refresh(A); await wait(A, 1500);

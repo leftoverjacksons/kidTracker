@@ -34,6 +34,7 @@ export function conflictsFor(action: Action, running: EventRow[]): EventRow[] {
         }
         break;
       case 'tummy_time':
+      case 'bottle': // a timed bottle (0007) ends when sleep starts, like nursing
         if (action.kind === 'start_sleep') out.push(e);
         break;
       case 'pump':

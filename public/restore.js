@@ -51,6 +51,8 @@ export function buildRestoreSql(snap) {
     `create temp table _kt_events on commit drop as select * from json_populate_recordset(null::public.events, ${j(snap.tables.events)});`,
     'update _kt_events set created_by = null where created_by is not null and created_by not in (select id from public.caregivers);',
     'update _kt_events set updated_by = null where updated_by is not null and updated_by not in (select id from public.caregivers);',
+    // Bottles saved before migration 0007 had no end time; restored now, that would mean "bottle timer running".
+    "update _kt_events set ended_at = started_at where type = 'bottle' and ended_at is null;",
     'insert into public.events select * from _kt_events;',
     `insert into public.nursing_segments select * from json_populate_recordset(null::public.nursing_segments, ${j(snap.tables.nursing_segments)});`,
     'commit;',

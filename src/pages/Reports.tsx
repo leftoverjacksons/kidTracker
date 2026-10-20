@@ -11,6 +11,7 @@ import { weightChange } from '../lib/weight';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
+import { flowByDay } from '../lib/bottle';
 import { averages, completeDays, diaperGuide, fillDays, isoDay, longestSleepByDay, pumpBySide, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
@@ -60,6 +61,7 @@ export default function Reports() {
   const fmtCount = useCallback((v: number) => String(Math.round(v * 10) / 10), []);
   const fmtHours = useCallback((m: number) => (m < 60 ? `${Math.round(m)}m` : `${Math.round((m / 60) * 10) / 10}h`), []);
   const fmtMin = useCallback((m: number) => `${Math.round(m)}m`, []);
+  const fmtFlowAxis = useCallback((v: number) => (oz ? v.toFixed(2) : v.toFixed(1)), [oz]);
   const toVol = useCallback((ml: number) => (oz ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml)), [oz]);
 
   const view = useMemo(() => {
@@ -93,6 +95,8 @@ export default function Reports() {
         { label: 'Longest', short: 'Longest', data: rows.map((r) => r.longest_feed_interval_min || null) },
       ],
       bottle: [{ label: 'Bottle', data: rows.map((r) => toVol(r.bottle_ml)) }],
+      // Timed bottles only (total amount ÷ total minutes that day); gaps on days without one.
+      flow: [{ label: 'Flow', data: flowByDay(data.events, rows.map((r) => r.day)).map((f) => (f == null ? null : oz ? Math.round(mlToOz(f) * 100) / 100 : Math.round(f * 10) / 10)) }],
       nursing: [
         { label: 'Left', short: 'L', data: rows.map((r) => r.nursing_left_min) },
         { label: 'Right', short: 'R', data: rows.map((r) => r.nursing_right_min) },
@@ -115,7 +119,7 @@ export default function Reports() {
       avgDays: completeDays(rows).length,
       has: (k: keyof DailyRow) => rows.some((r) => Number(r[k]) > 0),
     };
-  }, [rows, toVol, sleeps, pumps, baby?.birth_date]);
+  }, [rows, toVol, sleeps, pumps, baby?.birth_date, data.events, oz]);
 
 
   const volUnit = oz ? 'oz' : 'ml';
@@ -163,6 +167,11 @@ export default function Reports() {
                 note={`Start of one feed to the start of the next, by the day the feed started.${view.avg.feedIntervalMin ? ` Typical: every ${formatDuration(view.avg.feedIntervalMin * 60_000)}.` : ''}`} />
             )}
             {view.has('bottle_ml') && <LineChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle} format={fmtVolAxis} hues={['amber']} />}
+            {view.flow[0].data.some((v) => v != null) && (
+              <LineChart partialLast={view.partial} title={`Bottle flow rate (${volUnit}/min)`} labels={view.labels} series={view.flow} hues={['amber']}
+                format={fmtFlowAxis}
+                note="Timed bottles only: amount drunk ÷ minutes, per day. Use the Bottle timer to add points." />
+            )}
             {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
               <LineChart partialLast={view.partial} integer stacked title="Nursing minutes per day" labels={view.labels} series={view.nursing} format={fmtMin} hues={['blue', 'coral']}
                 note="Shaded areas stack: the top edge is total nursing time." />}

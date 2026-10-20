@@ -10,7 +10,7 @@ createdb "$DB"
 psql -q -v ON_ERROR_STOP=1 -d "$DB" \
   -f supabase/tests/supabase_stub.sql -f supabase/migrations/0001_init.sql -f supabase/migrations/0002_reports.sql \
   -f supabase/migrations/0003_temperature_precision.sql -f supabase/migrations/0004_feed_sessions.sql \
-  -f supabase/migrations/0005_mom_meds.sql -f supabase/migrations/0006_push.sql -f supabase/migrations/0006_push.sql \
+  -f supabase/migrations/0005_mom_meds.sql -f supabase/migrations/0006_push.sql -f supabase/migrations/0007_bottle_timer.sql -f supabase/migrations/0006_push.sql \
   -f supabase/tests/post_grants.sql -f e2e/seed.sql -f supabase/functions/push-tick/test/setup.sql
 PGRST_DB_URI="postgres://authenticator:auth@${PGHOST:-localhost}:${PGPORT:-5432}/$DB" \
 PGRST_DB_SCHEMAS=public PGRST_DB_ANON_ROLE=anon PGRST_JWT_SECRET=$SECRET PGRST_SERVER_PORT=3002 \
