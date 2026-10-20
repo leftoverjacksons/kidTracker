@@ -54,6 +54,9 @@ export interface EventRow {
   bottle_start_ml?: number | null;
   /** Which bottle was used, e.g. 'Comotomo' (migration 0008). */
   bottle_brand?: string | null;
+  /** Pause (migration 0010): paused since, and total seconds paused so far. */
+  paused_at?: string | null;
+  paused_s?: number | null;
   bottle_contents: 'breast_milk' | 'formula' | 'mixed' | null;
   diaper_wet: boolean | null;
   diaper_dirty: boolean | null;

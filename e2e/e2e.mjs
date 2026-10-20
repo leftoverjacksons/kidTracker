@@ -148,6 +148,16 @@ psql(`update events set started_at = now() - interval '12 minutes' where type = 
 await refresh(A);
 await tile(A, 'Bottle').click(); await wait(A);
 await expectText(A, 'In the bottle: 3 oz · Comotomo');
+// Pause for a burp: the paused minutes don't count toward the feed.
+await sheet(A).locator('.big-btn', { hasText: 'Pause' }).click(); await wait(A, 1000);
+await expectText(A, 'Paused');
+psql(`update events set paused_at = now() - interval '3 minutes' where type = 'bottle' and ended_at is null`);
+await refresh(A);
+await closeSheet(A);
+await expectText(A, 'Paused', '.tile');
+await tile(A, 'Bottle').click(); await wait(A);
+await shot(A, 'bottle-paused');
+await sheet(A).locator('.big-btn', { hasText: 'Resume' }).click(); await wait(A, 1000);
 await sheet(A).locator('.big-btn-stop', { hasText: 'Stop' }).click(); await wait(A, 1200);
 // Closing before typing the left-over amount: reopening picks the bottle up again.
 await closeSheet(A);
@@ -158,8 +168,8 @@ await expectText(A, 'Drank 2 oz', '.bottle-drank');
 await expectText(A, 'oz/min', '.bottle-drank');
 await shot(A, 'bottle-timer-finish');
 await sheet(A).locator('.big-btn-start', { hasText: 'Save' }).click(); await wait(A, 1200);
-const timed = psql(`select round(extract(epoch from ended_at - started_at) / 60) || ' ' || round(bottle_ml) || ' ' || round(bottle_start_ml) || ' ' || bottle_brand from events where type = 'bottle' and ended_at > started_at`);
-if (!/^1[12] 59 89 Comotomo$/.test(timed)) problems.push(`timed bottle saved as "${timed}" (expected ~12 min, drank 59 ml of 89 ml)`);
+const timed = psql(`select round(extract(epoch from ended_at - started_at) / 60) || ' ' || round(paused_s / 60.0) || ' ' || round(bottle_ml) || ' ' || round(bottle_start_ml) || ' ' || bottle_brand from events where type = 'bottle' and ended_at > started_at`);
+if (!/^1[12] 3 59 89 Comotomo$/.test(timed)) problems.push(`timed bottle saved as "${timed}" (expected ~12 min with 3 paused, drank 59 ml of 89 ml)`);
 await expectText(A, 'oz/min');  // the entry in Today's list shows its flow rate
 
 // Sleep start on A

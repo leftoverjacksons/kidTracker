@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bottleMinutes, byBrand, flowByDay, flowRate, median, timedBottles } from './bottle';
+import { activeMs, bottleMinutes, byBrand, flowByDay, flowRate, median, timedBottles } from './bottle';
 import type { EventRow } from './types';
 
 const b = (start: string, min: number | null, ml: number | null) => ({
@@ -34,5 +34,18 @@ describe('brand comparison', () => {
     expect(median([1, 2, 3, 4])).toBe(2.5);
     const r = byBrand(timedBottles(ev, new Date('2026-10-19T00:00:00')));
     expect(r.map((x) => [x.brand, x.feeds, x.rate, x.minutes])).toEqual([['Comotomo', 1, 6, 15], ['MAM', 2, 4.5, 15], ['Not set', 1, 5, 12]]);
+  });
+});
+
+describe('pauses', () => {
+  it('leave paused time out of the feed length and flow', () => {
+    const e = { ...b('2026-10-20T10:00:00Z', 20, 60), paused_s: 240 } as EventRow;
+    expect(bottleMinutes(e)).toBe(16);
+    expect(flowRate(e)).toBe(3.75);
+  });
+  it('a running timer counts to now; a paused one is frozen at the pause', () => {
+    const now = new Date('2026-10-20T10:10:00Z');
+    expect(activeMs({ started_at: '2026-10-20T10:00:00Z', ended_at: null, paused_at: null, paused_s: 60 }, now)).toBe(9 * 60_000);
+    expect(activeMs({ started_at: '2026-10-20T10:00:00Z', ended_at: null, paused_at: '2026-10-20T10:05:00Z', paused_s: 60 }, now)).toBe(4 * 60_000);
   });
 });

@@ -8,6 +8,7 @@ import { useData, useNow } from '../lib/data';
 import { diaperLabel, META } from '../lib/describe';
 import { formatAgo, formatClock, formatDuration, formatTemp, formatVolume, formatWeight, formatWhen, startOfDay } from '../lib/format';
 import { medStatus } from '../lib/meds';
+import { activeMs } from '../lib/bottle';
 import { useHousehold } from '../lib/household';
 import { activeSide, countFeeds, lastFeedStart, lastSide, sideTotals } from '../lib/nursing';
 import type { EventRow, EventType } from '../lib/types';
@@ -82,7 +83,7 @@ export default function Home() {
       }
       case 'bottle': {
         const run = data.running.bottle;
-        if (run) return { text: `Feeding ${elapsed(run)}`, live: true };
+        if (run) return { text: `${run.paused_at ? 'Paused' : 'Feeding'} ${formatClock(activeMs(run, now))}`, live: true };
         return { text: last ? `${ago(last)} · ${formatVolume(last.bottle_ml, settings)}` : '—', live: false };
       }
       case 'diaper': return { text: last ? `${ago(last)} · ${diaperLabel(last)}` : '—', live: false };

@@ -17,6 +17,11 @@ Run them **in order**. Every script is safe to run twice.
 
 - [ ] **Run `supabase/migrations/0008_bottle_brand.sql`** (after 0007). It's one step, and safe to run again. It adds the "Bottle" picker to the bottle screen; until then the picker is hidden.
 
+### Bottle pause
+
+- [ ] **Run `supabase/migrations/0010_bottle_pause.sql`**, then **run `0009_viewers.sql` once more**, so guests' view includes the new pause columns. Both are safe to re-run. Until then the Pause button is hidden.
+  - If 0008 (bottle brand) hasn't been run yet: run 0008, then 0010, then 0009.
+
 ### Guest (view-only) accounts
 
 - [ ] **Run `supabase/migrations/0009_viewers.sql`** (after 0008). It's one step, safe to re-run, and you two stay full caregivers.

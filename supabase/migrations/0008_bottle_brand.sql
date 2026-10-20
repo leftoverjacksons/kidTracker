@@ -15,7 +15,9 @@ language sql stable as $$
     case when exists (select 1 from information_schema.columns
                        where table_schema = 'public' and table_name = 'events' and column_name = 'bottle_start_ml') then 'bottle_start' end,
     case when exists (select 1 from information_schema.columns
-                       where table_schema = 'public' and table_name = 'events' and column_name = 'bottle_brand') then 'bottle_brand' end
+                       where table_schema = 'public' and table_name = 'events' and column_name = 'bottle_brand') then 'bottle_brand' end,
+    case when exists (select 1 from information_schema.columns
+                       where table_schema = 'public' and table_name = 'events' and column_name = 'paused_s') then 'bottle_pause' end
   ], null);
 $$;
 grant execute on function public.app_features() to authenticated;

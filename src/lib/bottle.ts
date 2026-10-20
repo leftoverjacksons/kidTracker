@@ -7,15 +7,24 @@ export const BOTTLE_BRANDS = ['Comotomo', 'Philips Avent', 'MAM', "Dr. Brown's",
 /** Shortest timed bottle that counts for flow rate (shorter ones are treated as untimed). */
 export const MIN_TIMED_MIN = 1;
 
-/** Minutes a finished bottle took, or null if it wasn't timed. */
-export function bottleMinutes(e: Pick<EventRow, 'type' | 'started_at' | 'ended_at'>): number | null {
+/**
+ * Milliseconds a timer has been actively running: wall time minus pauses (migration 0010).
+ * `now` is used while it's running; a paused timer stays frozen at the moment it paused.
+ */
+export function activeMs(e: Pick<EventRow, 'started_at' | 'ended_at' | 'paused_at' | 'paused_s'>, now: Date = new Date()): number {
+  const end = e.ended_at ? Date.parse(e.ended_at) : e.paused_at ? Date.parse(e.paused_at) : now.getTime();
+  return Math.max(0, end - Date.parse(e.started_at) - (e.paused_s ?? 0) * 1000);
+}
+
+/** Minutes a finished bottle took (not counting pauses), or null if it wasn't timed. */
+export function bottleMinutes(e: Pick<EventRow, 'type' | 'started_at' | 'ended_at' | 'paused_at' | 'paused_s'>): number | null {
   if (e.type !== 'bottle' || !e.ended_at) return null;
-  const min = (Date.parse(e.ended_at) - Date.parse(e.started_at)) / 60_000;
+  const min = activeMs(e) / 60_000;
   return min >= MIN_TIMED_MIN ? min : null;
 }
 
 /** Millilitres per minute for a finished, timed bottle with an amount; else null. */
-export function flowRate(e: Pick<EventRow, 'type' | 'started_at' | 'ended_at' | 'bottle_ml'>): number | null {
+export function flowRate(e: Pick<EventRow, 'type' | 'started_at' | 'ended_at' | 'bottle_ml' | 'paused_at' | 'paused_s'>): number | null {
   const min = bottleMinutes(e);
   return min && e.bottle_ml ? Number(e.bottle_ml) / min : null;
 }

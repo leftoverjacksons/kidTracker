@@ -351,3 +351,6 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .brand-table th, .brand-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ion-border-color, rgba(0,0,0,0.08)); white-space: nowrap; }
 .brand-table th { font-weight: 600; font-size: 12px; opacity: 0.75; }
 .brand-table tr:last-child td { border-bottom: 0; }
+
+.big-btn-pause { background: var(--tile-bg); color: var(--tile-fg); border: 2px solid var(--c-amber); }
+.bottle-paused { color: var(--c-amber); font-weight: 600; }

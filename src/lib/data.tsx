@@ -13,7 +13,10 @@ interface Data {
   events: EventRow[];
   running: Partial<Record<TimedType, EventRow>>;
   /** Optional database features (public.app_features(); empty before those migrations). */
-  features: { bottleTimer: boolean; bottleStart: boolean; bottleBrand: boolean };
+  features: { bottleTimer: boolean; bottleStart: boolean; bottleBrand: boolean; bottlePause: boolean };
+  /** Pause / resume a running timer (0010); paused time doesn't count toward its length. */
+  pauseTimer: (id: string, at?: Date) => Promise<boolean>;
+  resumeTimer: (id: string, at?: Date) => Promise<boolean>;
   latest: Partial<Record<EventType, EventRow>>;
   meds: Medication[];
   names: Record<string, string>;
@@ -47,10 +50,10 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
   const [events, setEvents] = useState<EventRow[]>([]);
   const [meds, setMeds] = useState<Medication[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
-  const [features, setFeatures] = useState<Data['features']>({ bottleTimer: false, bottleStart: false, bottleBrand: false });
+  const [features, setFeatures] = useState<Data['features']>({ bottleTimer: false, bottleStart: false, bottleBrand: false, bottlePause: false });
   useEffect(() => {
     if (!supabase || !babyId) return;
-    void supabase.rpc('app_features').then(({ data }) => setFeatures({ bottleTimer: Array.isArray(data) && data.includes('bottle_timer'), bottleStart: Array.isArray(data) && data.includes('bottle_start'), bottleBrand: Array.isArray(data) && data.includes('bottle_brand') }));
+    void supabase.rpc('app_features').then(({ data }) => setFeatures({ bottleTimer: Array.isArray(data) && data.includes('bottle_timer'), bottleStart: Array.isArray(data) && data.includes('bottle_start'), bottleBrand: Array.isArray(data) && data.includes('bottle_brand'), bottlePause: Array.isArray(data) && data.includes('bottle_pause') }));
   }, [babyId]);
   const [ready, setReady] = useState(false);
   const since = useRef(new Date(Date.now() - WINDOW_DAYS * 86_400_000));
@@ -162,7 +165,20 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
       await reload();
       return (data as EventRow) ?? null;
     };
+    const pauseTimer: Data['pauseTimer'] = async (id, at = new Date()) => {
+      const ok = fail((await client.rpc('pause_timer', { p_id: id, p_at: at.toISOString() })).error);
+      await reload();
+      return ok;
+    };
+    const resumeTimer: Data['resumeTimer'] = async (id, at = new Date()) => {
+      const ok = fail((await client.rpc('resume_timer', { p_id: id, p_at: at.toISOString() })).error);
+      await reload();
+      return ok;
+    };
     const stopTimer: Data['stopTimer'] = async (id, at = new Date()) => {
+      // A paused timer stops at the moment it was paused (the pause doesn't count either way).
+      const ev = events.find((e) => e.id === id);
+      if (ev?.paused_at) fail((await client.rpc('resume_timer', { p_id: id, p_at: at.toISOString() })).error);
       const ok = fail((await client.rpc('stop_timer', { p_id: id, p_ended_at: at.toISOString() })).error);
       await reload();
       return ok;
@@ -256,7 +272,7 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
 
     return {
       ready, events, running, features, latest, meds, names, reload, loadOlder, since: since.current, retime,
-      add, update, remove, restore, startTimer, stopTimer, setNursingSide, addManualNursing, replaceNursingSegments, saveMedication, autoStop, reopen,
+      add, update, remove, restore, startTimer, stopTimer, pauseTimer, resumeTimer, setNursingSide, addManualNursing, replaceNursingSegments, saveMedication, autoStop, reopen,
     };
   }, [events, meds, names, ready, babyId, reload, loadOlder, features]); // since.current changes only via loadOlder → reload → events
 

@@ -722,6 +722,16 @@ This is Phase 2 of E5 and I.
 - "Forgot to time it? Enter a past bottle" opens a typed form: start − left over, or amount drunk; plus contents, time and an optional duration. Before migration 0007 only this form shows.
 - Reports "Bottle per day": a Total line (teal, 3 px), plus **Breast milk** (blue) and **Formula** (coral), from `v_feeds.bottle_contents`. Mixed bottles count only in the total, and the note says so. The teal/blue/coral set was validated earlier.
 
+### K3. Pausing a bottle — built 2026-10-20 (needs migration 0010, then 0009 again)
+
+- Owner request: a Pause button on the running bottle, instead of only Stop.
+- `events.paused_at` (paused since) and `paused_s` (total seconds paused). The RPCs `pause_timer` and `resume_timer` are idempotent, so two phones tapping at once can't double-count; row security keeps them caregiver-only. `app_features()` adds `bottle_pause`.
+- Stopping while paused first closes the pause at the stop time.
+- `activeMs()` = wall time minus pauses (frozen while paused). The feed length, flow rate, entries, the Bottles view, the bottle sheet clock and the Home tile ("Paused 9:02" / "Feeding 9:02") all use it.
+- The left-over screen notes "3m paused, not counted".
+- Running screen: amber "Paused — the clock isn't counting.", plus Resume / Pause and Stop.
+- `events_visible` (0009) is built from the live column list, so 0009 must be re-run after 0010 to include the new columns for guests.
+
 ### L. Bottles view: compare bottle brands — built 2026-10-20 (brand picker needs migration 0008)
 
 - Owner answers to the proposal:

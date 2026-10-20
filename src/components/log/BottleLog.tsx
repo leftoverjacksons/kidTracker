@@ -1,7 +1,7 @@
 import { IonButton, IonItem, IonList, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonAlert } from '@ionic/react';
 import { useState } from 'react';
-import { BOTTLE_BRANDS, flowRate } from '../../lib/bottle';
-import { useData } from '../../lib/data';
+import { activeMs, BOTTLE_BRANDS, flowRate } from '../../lib/bottle';
+import { useData, useNow } from '../../lib/data';
 import { formatDuration, formatFlow, formatVolume } from '../../lib/format';
 import { buzz, useLogged } from '../../lib/feedback';
 import { useHousehold } from '../../lib/household';
@@ -107,11 +107,20 @@ function Start() {
 function Running({ running, onStopped, onDone }: { running: EventRow; onStopped: (id: string) => void; onDone: () => void }) {
   const { settings } = useHousehold();
   const data = useData();
+  const now = useNow();
   const [alert] = useIonAlert();
+  const paused = !!running.paused_at;
   return (
     <>
-      <RunningHeader event={running} />
+      <RunningHeader event={running} ms={activeMs(running, now)} />
+      {paused && <p className="hint center bottle-paused">Paused — the clock isn't counting.</p>}
       {running.bottle_start_ml != null && <p className="hint center bottle-q">In the bottle: <b>{formatVolume(running.bottle_start_ml, settings)}</b>{running.bottle_brand ? ` · ${running.bottle_brand}` : ''}</p>}
+      {data.features.bottlePause && (
+        <button className={`big-btn big-btn-wide ${paused ? 'big-btn-start' : 'big-btn-pause'}`} onClick={() => {
+          buzz();
+          void (paused ? data.resumeTimer(running.id) : data.pauseTimer(running.id));
+        }}>{paused ? 'Resume' : 'Pause'}</button>
+      )}
       <button className="big-btn big-btn-wide big-btn-stop" onClick={async () => {
         buzz();
         if (await data.stopTimer(running.id)) onStopped(running.id);
@@ -141,7 +150,7 @@ function Leftover({ bottle, onDone }: { bottle: EventRow; onDone: () => void }) 
   const over = start != null && left != null && left > start;
   const drankMl = start != null && left != null && !over ? Math.max(0, v.toStore(start) - v.toStore(left)) : null;
   const rate = drankMl != null ? flowRate({ ...bottle, bottle_ml: drankMl }) : null;
-  const ms = Date.parse(bottle.ended_at!) - Date.parse(bottle.started_at);
+  const ms = activeMs(bottle); // pauses not counted
 
   async function save() {
     if (drankMl == null) return;
@@ -154,7 +163,7 @@ function Leftover({ bottle, onDone }: { bottle: EventRow; onDone: () => void }) 
     <>
       <div className="running">
         <div className="clock">{formatDuration(ms)}</div>
-        <div className="hint">Bottle stopped{known ? ` · started with ${formatVolume(bottle.bottle_start_ml, settings)}` : ''}</div>
+        <div className="hint">Bottle stopped{known ? ` · started with ${formatVolume(bottle.bottle_start_ml, settings)}` : ''}{bottle.paused_s ? ` · ${formatDuration(bottle.paused_s * 1000)} paused, not counted` : ''}</div>
       </div>
       <IonList inset>
         {!known && <NumberField label="In the bottle at the start" unit={v.unit} value={start} onChange={setStart} />}
