@@ -740,6 +740,28 @@ This is Phase 2 of E5 and I.
 - No official flow target exists. Feeding guidance is about feed length: paced bottle feeds of roughly 10–20 min (some guidance says at least 20), with pauses. Lab tests of nipples (Pados et al. 2016) found flow varies widely, even within one "slow" label (1.7 to over 15 ml/min). Comparing brands on this family's own feeds, plus asking their lactation consultant, is the approach.
 - Tests: unit (timedBottles, median, byBrand); DB (0008, feature detection after re-running 0007); e2e (pick Comotomo, the saved brand, the Bottles tab table and charts, the old chart gone).
 
+### M. Guest (viewer) accounts — built 2026-10-20 (needs migration 0009)
+
+- Owner decisions: guests can't press anything; **Mom's medicines and all notes are hidden** from them; **pumping is shown**.
+- Database (enforced there, not only in the app):
+  - `caregivers.role` is 'caregiver' (default) or 'viewer'. `is_caregiver()` now means a caregiver role, and the new `is_member()` means anyone on the list.
+  - Writes (the 0001 `*_all` policies, the timer RPCs, push sign-up) need `is_caregiver()`.
+  - Reads of caregivers, settings, babies and segments need `is_member()`. Medications: viewers see only non-Mom ones.
+  - A trigger stops anyone changing their own role from the app; the SQL editor, where `auth.uid()` is null, still can.
+  - Viewers can't read `events` directly. They read `events_visible`, a security-barrier view owned by the table owner: the same columns, `notes` blanked for viewers, Mom's medicine doses left out for viewers.
+  - All report views (v_sleep … v_daily_summary) now read `events_visible`. Caregivers see exactly what they did before; viewers get reports without the hidden parts.
+  - Note: the views now show nothing to a session with no user (e.g. psql as postgres). Tests query them as a caregiver. The push function reads the `events` table with the service key, so it's unaffected.
+- App (role read via `caregivers.*`; missing column = caregiver):
+  - Guests load events from `events_visible`, with segments fetched separately, and poll every 30 s, since realtime on `events` is hidden from them.
+  - **Home:** tiles show status but don't open sheets. There are no still-running or pump cards, and no deep links.
+  - **History:** list items don't open, and the timeline is tap-for-details only (no handles, nudges or Edit).
+  - **Reports:** everything except the exports and printout.
+  - **Settings:** only "You" and Sign out, with the note "Guest account: you can look but not change anything".
+  - The household time zone sync is skipped for guests.
+- Tests:
+  - DB: viewer reads `events_visible` without notes or Mom's doses, sees zero rows in `events`, reports work, and insert, start_timer, self-promotion and push sign-up are all refused. Caregivers are unchanged.
+  - e2e: a third phone, "Grandma", can't open sheets or the edit sheet, sees no secret note and no Mom's medicines, has no exports, sees the guest Settings, and a direct write to the API is rejected.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).

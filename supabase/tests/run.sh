@@ -23,7 +23,9 @@ psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0007_bottle_timer.sql -f ..
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f bottle_timer_test.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0008_bottle_brand.sql -f ../migrations/0008_bottle_brand.sql -f post_grants.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f bottle_brand_test.sql
+psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0009_viewers.sql -f ../migrations/0009_viewers.sql -f post_grants.sql
+psql -q -v ON_ERROR_STOP=1 -d "$DB" -f viewers_test.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../reset_data.sql
 test "$(psql -qtA -d "$DB" -c 'select (select count(*) from events) + (select count(*) from babies) + (select count(*) from nursing_segments)')" = 0
-test "$(psql -qtA -d "$DB" -c 'select count(*) from caregivers')" = 2
+test "$(psql -qtA -d "$DB" -c "select count(*) from caregivers where role = 'caregiver'")" = 2
 echo 'RESET SCRIPT TEST PASSED'

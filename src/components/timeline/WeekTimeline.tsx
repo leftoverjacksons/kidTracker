@@ -50,7 +50,7 @@ interface Drag {
  * bottles are dots; diapers are ticks on the column edge. Tap a block to select
  * it, then drag its handles (or use ±5 min) to adjust; changes save with Undo.
  */
-export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void }) {
+export default function WeekTimeline({ onEdit, readOnly = false }: { onEdit: (e: EventRow) => void; /** Guests: tap for details only, no moving or editing. */ readOnly?: boolean }) {
   const data = useData();
   const { settings } = useHousehold();
   const theme = useChartTheme();
@@ -326,8 +326,8 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
               {blocks.filter((b) => prefs.diapers || b.kind !== 'diaper').map((b) => (
                 <BlockView key={b.event.id + c.start.getTime()} b={b} colH={colH} color={color} theme={theme} wide={wide}
                   selected={b.event.id === selected} dragging={drag?.id === b.event.id}
-                  onSelect={() => setSelected(b.event.id)}
-                  onDrag={(ev, mode) => startDrag(ev, b.event, mode)} />
+                  onSelect={() => setSelected(b.event.id)} readOnly={readOnly}
+                  onDrag={(ev, mode) => !readOnly && startDrag(ev, b.event, mode)} />
               ))}
               {nowIn && (
                 <div className="tl-now" style={{ top: ((now.getTime() - c.start.getTime()) / (c.end.getTime() - c.start.getTime())) * colH, background: theme.text }} />
@@ -345,16 +345,16 @@ export default function WeekTimeline({ onEdit }: { onEdit: (e: EventRow) => void
 
       {sel && !drag && (
         <DetailCard e={sel} names={data.names} settings={settings} onClose={() => setSelected(null)}
-          onNudge={(which, m) => nudge(sel, which, m)} onEdit={() => onEdit(sel)} />
+          onNudge={(which, m) => nudge(sel, which, m)} onEdit={() => onEdit(sel)} readOnly={readOnly} />
       )}
     </div>
   );
 }
 
-function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, onDrag }: {
+function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, onDrag, readOnly }: {
   b: Block; colH: number; color: { sleep: string; feed: string; bottle: string }; theme: ReturnType<typeof useChartTheme>; wide: boolean;
   selected: boolean; dragging: boolean;
-  onSelect: () => void; onDrag: (ev: React.PointerEvent, mode: Drag['mode']) => void;
+  onSelect: () => void; onDrag: (ev: React.PointerEvent, mode: Drag['mode']) => void; readOnly: boolean;
 }) {
   const top = b.top * colH;
   const instant = b.kind === 'bottle' || b.kind === 'diaper';
@@ -407,19 +407,19 @@ function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, 
       onPointerDown={select} role="button"
       aria-label={`${META[b.event.type].label} ${formatTime(new Date(b.event.started_at))}`}>
       {label && <span className="tl-side">{label}</span>}
-      {selected && !b.clippedTop && (
+      {selected && !readOnly && !b.clippedTop && (
         <span className="tl-handle top" onPointerDown={(ev) => onDrag(ev, 'start')} style={{ background: theme.text }} />
       )}
-      {selected && !b.clippedBottom && !b.running && (
+      {selected && !readOnly && !b.clippedBottom && !b.running && (
         <span className="tl-handle bottom" onPointerDown={(ev) => onDrag(ev, 'end')} style={{ background: theme.text }} />
       )}
     </div>
   );
 }
 
-function DetailCard({ e, names, settings, onClose, onNudge, onEdit }: {
+function DetailCard({ e, names, settings, onClose, onNudge, onEdit, readOnly }: {
   e: EventRow; names: Record<string, string>; settings: ReturnType<typeof useHousehold>['settings'];
-  onClose: () => void; onNudge: (which: 'start' | 'end', minutes: number) => void; onEdit: () => void;
+  onClose: () => void; onNudge: (which: 'start' | 'end', minutes: number) => void; onEdit: () => void; readOnly: boolean;
 }) {
   const s = new Date(e.started_at), en = e.ended_at ? new Date(e.ended_at) : null;
   const instant = e.type === 'bottle' || e.type === 'diaper';
@@ -439,6 +439,7 @@ function DetailCard({ e, names, settings, onClose, onNudge, onEdit }: {
         <IonButton fill="clear" size="small" aria-label="Close" onClick={onClose}><IonIcon slot="icon-only" icon={close} /></IonButton>
       </div>
       <div className="tl-card-detail">{detail}</div>
+      {!readOnly && <>
       <div className="tl-card-actions">
         <span>{instant ? 'Time' : 'Start'}</span>
         <IonButton size="small" fill="outline" onClick={() => onNudge('start', -5)}>−5</IonButton>
@@ -453,6 +454,7 @@ function DetailCard({ e, names, settings, onClose, onNudge, onEdit }: {
         <IonButton size="small" onClick={onEdit}>Edit</IonButton>
       </div>
       <div className="tl-card-hint">{instant ? 'Drag the mark to move it.' : 'Drag the block or its handles to adjust.'}</div>
+      </>}
     </div>
   );
 }

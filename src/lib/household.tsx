@@ -9,6 +9,8 @@ interface Household {
   me: Caregiver | null;
   /** True when signed in but the account is not on the caregiver list. */
   notAllowed: boolean;
+  /** A read-only guest account (migration 0009): no logging, editing or settings. */
+  viewer: boolean;
   /** Set when the database couldn't be reached (network), so 'not allowed' isn't claimed wrongly. */
   unreachable: string | null;
   baby: Baby | null;
@@ -42,7 +44,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     if (!supabase || !userId) return;
     const [meRes, babyRes, settingsRes] = await Promise.all([
-      supabase.from('caregivers').select('id,email,display_name').eq('id', userId).maybeSingle(),
+      supabase.from('caregivers').select('*').eq('id', userId).maybeSingle(),
       supabase.from('babies').select('*').order('created_at').limit(1).maybeSingle(),
       supabase.from('household_settings').select('*').maybeSingle(),
     ]);
@@ -53,7 +55,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     setDataReady(true);
     // Report views split days in the household's time zone; keep it in step with the phone.
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (settingsRes.data && 'timezone' in settingsRes.data && tz && settingsRes.data.timezone !== tz) {
+    if (settingsRes.data && 'timezone' in settingsRes.data && tz && settingsRes.data.timezone !== tz && meRes.data?.role !== 'viewer') {
       await supabase.from('household_settings').update({ timezone: tz }).eq('id', true);
     }
   }, [userId]);
@@ -81,6 +83,7 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
     me,
     notAllowed: !!userId && dataReady && !me && !unreachable,
     unreachable,
+    viewer: me?.role === 'viewer',
     baby,
     settings,
     reload,

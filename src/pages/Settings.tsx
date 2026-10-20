@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 import type { HouseholdSettings } from '../lib/types';
 
 export default function Settings() {
-  const { me, baby, settings, session, reload } = useHousehold();
+  const { me, baby, settings, session, reload, viewer } = useHousehold();
   const [toast] = useIonToast();
   const [displayName, setDisplayName] = useState(me?.display_name ?? '');
   const [babyName, setBabyName] = useState(baby?.name ?? '');
@@ -72,6 +72,7 @@ export default function Settings() {
           </IonItem>
         </IonList>
 
+        {viewer ? <p className="hint ion-padding-horizontal">Guest account: you can look but not change anything.</p> : <>
         <IonList inset>
           <IonListHeader><IonLabel>Baby</IonLabel></IonListHeader>
           <IonItem>
@@ -164,6 +165,7 @@ export default function Settings() {
           <IonItem lines="none"><IonNote className="hint">Pumping: counted from the start of the last 15+ minute session; a notification at the due time and once more 30 minutes later. Reminders always show on Home too.</IonNote></IonItem>
         </IonList>
 
+        </>}
         <div className="ion-padding">
           <IonButton expand="block" color="medium" fill="outline" onClick={() => supabase?.auth.signOut()}>
             Sign out

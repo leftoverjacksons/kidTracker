@@ -21,7 +21,7 @@ import { ageInMonths, percentile, type Measure } from '../lib/who';
 export interface GrowthRow { started_at: string; weight_g: number | null; length_cm: number | null; head_cm: number | null }
 
 export default function Reports() {
-  const { baby, settings, me } = useHousehold();
+  const { baby, settings, me, viewer } = useHousehold();
   const data = useData();
   const [toast] = useIonToast();
   const [days, setDays] = useState(14);
@@ -202,6 +202,7 @@ export default function Reports() {
             <GrowthSection rows={growth} />
             </>}
 
+            {!viewer && (
             <IonList inset>
               <IonListHeader><IonLabel>Export (last {days} days)</IonLabel></IonListHeader>
               <IonItem button detail={false} onClick={() => { window.location.hash = `#/print?days=${days}`; }}>
@@ -216,6 +217,7 @@ export default function Reports() {
                 </IonItem>
               ))}
             </IonList>
+            )}
             <p className="hint">Signed in as {me?.display_name}. CSV files open in Excel or Google Sheets and use your display units.</p>
             <IonButton fill="clear" expand="block" onClick={() => void load()}>Refresh</IonButton>
           </>

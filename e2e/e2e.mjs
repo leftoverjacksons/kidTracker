@@ -15,6 +15,7 @@ const SECRET = 'local-test-secret-local-test-secret-123';
 const USERS = {
   'parent.a@example.com': '00000000-0000-0000-0000-00000000000a',
   'parent.b@example.com': '00000000-0000-0000-0000-00000000000b',
+  'grandma@example.com': '00000000-0000-0000-0000-00000000000c',
 };
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 function jwt(sub, email) {
@@ -33,6 +34,9 @@ const srv = http.createServer((req, res) => {
 }).listen(4174);
 
 const psql = (q) => execFileSync('psql', ['-qtA', '-d', 'kidtracker_e2e', '-c', q], { encoding: 'utf8' }).trim();
+// Same, but as signed-in Parent A (report views only show data to people on the caregiver list).
+const psqlAsA = (q) => execFileSync('psql', ['-qtA', '-d', 'kidtracker_e2e', '-c', 'set role authenticated',
+  '-c', "select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false)", '-c', q], { encoding: 'utf8' }).trim().split('\n').at(-1);
 
 // The full Chromium build (not the headless shell), which has Push and Notifications.
 const browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chromium' });
@@ -58,7 +62,8 @@ async function phone(name) {
     if (url.includes('/auth/v1/')) return route.fulfill({ status: 204, body: '' });
     if (url.includes('/rest/v1/')) {
       const resp = await route.fetch({ url: url.replace('https://abcdefgh.supabase.co/rest/v1', 'http://localhost:3001') });
-      if (resp.status() >= 400) problems.push(`${name} HTTP ${resp.status()} ${req.method()} ${url.split('/rest/v1')[1]}: ${(await resp.text()).slice(0, 200)}`);
+      const expected = name === 'C' && req.method() === 'POST' && url.includes('/rest/v1/events'); // the guest write test
+      if (resp.status() >= 400 && !expected) problems.push(`${name} HTTP ${resp.status()} ${req.method()} ${url.split('/rest/v1')[1]}: ${(await resp.text()).slice(0, 200)}`);
       return route.fulfill({ response: resp });
     }
     return route.abort();
@@ -279,7 +284,7 @@ for (const n of ['Ibuprofen', 'Vitamin D']) if (!(await greyed(n))) problems.pus
 await expectText(A, 'in 6h', '.med-row[data-med="Ibuprofen"]');
 await closeSheet(A);
 await expectText(A, 'Ibuprofen', '.tile'); // the Meds tile shows when the soonest one is next available
-const medDoses = psql(`select med_doses from v_daily_summary where day = public.local_day(now())`);
+const medDoses = psqlAsA(`select med_doses from v_daily_summary where day = public.local_day(now())`);
 if (medDoses !== '1') problems.push(`baby's daily med_doses is ${medDoses}; Mom's ibuprofen must not count`);
 
 // Pump tile shows two gauges (L/R); the short test sessions don't count (need 15+ min)
@@ -542,6 +547,39 @@ if (!(await flowCard.count())) problems.push('no flow-per-feed chart'); else { a
 const lenCard = bottlesPage.locator('.chart-card', { hasText: 'Feed length' });
 if (await lenCard.count()) { await lenCard.scrollIntoViewIfNeeded(); await lenCard.screenshot({ path: `${OUT}/bottles-length.png` }); }
 await A.locator('.reports-tabs ion-segment-button[value="overview"]').click(); await wait(A, 500);
+
+// ── Guest (viewer) phone: sees the data, can't change anything, no notes, no Mom's medicines
+psql(`insert into events (baby_id, type, started_at, ended_at, diaper_wet, notes) select id, 'diaper', now() - interval '3 minutes', now() - interval '3 minutes', true, 'secret note' from babies limit 1`);
+await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 600);
+await refresh(A);
+await expectText(A, 'secret note');                       // a caregiver sees notes
+const C = await phone('C');
+await wait(C, 800);
+await signIn(C, 'grandma@example.com');
+await wait(C, 1500);
+await expectText(C, 'Sleep', '.tile');
+await tile(C, 'Diaper').click(); await wait(C, 600);
+if (await sheet(C).count()) problems.push('guest could open a logging sheet');
+if (await C.getByText('secret note').count()) problems.push('guest can see notes');
+if (await C.getByText('Mom ·').count()) problems.push("guest can see Mom's medicines");
+if (await C.locator('.still-running, .pump-reminder').count()) problems.push('guest sees action cards');
+await C.locator('ion-item', { hasText: 'Diaper' }).first().click(); await wait(C, 600);
+if (await C.locator('ion-modal.show-modal').count()) problems.push('guest could open the edit sheet');
+await shot(C, 'guest-home');
+await C.locator('ion-tab-button[tab="reports"]').click(); await wait(C, 1500);
+await expectText(C, 'Daily average');
+if (await C.getByText('Daily summary (CSV)').count()) problems.push('guest sees exports');
+await C.locator('ion-tab-button[tab="settings"]').click(); await wait(C, 800);
+await expectText(C, 'Guest account');
+// The database itself refuses a guest's write, whatever the app shows.
+const guestWrite = await C.evaluate(async () => {
+  const k = Object.keys(localStorage).find((x) => x.includes('auth-token'));
+  const tok = k ? JSON.parse(localStorage.getItem(k)).access_token : '';
+  const r = await fetch('https://abcdefgh.supabase.co/rest/v1/events', { method: 'POST', headers: { apikey: 'e2e', Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ baby_id: '00000000-0000-0000-0000-000000000000', type: 'diaper', started_at: new Date().toISOString() }) });
+  return r.status;
+});
+if (guestWrite < 400) problems.push(`guest write was accepted (${guestWrite})`);
 
 // Light-mode look of Home and a logging sheet
 await A.emulateMedia({ colorScheme: 'light' });

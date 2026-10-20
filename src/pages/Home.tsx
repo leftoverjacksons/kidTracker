@@ -23,7 +23,7 @@ const SECONDARY: EventType[] = ['medicine', 'temperature', 'tummy_time', 'bath']
 const SIDE = { left: 'L', right: 'R' } as const;
 
 export default function Home() {
-  const { baby, settings } = useHousehold();
+  const { baby, settings, viewer } = useHousehold();
   const data = useData();
   const now = useNow();
   const [open, setOpen] = useState<EventType | null>(null);
@@ -37,7 +37,7 @@ export default function Home() {
   // Home-screen shortcuts open a logging sheet directly: #/home?log=diaper
   useEffect(() => {
     const log = new URLSearchParams(location.search).get('log') as EventType | null;
-    if (log && log in META && data.ready) {
+    if (log && log in META && data.ready && !viewer) {
       setOpen(log);
       history.replace('/home');
     }
@@ -122,14 +122,14 @@ export default function Home() {
         </IonRefresher>
         {!data.ready ? <div className="centered"><IonSpinner /></div> : (
           <>
-            <StillRunning />
-            <PumpReminder onStart={() => setOpen('pump')} />
+            {!viewer && <StillRunning />}
+            {!viewer && <PumpReminder onStart={() => setOpen('pump')} />}
             <div className="tile-grid">
               {PRIMARY.map((t) => {
                 const s = sub(t);
                 const pc = t === 'pump' ? pumpCounts(data.events, now) : null;
                 return (
-                  <button key={t} data-type={t} className={`tile ${s.live ? 'tile-live' : ''} ${pc ? 'tile-pump' : ''}`} onClick={() => setOpen(t)}>
+                  <button key={t} data-type={t} className={`tile ${s.live ? 'tile-live' : ''} ${pc ? 'tile-pump' : ''}`} onClick={() => !viewer && setOpen(t)}>
                     {pc ? (
                       <span className="pump-gauges" title="Pump sessions of 15+ min, last 24 h (target 8–12 per side)">
                         <PumpGauge side="L" count={pc.left} />
@@ -157,7 +157,7 @@ export default function Home() {
               {SECONDARY.map((t) => {
                 const s = sub(t);
                 return (
-                  <button key={t} data-type={t} className={`tile tile-small ${s.live ? 'tile-live' : ''}`} onClick={() => setOpen(t)}>
+                  <button key={t} data-type={t} className={`tile tile-small ${s.live ? 'tile-live' : ''}`} onClick={() => !viewer && setOpen(t)}>
                     <span className="tile-emoji"><TypeIcon type={t} /></span>
                     <span className="tile-label">{t === 'tummy_time' ? 'Tummy' : META[t].label}</span>
                     <span className="tile-sub tile-sub-small">{s.text}</span>
@@ -172,7 +172,7 @@ export default function Home() {
             <TodaySummary events={today} feeds={countFeeds(data.events, startOfDay(now))} />
             {today.length === 0
               ? <p className="empty">Nothing logged today.</p>
-              : <EventList events={today} onOpen={setEditing} groupByDay={false} />}
+              : <EventList events={today} onOpen={viewer ? () => {} : setEditing} groupByDay={false} />}
           </>
         )}
         <LogSheet type={open} onClose={() => setOpen(null)} />

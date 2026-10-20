@@ -5,6 +5,7 @@ import EditSheet from '../components/EditSheet';
 import EventList from '../components/EventList';
 import WeekTimeline from '../components/timeline/WeekTimeline';
 import { useData } from '../lib/data';
+import { useHousehold } from '../lib/household';
 import { META } from '../lib/describe';
 import type { EventRow, EventType } from '../lib/types';
 import TypeIcon from '../components/TypeIcon';
@@ -12,6 +13,7 @@ import TypeIcon from '../components/TypeIcon';
 const FILTERS: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'medicine', 'temperature', 'growth', 'tummy_time', 'bath'];
 
 export default function History() {
+  const { viewer } = useHousehold();
   const data = useData();
   const [filter, setFilter] = useState<EventType | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
@@ -37,13 +39,13 @@ export default function History() {
           <IonRefresherContent />
         </IonRefresher>
         {view === 'timeline' ? (
-          <div className="ion-padding-horizontal"><WeekTimeline onEdit={setEditing} /></div>
+          <div className="ion-padding-horizontal"><WeekTimeline onEdit={setEditing} readOnly={viewer} /></div>
         ) : (<>
         <div className="ion-padding-horizontal filter-row">
           <Chips options={FILTERS.map((t) => ({ value: t, label: <span className="chip-label"><TypeIcon type={t} />{META[t].label}</span> }))}
             value={filter} onChange={setFilter} />
         </div>
-        {list.length === 0 ? <p className="empty">No entries.</p> : <EventList events={list} onOpen={setEditing} />}
+        {list.length === 0 ? <p className="empty">No entries.</p> : <EventList events={list} onOpen={viewer ? () => {} : setEditing} />}
         <div className="ion-padding">
           <IonButton expand="block" fill="clear" onClick={() => void data.loadOlder()}>Load older entries</IonButton>
         </div>

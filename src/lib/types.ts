@@ -6,6 +6,8 @@ export interface Caregiver {
   id: string;
   email: string | null;
   display_name: string;
+  /** 'viewer' = read-only guest (migration 0009); missing before it runs = caregiver. */
+  role?: 'caregiver' | 'viewer';
 }
 
 export interface Baby {

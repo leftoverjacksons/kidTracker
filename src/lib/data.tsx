@@ -42,7 +42,7 @@ interface Data {
 const Ctx = createContext<Data | null>(null);
 
 export function DataProvider({ children, onError }: { children: ReactNode; onError: (msg: string) => void }) {
-  const { baby } = useHousehold();
+  const { baby, viewer } = useHousehold();
   const babyId = baby?.id;
   const [events, setEvents] = useState<EventRow[]>([]);
   const [meds, setMeds] = useState<Medication[]>([]);
@@ -65,22 +65,31 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
   const reload = useCallback(async () => {
     if (!supabase || !babyId) return;
     const sinceIso = since.current.toISOString();
+    // Guests (0009) read events_visible: no notes, no medicines for Mom; segments come separately.
+    const source = viewer ? 'events_visible' : 'events';
+    const cols = viewer ? '*' : '*, nursing_segments(*)';
     const [ev, running, md, cg] = await Promise.all([
-      supabase.from('events').select('*, nursing_segments(*)')
+      supabase.from(source).select(cols)
         .eq('baby_id', babyId).is('deleted_at', null).gte('started_at', sinceIso)
         .order('started_at', { ascending: false }),
       // Timers started before the window (unlikely) still need to show.
-      supabase.from('events').select('*, nursing_segments(*)')
+      supabase.from(source).select(cols)
         .eq('baby_id', babyId).is('deleted_at', null).is('ended_at', null).lt('started_at', sinceIso),
       supabase.from('medications').select('*').order('name'),
       supabase.from('caregivers').select('id, display_name'),
     ]);
     if (ev.error) return void err.current(ev.error.message);
-    setEvents([...(running.data ?? []), ...(ev.data ?? [])] as EventRow[]);
+    let rows = [...(running.data ?? []), ...(ev.data ?? [])] as unknown as EventRow[];
+    if (viewer) {
+      const ids = rows.filter((e) => e.type === 'nursing').map((e) => e.id);
+      const segs = ids.length ? (await supabase.from('nursing_segments').select('*').in('event_id', ids).order('started_at')).data ?? [] : [];
+      rows = rows.map((e) => (e.type === 'nursing' ? { ...e, nursing_segments: segs.filter((s) => s.event_id === e.id) } : e));
+    }
+    setEvents(rows);
     setMeds((md.data ?? []) as Medication[]);
     setNames(Object.fromEntries((cg.data ?? []).map((c) => [c.id, c.display_name])));
     setReady(true);
-  }, [babyId]);
+  }, [babyId, viewer]);
 
   // Initial load, live updates from the other phone, and refresh on wake.
   useEffect(() => {
@@ -95,16 +104,19 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
       .on('postgres_changes', { event: '*', schema: 'public', table: 'medications' }, soon)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'caregivers' }, soon)
       .subscribe();
+    // Guests get no live updates (row security hides the events table from them): poll instead.
+    const poll = viewer ? setInterval(() => document.visibilityState === 'visible' && void reload(), 30_000) : undefined;
     const onVisible = () => document.visibilityState === 'visible' && soon();
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', soon);
     return () => {
       clearTimeout(timer);
+      clearInterval(poll);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', soon);
       void client.removeChannel(channel);
     };
-  }, [babyId, reload]);
+  }, [babyId, reload, viewer]);
 
   const loadOlder = useCallback(async () => {
     const before = since.current;

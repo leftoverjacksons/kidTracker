@@ -23,7 +23,7 @@ const groupOf = (e: EventRow) => (e.bottle_contents === 'breast_milk' ? 0 : e.bo
  * and the feeds themselves (tap to edit).
  */
 export default function BottleReport({ days }: { days: number }) {
-  const { settings } = useHousehold();
+  const { settings, viewer } = useHousehold();
   const data = useData();
   const [brand, setBrand] = useState<string | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
@@ -92,7 +92,7 @@ export default function BottleReport({ days }: { days: number }) {
       <Chips options={view.cats.map((c) => ({ value: c, label: c }))} value={brand} onChange={setBrand} clearable />
       <IonList inset>
         {list.map((f) => (
-          <IonItem key={f.e.id} button detail={false} onClick={() => setEditing(f.e)}>
+          <IonItem key={f.e.id} button={!viewer} detail={false} onClick={() => !viewer && setEditing(f.e)}>
             <IonLabel>
               <h3>{f.brand} · {formatFlow(f.rate, settings)}</h3>
               <p>Drank {formatVolume(f.ml, settings)}{f.e.bottle_start_ml ? ` of ${formatVolume(f.e.bottle_start_ml, settings)}` : ''} · {formatDuration(f.minutes * 60_000)}</p>

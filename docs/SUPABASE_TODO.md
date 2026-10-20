@@ -17,6 +17,17 @@ Run them **in order**. Every script is safe to run twice.
 
 - [ ] **Run `supabase/migrations/0008_bottle_brand.sql`** (after 0007). It's one step, and safe to run again. It adds the "Bottle" picker to the bottle screen; until then the picker is hidden.
 
+### Guest (view-only) accounts
+
+- [ ] **Run `supabase/migrations/0009_viewers.sql`** (after 0008). It's one step, safe to re-run, and you two stay full caregivers.
+- **To add a guest** (any time after that):
+  1. In Supabase, go to **Authentication → Users → Add user → Create new user**. Enter their email and a password, and tick **Auto Confirm User**.
+  2. In the **SQL Editor**, run (change the email):
+     `update public.caregivers set role = 'viewer' where email = 'grandma@example.com';`
+  3. Send them the app link and their password. They sign in and can look but not change anything.
+- **To remove a guest:** Authentication → Users → delete them.
+- **To check who's who:** `select email, role from public.caregivers;`
+
 ### Phone notifications (pumping reminders + "still running?" checks)
 
 Do these in order, about 15–20 minutes in all. Until they're done, the app works as before:
