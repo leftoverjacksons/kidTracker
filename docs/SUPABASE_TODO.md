@@ -30,7 +30,7 @@ reminders show inside the app, and Settings says notifications are "not set up".
   - Delete the sample code. Paste the whole of `supabase/functions/push-tick/index.ts` (open it on GitHub → copy raw file).
   - Click **Deploy function**.
 - [ ] **5. Start the every-minute timer.** Open `supabase/push_schedule.sql` on GitHub and copy it into a new SQL Editor query.
-  - Replace `PASTE_ANON_KEY_HERE` with your anon key. It's the same value as the `VITE_SUPABASE_ANON_KEY` variable in GitHub; in Supabase it's under Project Settings → API Keys.
+  - Replace `PASTE_ANON_KEY_HERE` with your public key: the one starting `sb_publishable_`. It's the `VITE_SUPABASE_ANON_KEY` variable in GitHub (Settings → Secrets and variables → Actions → Variables); in Supabase it's under Project Settings → API Keys.
   - Click **Run**.
 - [ ] **6. Turn it on, on each phone.** Open LakTrak → **Settings → Reminders → Phone notifications → Turn on**, and allow notifications when the phone asks.
   - On iPhone, LakTrak must be added to the Home Screen first.

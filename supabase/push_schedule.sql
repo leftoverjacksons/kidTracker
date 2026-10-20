@@ -1,9 +1,11 @@
 -- LakTrak: run the push-tick function every minute (Supabase only; needs pg_cron + pg_net).
 -- Run in the SQL editor AFTER 0006_push.sql and after deploying the push-tick function.
 --
--- BEFORE RUNNING: replace PASTE_ANON_KEY_HERE below with your project's public anon key
--- (the same value as the VITE_SUPABASE_ANON_KEY variable in GitHub; in Supabase it's under
--- Project Settings → API Keys). It is a public key, so it's fine in this script.
+-- BEFORE RUNNING: replace PASTE_ANON_KEY_HERE below with your project's public key: the
+-- "publishable" key (starts sb_publishable_) or the legacy "anon" key. It's the value of the
+-- VITE_SUPABASE_ANON_KEY variable in GitHub (Settings → Secrets and variables → Actions →
+-- Variables), and in Supabase under Project Settings → API Keys. It is public (the app ships
+-- it to every browser), so it's fine in this script.
 --
 -- Safe to re-run: the schedule is replaced, not duplicated. To stop notifications:
 --   select cron.unschedule('laktrak-push');
