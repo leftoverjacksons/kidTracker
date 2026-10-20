@@ -338,3 +338,8 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 
 /* Pumping reminder card (design doc §8a I): same layout as the still-running card. */
 .pump-reminder { margin-bottom: 12px; }
+
+/* Bottle amounts (design doc §8a K) */
+.bottle-q { margin: 10px 0 2px; }
+.bottle-drank { font-size: 16px; min-height: 22px; }
+.bottle-err { color: var(--ion-color-danger); }

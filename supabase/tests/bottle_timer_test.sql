@@ -13,7 +13,9 @@ begin
   assert r2.id = r.id, 'second start made a second bottle timer';
   r := stop_timer(r.id, now());
   assert r.ended_at is not null and r.ended_at - r.started_at between interval '11 minutes' and interval '13 minutes';
-  assert 'bottle_timer' = any(app_features());
+  assert 'bottle_timer' = any(app_features()) and 'bottle_start' = any(app_features());
+  update events set bottle_start_ml = 88.7, bottle_ml = 59.1 where id = r.id;
+  assert (select bottle_start_ml - bottle_ml from events where id = r.id) = 29.6, 'start volume column';
   -- An earlier feed's day still counts this bottle once.
   assert (select count(*) from v_feed_sessions where id = '60000000-0000-0000-0000-000000000001') = 1;
 end $$;

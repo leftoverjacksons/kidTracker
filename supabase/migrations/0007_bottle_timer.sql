@@ -1,11 +1,16 @@
 -- LakTrak 0007: bottle feeds can be timed, for flow rate (design doc §8a K).
--- Run once in the Supabase SQL editor. Safe to re-run. Until it runs the app works as
+-- Run once in the Supabase SQL editor. Safe to re-run (also after an earlier version of
+-- this file: it adds what's missing). Until it runs the app works as
 -- before; the bottle timer simply isn't offered.
 --
 -- Until now a bottle was an instant with no end time. A missing end time means "timer
 -- running", so existing bottles get end = start (zero length) first.
 
 begin;
+
+-- How much was in the bottle at the start; bottle_ml stays the amount actually drunk.
+alter table public.events add column if not exists bottle_start_ml numeric(7,2)
+  check (bottle_start_ml is null or bottle_start_ml >= 0);
 
 update public.events set ended_at = started_at
  where type = 'bottle' and ended_at is null;
@@ -45,7 +50,7 @@ end $$;
 -- Which optional database features exist, so the app can switch them on (it treats a
 -- missing function as "none").
 create or replace function public.app_features() returns text[]
-language sql stable as $$ select array['bottle_timer'] $$;
+language sql stable as $$ select array['bottle_timer', 'bottle_start'] $$;
 grant execute on function public.app_features() to authenticated;
 
 commit;

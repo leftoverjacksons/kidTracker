@@ -46,6 +46,7 @@ export function summarize(e: EventRow, s: HouseholdSettings, meds: Medication[],
     }
     case 'bottle': {
       parts.push([formatVolume(e.bottle_ml, s), e.bottle_contents && CONTENTS[e.bottle_contents]].filter(Boolean).join(' '));
+      if (e.bottle_start_ml != null && e.bottle_ml != null && e.bottle_start_ml > e.bottle_ml) parts.push(`${formatVolume(e.bottle_start_ml - e.bottle_ml, s)} left of ${formatVolume(e.bottle_start_ml, s)}`);
       const min = bottleMinutes(e), rate = flowRate(e);
       if (min) parts.push(formatDuration(min * 60_000));
       if (rate) parts.push(formatFlow(rate, s));

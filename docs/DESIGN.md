@@ -707,6 +707,9 @@ This is Phase 2 of E5 and I.
   - Entries show the duration and flow ("2 oz breast milk · 12m · 0.17 oz/min").
   - Reports adds "Bottle flow rate" per day: total ml ÷ total minutes of that day's timed bottles, with gaps where none were timed.
 - Edit: a timed bottle shows Start and End; an untimed one keeps end = start.
+- Amounts (2026-10-20): "Start − left over" (default; the app works out what was drunk) or "Amount drunk" typed directly. Both are in the timer's Finish and in quick entry.
+  - The timer's Start screen can take the starting volume, saved on the running bottle in `bottle_start_ml` (0007, feature `bottle_start`), so either phone can finish it later with only "left over".
+  - `bottle_ml` is always the amount drunk. Entries show "1 oz left of 3 oz".
 
 ### C. Report ideas saved for later (2026-10-16)
 

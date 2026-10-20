@@ -11,6 +11,7 @@ Run them **in order**. Every script is safe to run twice.
 - [ ] **Run `supabase/migrations/0007_bottle_timer.sql`** (copy raw file → SQL Editor → New query → Run). It's one step, and separate from notifications.
   - It gives every existing bottle an end time equal to its start, so a blank end time can mean "bottle timer running", and it allows the bottle timer.
   - Until it runs, the Bottle screen works as before, without the Timer tab.
+  - Updated 2026-10-20: it also adds `bottle_start_ml` (how much was in the bottle at the start). If you already ran an earlier copy, run it again; that's safe.
 
 ### Phone notifications (pumping reminders + "still running?" checks)
 
