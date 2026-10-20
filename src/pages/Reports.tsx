@@ -12,7 +12,7 @@ import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import { flowByDay } from '../lib/bottle';
-import { averages, completeDays, diaperGuide, fillDays, isoDay, longestSleepByDay, pumpBySide, trimLeading, type DailyRow } from '../lib/reports';
+import { averages, bottleByContents, completeDays, diaperGuide, fillDays, isoDay, longestSleepByDay, pumpBySide, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
 import { cmToIn, mlToOz } from '../lib/units';
@@ -28,17 +28,19 @@ export default function Reports() {
   const [rows, setRows] = useState<DailyRow[] | null>(null);
   const [growth, setGrowth] = useState<GrowthRow[]>([]);
   const [sleeps, setSleeps] = useState<{ start_date: string; duration_min: number }[]>([]);
+  const [bottles, setBottles] = useState<{ start_date: string; bottle_ml: number | null; bottle_contents: string | null }[]>([]);
   const [pumps, setPumps] = useState<{ start_date: string; pump_left_ml: number | null; pump_right_ml: number | null }[]>([]);
   const [missing, setMissing] = useState(false);
 
   const load = useCallback(async () => {
     if (!supabase || !baby) return;
     const from = isoDay(new Date(startOfDay(new Date()).getTime() - (days - 1) * 86_400_000));
-    const [d, g, sl, pu] = await Promise.all([
+    const [d, g, sl, pu, bo] = await Promise.all([
       supabase.from('v_daily_summary').select('*').eq('baby_id', baby.id).gte('day', from),
       supabase.from('v_growth').select('started_at,weight_g,length_cm,head_cm').eq('baby_id', baby.id).order('started_at'),
       supabase.from('v_sleep').select('start_date,duration_min').eq('baby_id', baby.id).gte('start_date', from),
       supabase.from('v_pumps').select('start_date,pump_left_ml,pump_right_ml').eq('baby_id', baby.id).gte('start_date', from),
+      supabase.from('v_feeds').select('start_date,bottle_ml,bottle_contents').eq('baby_id', baby.id).eq('feed_type', 'bottle').gte('start_date', from),
     ]);
     if (d.error) {
       // View not created yet: migration 0002 has not been run.
@@ -51,6 +53,7 @@ export default function Reports() {
     setGrowth((g.data ?? []) as GrowthRow[]);
     setSleeps((sl.data ?? []) as { start_date: string; duration_min: number }[]);
     setPumps((pu.data ?? []) as typeof pumps);
+    setBottles((bo.data ?? []) as typeof bottles);
   }, [baby, days, toast]);
 
   // Reload when the range changes or anything is logged.
@@ -94,7 +97,17 @@ export default function Reports() {
         { label: 'Average', short: 'Avg', data: rows.map((r) => r.avg_feed_interval_min || null) },
         { label: 'Longest', short: 'Longest', data: rows.map((r) => r.longest_feed_interval_min || null) },
       ],
-      bottle: [{ label: 'Bottle', data: rows.map((r) => toVol(r.bottle_ml)) }],
+      bottle: (() => {
+        const b = bottleByContents(bottles, rows.map((r) => r.day));
+        return {
+          hasMixed: b.hasMixed,
+          series: [
+            { label: 'Total', short: 'Total', data: rows.map((r) => toVol(r.bottle_ml)), width: 3 },
+            { label: 'Breast milk', short: 'BM', data: b.breastMilk.map(toVol) },
+            { label: 'Formula', short: 'F', data: b.formula.map(toVol) },
+          ],
+        };
+      })(),
       // Timed bottles only (total amount ÷ total minutes that day); gaps on days without one.
       flow: [{ label: 'Flow', data: flowByDay(data.events, rows.map((r) => r.day)).map((f) => (f == null ? null : oz ? Math.round(mlToOz(f) * 100) / 100 : Math.round(f * 10) / 10)) }],
       nursing: [
@@ -119,7 +132,7 @@ export default function Reports() {
       avgDays: completeDays(rows).length,
       has: (k: keyof DailyRow) => rows.some((r) => Number(r[k]) > 0),
     };
-  }, [rows, toVol, sleeps, pumps, baby?.birth_date, data.events, oz]);
+  }, [rows, toVol, sleeps, pumps, bottles, baby?.birth_date, data.events, oz]);
 
 
   const volUnit = oz ? 'oz' : 'ml';
@@ -166,7 +179,8 @@ export default function Reports() {
               <LineChart partialLast={view.partial} integer minutesAxis title="Time between feeds" labels={view.labels} series={view.feedGap} format={fmtHours} hues={['teal', 'coral']}
                 note={`Start of one feed to the start of the next, by the day the feed started.${view.avg.feedIntervalMin ? ` Typical: every ${formatDuration(view.avg.feedIntervalMin * 60_000)}.` : ''}`} />
             )}
-            {view.has('bottle_ml') && <LineChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle} format={fmtVolAxis} hues={['amber']} />}
+            {view.has('bottle_ml') && <LineChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle.series} format={fmtVolAxis} hues={['teal', 'blue', 'coral']}
+                note={`Amount drunk.${view.bottle.hasMixed ? ' Mixed bottles count in the total only.' : ''}`} />}
             {view.flow[0].data.some((v) => v != null) && (
               <LineChart partialLast={view.partial} title={`Bottle flow rate (${volUnit}/min)`} labels={view.labels} series={view.flow} hues={['amber']}
                 format={fmtFlowAxis}

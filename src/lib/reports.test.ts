@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { averages, completeDays, csvUnits, daysOld, diaperGuide, feedInterval, fillDays, pumpBySide, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
+import { averages, bottleByContents, completeDays, csvUnits, daysOld, diaperGuide, feedInterval, fillDays, pumpBySide, longestSleepByDay, toCsv, trimLeading, type DailyRow } from './reports';
 import { DEFAULT_SETTINGS } from './types';
 
 describe('reports', () => {
@@ -76,5 +76,16 @@ describe('pumpBySide', () => {
       { start_date: '2026-10-19', pump_left_ml: null, pump_right_ml: 50 },
     ];
     expect(pumpBySide(rows, ['2026-10-17', '2026-10-18', '2026-10-19'])).toEqual({ left: [90.5, 0, 0], right: [45, 0, 50] });
+  });
+});
+
+describe('bottleByContents', () => {
+  it('splits breast milk and formula; mixed only in the total', () => {
+    const rows = [
+      { start_date: '2026-10-19', bottle_ml: 60, bottle_contents: 'breast_milk' },
+      { start_date: '2026-10-19', bottle_ml: '30', bottle_contents: 'formula' },
+      { start_date: '2026-10-20', bottle_ml: 45, bottle_contents: 'mixed' },
+    ];
+    expect(bottleByContents(rows, ['2026-10-19', '2026-10-20'])).toEqual({ total: [90, 45], breastMilk: [60, 0], formula: [30, 0], hasMixed: true });
   });
 });

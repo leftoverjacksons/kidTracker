@@ -169,3 +169,16 @@ export function pumpBySide(rows: { start_date: string; pump_left_ml: number | st
   }
   return { left: days.map((d) => left.get(d) ?? 0), right: days.map((d) => right.get(d) ?? 0) };
 }
+
+/**
+ * Bottle millilitres per day split by contents, for `days` (YYYY-MM-DD). Mixed bottles
+ * count only toward the total.
+ */
+export function bottleByContents(rows: { start_date: string; bottle_ml: number | string | null; bottle_contents: string | null }[], days: string[]) {
+  const sum = (kind: string | null) => {
+    const m = new Map<string, number>();
+    for (const r of rows) if (kind == null || r.bottle_contents === kind) m.set(r.start_date, (m.get(r.start_date) ?? 0) + Number(r.bottle_ml ?? 0));
+    return days.map((d) => m.get(d) ?? 0);
+  };
+  return { total: sum(null), breastMilk: sum('breast_milk'), formula: sum('formula'), hasMixed: rows.some((r) => r.bottle_contents === 'mixed' && Number(r.bottle_ml) > 0) };
+}

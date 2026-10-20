@@ -122,31 +122,35 @@ await sheet(A).locator('ion-chip', { hasText: 'yellow' }).click();
 await sheet(A).locator('ion-chip', { hasText: 'seedy' }).click();
 await sheet(A).locator('.big-btn', { hasText: 'Both' }).click(); await wait(A, 1000);
 
-// Bottle: quick amount entry (the Timer tab is the default once migration 0007 is in)
+// Bottle, untimed: "Forgot to time it?" → type the amount drunk
 await tile(A, 'Bottle').click(); await wait(A);
-await sheet(A).locator('ion-segment-button[value="amount"]').click(); await wait(A, 300);
+await sheet(A).getByRole('button', { name: /Forgot to time it/ }).click(); await wait(A, 300);
 await sheet(A).locator('ion-segment-button[value="drank"]').click(); await wait(A, 300);
-await sheet(A).locator('ion-chip', { hasText: '3 oz' }).click();
+await sheet(A).locator('ion-input').nth(0).locator('input').fill('3'); await wait(A, 200);
 await shot(A, 'bottle-sheet');
 await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
 await expectText(A, '3 oz', '.tile');
 
-// Bottle timer: start, the other phone sees it running, finish with an amount → flow rate
+// Bottle, timed: type what's in the bottle → Start → Stop → type what's left → drank + flow rate
 await tile(A, 'Bottle').click(); await wait(A);
-await sheet(A).locator('ion-segment-button[value="timer"]').click(); await wait(A, 300);
-await sheet(A).locator('ion-chip', { hasText: '3 oz' }).click(); await wait(A, 200); // in the bottle at the start
-await sheet(A).locator('.big-btn-start', { hasText: 'Start bottle' }).click(); await wait(A, 1200);
+await sheet(A).locator('ion-input').nth(0).locator('input').fill('3'); await wait(A, 200);
+await sheet(A).locator('.big-btn-start', { hasText: 'Start' }).click(); await wait(A, 1200);
 await closeSheet(A);
 await expectText(A, 'Feeding', '.tile');
 psql(`update events set started_at = now() - interval '12 minutes' where type = 'bottle' and ended_at is null`);
 await refresh(A);
 await tile(A, 'Bottle').click(); await wait(A);
-// The starting 3 oz is remembered; 1 oz left → drank 2 oz, worked out by the app.
-await sheet(A).locator('ion-chip', { hasText: /^1 oz$/ }).last().click(); await wait(A, 300);
+await expectText(A, 'In the bottle: 3 oz');
+await sheet(A).locator('.big-btn-stop', { hasText: 'Stop' }).click(); await wait(A, 1200);
+// Closing before typing the left-over amount: reopening picks the bottle up again.
+await closeSheet(A);
+await tile(A, 'Bottle').click(); await wait(A);
+await expectText(A, 'Bottle stopped');
+await sheet(A).locator('ion-input').nth(0).locator('input').fill('1'); await wait(A, 300);
 await expectText(A, 'Drank 2 oz', '.bottle-drank');
-await expectText(A, 'oz/min', '.bottle-rate');
+await expectText(A, 'oz/min', '.bottle-drank');
 await shot(A, 'bottle-timer-finish');
-await sheet(A).locator('.big-btn-stop', { hasText: 'Finish' }).click(); await wait(A, 1200);
+await sheet(A).locator('.big-btn-start', { hasText: 'Save' }).click(); await wait(A, 1200);
 const timed = psql(`select round(extract(epoch from ended_at - started_at) / 60) || ' ' || round(bottle_ml) || ' ' || round(bottle_start_ml) from events where type = 'bottle' and ended_at > started_at`);
 if (!/^1[12] 59 89$/.test(timed)) problems.push(`timed bottle saved as "${timed}" (expected ~12 min, drank 59 ml of 89 ml)`);
 await expectText(A, 'oz/min');  // the entry in Today's list shows its flow rate

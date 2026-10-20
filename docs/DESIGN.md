@@ -711,6 +711,35 @@ This is Phase 2 of E5 and I.
   - The timer's Start screen can take the starting volume, saved on the running bottle in `bottle_start_ml` (0007, feature `bottle_start`), so either phone can finish it later with only "left over".
   - `bottle_ml` is always the amount drunk. Entries show "1 oz left of 3 oz".
 
+### K2. Bottle screen as a typed flow; bottle chart by contents — built 2026-10-20
+
+- Owner request: "type in how much is in the bottle and press start … press stop and enter how much is left … have the amount drunk and the rate logged."
+- Screen (replaces the Timer/Enter amount tabs and the chips):
+  1. **In the bottle** (number field, keypad opens), contents, **Start**.
+  2. Running: clock, "In the bottle: 3 oz", **Stop** (and Discard).
+  3. Stopped: **Left in the bottle** (keypad opens). It shows "Drank 2 oz · 0.17 oz/min"; **Save** stores `bottle_ml` = start − left.
+- A stopped bottle with no amount yet (sheet closed, or stopped on the other phone) is offered again for up to 3 h, or can be deleted.
+- "Forgot to time it? Enter a past bottle" opens a typed form: start − left over, or amount drunk; plus contents, time and an optional duration. Before migration 0007 only this form shows.
+- Reports "Bottle per day": a Total line (teal, 3 px), plus **Breast milk** (blue) and **Formula** (coral), from `v_feeds.bottle_contents`. Mixed bottles count only in the total, and the note says so. The teal/blue/coral set was validated earlier.
+
+### L. Flow rate per feeding — PROPOSAL, not built (2026-10-20)
+
+Owner: "I need to see it by feeding, not by day … maybe an entire sub-tab for the results that zooms in. Open to suggestions." The daily "Bottle flow rate" chart stays on Reports until this is decided.
+
+Proposal: a **Bottles** view inside Reports, chosen from a segment at the top: **Overview | Bottles**. It would hold:
+1. **Flow per feed:** one point per timed bottle (ml or oz per minute), placed at its actual time across the selected 7/14/30 days, and coloured by contents (breast milk blue, formula coral). Tapping a point shows time, start, left, drank, duration, rate and who logged it. A faint line links the points in order. Optionally a median line for the period.
+2. **Feed list:** the timed bottles, newest first. Each row: time · drank (of start) · duration · rate. Tapping a row opens it for editing.
+3. **Summary tiles:** median rate this week vs last week; typical feed length; share of bottles timed.
+4. Move the daily flow chart here too, as a smaller trend.
+
+Optional addition for troubleshooting flow: tag each bottle with the **nipple/bottle type** (e.g. "Slow / Size 1 / Size 2"), then colour or filter the per-feed chart by it.
+- Needs one small migration (a text column), plus a picker on the Start screen remembering the last choice.
+
+Open questions for the owner:
+- (a) x-axis by clock time (default) or by feed number?
+- (b) add nipple/bottle-type tagging?
+- (c) keep the daily flow chart on Overview as well?
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).

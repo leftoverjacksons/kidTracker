@@ -9,8 +9,6 @@ export const vol = (s: HouseholdSettings) => ({
   toStore: (v: number) => (s.volume_unit === 'oz' ? ozToMl(v) : v),
   toShow: (ml: number) => r1(s.volume_unit === 'oz' ? mlToOz(ml) : ml),
   quick: s.volume_unit === 'oz' ? [1, 2, 3, 4, 5] : [30, 60, 90, 120, 150],
-  /** Typical amounts left in a bottle. */
-  leftQuick: s.volume_unit === 'oz' ? [0, 0.5, 1, 1.5, 2] : [0, 15, 30, 45, 60],
 });
 
 export const temp = (s: HouseholdSettings) => ({

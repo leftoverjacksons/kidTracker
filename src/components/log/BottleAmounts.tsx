@@ -2,15 +2,14 @@ import { IonList, IonSegment, IonSegmentButton } from '@ionic/react';
 import { useState, type ReactNode } from 'react';
 import { formatVolume } from '../../lib/format';
 import type { HouseholdSettings } from '../../lib/types';
-import Chips from '../Chips';
 import NumberField from '../NumberField';
 import { vol } from './units';
 
 const MODE_KEY = 'kt.bottleAmountMode';
 
 /**
- * How much was drunk: either "started with" minus "left in the bottle" (worked out for
- * you), or typed directly. `startMl` is what was in the bottle at the start, if known.
+ * How much was drunk (typed): either "started with" minus "left in the bottle" (worked
+ * out for you), or the amount drunk directly. `startMl` is what was in the bottle at the start, if known.
  * Returns the fields to render plus the resulting amounts in ml (design doc §8a K).
  */
 export function useBottleAmounts(settings: HouseholdSettings, initialStartMl: number | null, children?: ReactNode) {
@@ -37,10 +36,6 @@ export function useBottleAmounts(settings: HouseholdSettings, initialStartMl: nu
       </IonSegment>
       {mode === 'left' ? (
         <>
-          <p className="hint center bottle-q">In the bottle at the start</p>
-          <Chips options={v.quick.map((q) => ({ value: q, label: `${q} ${v.unit}` }))} value={start} onChange={setStart} />
-          <p className="hint center bottle-q">Left in the bottle</p>
-          <Chips options={v.leftQuick.map((q) => ({ value: q, label: q === 0 ? 'None' : `${q} ${v.unit}` }))} value={left} onChange={setLeft} />
           <IonList inset>
             <NumberField label="In the bottle at the start" unit={v.unit} value={start} onChange={setStart} />
             <NumberField label="Left in the bottle" unit={v.unit} value={left} onChange={setLeft} />
@@ -52,7 +47,6 @@ export function useBottleAmounts(settings: HouseholdSettings, initialStartMl: nu
         </>
       ) : (
         <>
-          <Chips options={v.quick.map((q) => ({ value: q, label: `${q} ${v.unit}` }))} value={drank} onChange={setDrank} />
           <IonList inset>
             <NumberField label="Amount drunk" unit={v.unit} value={drank} onChange={setDrank} />
             {children}

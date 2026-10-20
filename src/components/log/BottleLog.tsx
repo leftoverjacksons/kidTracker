@@ -1,112 +1,111 @@
-import { IonButton, IonItem, IonSegment, IonSegmentButton, useIonAlert } from '@ionic/react';
+import { IonButton, IonItem, IonList, IonSegment, IonSegmentButton, useIonAlert } from '@ionic/react';
 import { useState } from 'react';
 import { flowRate } from '../../lib/bottle';
-import { useData, useNow } from '../../lib/data';
+import { useData } from '../../lib/data';
 import { formatDuration, formatFlow, formatVolume } from '../../lib/format';
 import { buzz, useLogged } from '../../lib/feedback';
 import { useHousehold } from '../../lib/household';
 import type { EventRow } from '../../lib/types';
-import Chips from '../Chips';
-import { useBottleAmounts } from './BottleAmounts';
 import NotesField from '../NotesField';
 import NumberField from '../NumberField';
 import TimeField from '../TimeField';
 import TypeIcon from '../TypeIcon';
+import { useBottleAmounts } from './BottleAmounts';
 import RunningHeader from './RunningHeader';
 import { vol } from './units';
 
 type Contents = 'breast_milk' | 'formula' | 'mixed';
-const MODE_KEY = 'kt.bottleMode';
+/** A stopped bottle still waiting for "left in the bottle" is offered again for this long. */
+const AWAIT_LEFTOVER_MS = 3 * 3_600_000;
 
 /**
- * Bottle: a shared timer (start, then enter the amount when done) so flow rate can be
- * tracked, or quick entry of an amount (design doc §8a K). The timer needs migration 0007.
+ * Bottle (design doc §8a K, typed flow 2026-10-20):
+ *   1. type how much is in the bottle → Start
+ *   2. Stop when the feed ends
+ *   3. type how much is left → amount drunk and flow rate are saved.
+ * A stopped bottle without its left-over amount is picked up again (sleepy parents).
+ * "Forgot to time it?" opens a plain entry form. Without migration 0007 only the form shows.
  */
 export default function BottleLog({ onDone }: { onDone: () => void }) {
   const data = useData();
-  const [mode, setMode] = useState<'timer' | 'amount'>(() => {
-    try { return localStorage.getItem(MODE_KEY) === 'amount' ? 'amount' : 'timer'; } catch { return 'timer'; }
-  });
-  const pick = (m: 'timer' | 'amount') => { setMode(m); try { localStorage.setItem(MODE_KEY, m); } catch { /* ignore */ } };
+  const [manual, setManual] = useState(false);
+  const [stoppedId, setStoppedId] = useState<string | null>(null);
   const running = data.running.bottle;
-  if (running) return <Finish running={running} onDone={onDone} />;
-  if (!data.features.bottleTimer) return <AmountForm onDone={onDone} />;
+  // Most recent finished, timed bottle that still has no amount (stopped, then the sheet closed).
+  const waiting = data.events.find((e) => e.type === 'bottle' && (e.id === stoppedId || (
+    e.ended_at && e.bottle_ml == null && Date.parse(e.ended_at) > Date.parse(e.started_at)
+    && Date.now() - Date.parse(e.ended_at) < AWAIT_LEFTOVER_MS)));
+
+  if (!data.features.bottleTimer || manual) {
+    return <>
+      <ManualForm onDone={onDone} />
+      {data.features.bottleTimer && <IonButton fill="clear" expand="block" onClick={() => setManual(false)}>Back to the timer</IonButton>}
+    </>;
+  }
+  if (running) return <Running running={running} onStopped={(id) => setStoppedId(id)} onDone={onDone} />;
+  if (waiting) return <Leftover bottle={waiting} onDone={onDone} />;
+  return <>
+    <Start />
+    <IonButton fill="clear" expand="block" onClick={() => setManual(true)}>Forgot to time it? Enter a past bottle</IonButton>
+  </>;
+}
+
+function ContentsPicker({ value, onChange }: { value: Contents; onChange: (c: Contents) => void }) {
   return (
-    <>
-      <IonSegment value={mode} onIonChange={(e) => pick(e.detail.value as 'timer' | 'amount')}>
-        <IonSegmentButton value="timer">Timer</IonSegmentButton>
-        <IonSegmentButton value="amount">Enter amount</IonSegmentButton>
+    <IonItem>
+      <IonSegment value={value} onIonChange={(e) => onChange(e.detail.value as Contents)}>
+        <IonSegmentButton value="breast_milk">Breast milk</IonSegmentButton>
+        <IonSegmentButton value="formula">Formula</IonSegmentButton>
+        <IonSegmentButton value="mixed">Mixed</IonSegmentButton>
       </IonSegment>
-      {mode === 'timer' ? <Start /> : <AmountForm onDone={onDone} />}
-    </>
+    </IonItem>
   );
 }
 
+/** 1. How much is in the bottle → Start. */
 function Start() {
   const { settings } = useHousehold();
   const data = useData();
   const logged = useLogged();
   const v = vol(settings);
   const [inBottle, setInBottle] = useState<number | null>(null);
+  const [contents, setContents] = useState<Contents>(data.latest.bottle?.bottle_contents ?? 'breast_milk');
+  const ok = inBottle != null && inBottle > 0;
   return (
     <>
-      {data.features.bottleStart && (
-        <>
-          <p className="hint center bottle-q">In the bottle (optional, saves typing later)</p>
-          <Chips options={v.quick.map((q) => ({ value: q, label: `${q} ${v.unit}` }))} value={inBottle} onChange={setInBottle} />
-        </>
-      )}
-      <button className="big-btn big-btn-wide big-btn-start" onClick={async () => {
+      <IonList inset>
+        <NumberField label="In the bottle" unit={v.unit} value={inBottle} onChange={setInBottle} autoFocus />
+        <ContentsPicker value={contents} onChange={setContents} />
+      </IonList>
+      <button className="big-btn big-btn-wide big-btn-start" disabled={!ok} onClick={async () => {
+        if (!ok) return;
         buzz();
         const stopped = await data.autoStop({ kind: 'bottle' });
         const e = await data.startTimer('bottle');
-        if (e && inBottle != null && data.features.bottleStart) await data.update(e.id, { bottle_start_ml: v.toStore(inBottle) });
+        if (e) await data.update(e.id, { bottle_contents: contents, ...(data.features.bottleStart ? { bottle_start_ml: v.toStore(inBottle!) } : {}) });
         if (stopped.length) logged('Bottle started', undefined, stopped);
-      }}><TypeIcon type="bottle" />Start bottle</button>
-      <p className="hint center">Start when the feed starts. When it's done, enter what's left (or how much he drank). Flow rate = amount ÷ time.</p>
+      }}><TypeIcon type="bottle" />{ok ? 'Start' : 'Type the amount, then Start'}</button>
     </>
   );
 }
 
-/** Running bottle: live clock, then how much was drunk, then Finish. */
-function Finish({ running, onDone }: { running: EventRow; onDone: () => void }) {
+/** 2. Running: clock, then Stop. */
+function Running({ running, onStopped, onDone }: { running: EventRow; onStopped: (id: string) => void; onDone: () => void }) {
   const { settings } = useHousehold();
   const data = useData();
-  const now = useNow();
   const [alert] = useIonAlert();
-  const [contents, setContents] = useState<Contents>(data.latest.bottle?.bottle_contents ?? 'breast_milk');
-  const { ui, drankMl: ml, startMl } = useBottleAmounts(settings, running.bottle_start_ml ?? null, (
-    <>
-      <IonItem>
-        <IonSegment value={contents} onIonChange={(e) => setContents(e.detail.value as Contents)}>
-          <IonSegmentButton value="breast_milk">Breast milk</IonSegmentButton>
-          <IonSegmentButton value="formula">Formula</IonSegmentButton>
-          <IonSegmentButton value="mixed">Mixed</IonSegmentButton>
-        </IonSegment>
-      </IonItem>
-      <TimeField label="Started at (adjust if started earlier)" value={new Date(running.started_at)}
-        onChange={(d) => d && d <= new Date() && void data.update(running.id, { started_at: d.toISOString() })} />
-    </>
-  ));
-  const rate = ml ? flowRate({ type: 'bottle', started_at: running.started_at, ended_at: now.toISOString(), bottle_ml: ml }) : null;
-
-  async function finish() {
-    if (!ml) return;
-    buzz();
-    if (await data.stopTimer(running.id)) {
-      await data.update(running.id, { bottle_ml: ml, bottle_contents: contents, ...(data.features.bottleStart ? { bottle_start_ml: startMl } : {}) });
-      onDone();
-    }
-  }
-
   return (
     <>
       <RunningHeader event={running} />
-      {ui}
-      {rate != null && <p className="hint center bottle-rate">{formatVolume(ml, settings)} in {formatDuration(now.getTime() - Date.parse(running.started_at))} = {formatFlow(rate, settings)}</p>}
-      <button className="big-btn big-btn-wide big-btn-stop" disabled={!ml} onClick={() => void finish()}>
-        {ml ? `Finish · drank ${formatVolume(ml, settings)}` : 'Enter the amounts to finish'}
-      </button>
+      {running.bottle_start_ml != null && <p className="hint center bottle-q">In the bottle: <b>{formatVolume(running.bottle_start_ml, settings)}</b></p>}
+      <button className="big-btn big-btn-wide big-btn-stop" onClick={async () => {
+        buzz();
+        if (await data.stopTimer(running.id)) onStopped(running.id);
+      }}>Stop</button>
+      <IonList inset>
+        <TimeField label="Started at (adjust if started earlier)" value={new Date(running.started_at)}
+          onChange={(d) => d && d <= new Date() && void data.update(running.id, { started_at: d.toISOString() })} />
+      </IonList>
       <IonButton fill="clear" color="danger" expand="block" onClick={() => alert({
         header: 'Discard this bottle?', message: 'The running timer is deleted.',
         buttons: ['Cancel', { text: 'Discard', role: 'destructive', handler: () => { void data.remove(running.id); onDone(); } }],
@@ -115,8 +114,54 @@ function Finish({ running, onDone }: { running: EventRow; onDone: () => void }) 
   );
 }
 
-/** Quick entry: amount, contents, time, and optionally how long it took. */
-function AmountForm({ onDone }: { onDone: () => void }) {
+/** 3. Stopped: how much is left → amount drunk and flow rate. */
+function Leftover({ bottle, onDone }: { bottle: EventRow; onDone: () => void }) {
+  const { settings } = useHousehold();
+  const data = useData();
+  const logged = useLogged();
+  const [alert] = useIonAlert();
+  const v = vol(settings);
+  const known = bottle.bottle_start_ml != null;
+  const [start, setStart] = useState<number | null>(known ? v.toShow(bottle.bottle_start_ml!) : null);
+  const [left, setLeft] = useState<number | null>(null);
+  const over = start != null && left != null && left > start;
+  const drankMl = start != null && left != null && !over ? Math.max(0, v.toStore(start) - v.toStore(left)) : null;
+  const rate = drankMl != null ? flowRate({ ...bottle, bottle_ml: drankMl }) : null;
+  const ms = Date.parse(bottle.ended_at!) - Date.parse(bottle.started_at);
+
+  async function save() {
+    if (drankMl == null) return;
+    buzz();
+    const ok = await data.update(bottle.id, { bottle_ml: Math.round(drankMl * 10) / 10, ...(data.features.bottleStart && start != null ? { bottle_start_ml: v.toStore(start) } : {}) });
+    if (ok) { logged(`Bottle: drank ${formatVolume(drankMl, settings)}${rate ? ` · ${formatFlow(rate, settings)}` : ''}`, undefined); onDone(); }
+  }
+
+  return (
+    <>
+      <div className="running">
+        <div className="clock">{formatDuration(ms)}</div>
+        <div className="hint">Bottle stopped{known ? ` · started with ${formatVolume(bottle.bottle_start_ml, settings)}` : ''}</div>
+      </div>
+      <IonList inset>
+        {!known && <NumberField label="In the bottle at the start" unit={v.unit} value={start} onChange={setStart} />}
+        <NumberField label="Left in the bottle" unit={v.unit} value={left} onChange={setLeft} autoFocus />
+      </IonList>
+      <p className={`hint center bottle-drank ${over ? 'bottle-err' : ''}`}>
+        {over ? 'More is left than was in the bottle.' : drankMl != null
+          ? <>Drank <b>{formatVolume(drankMl, settings)}</b>{rate ? <> · <b>{formatFlow(rate, settings)}</b></> : null}</>
+          : 'Type what is left (0 if empty).'}
+      </p>
+      <button className="big-btn big-btn-wide big-btn-start" disabled={drankMl == null} onClick={() => void save()}>Save</button>
+      <IonButton fill="clear" color="danger" expand="block" onClick={() => alert({
+        header: 'Delete this bottle?', message: 'It was stopped but has no amount yet.',
+        buttons: ['Cancel', { text: 'Delete', role: 'destructive', handler: () => { void data.remove(bottle.id); onDone(); } }],
+      })}>Delete this bottle</IonButton>
+    </>
+  );
+}
+
+/** Plain entry for a bottle that wasn't timed: amounts, contents, time, optional duration. */
+function ManualForm({ onDone }: { onDone: () => void }) {
   const { settings } = useHousehold();
   const { add, latest, autoStop, reopen, features } = useData();
   const logged = useLogged();
@@ -126,13 +171,7 @@ function AmountForm({ onDone }: { onDone: () => void }) {
   const [notes, setNotes] = useState('');
   const { ui, drankMl, startMl } = useBottleAmounts(settings, null, (
     <>
-      <IonItem>
-        <IonSegment value={contents} onIonChange={(e) => setContents(e.detail.value as Contents)}>
-          <IonSegmentButton value="breast_milk">Breast milk</IonSegmentButton>
-          <IonSegmentButton value="formula">Formula</IonSegmentButton>
-          <IonSegmentButton value="mixed">Mixed</IonSegmentButton>
-        </IonSegment>
-      </IonItem>
+      <ContentsPicker value={contents} onChange={setContents} />
       <TimeField label="Time" value={at} onChange={setAt} />
       <NumberField label="How long it took (optional)" unit="min" value={minutes} onChange={setMinutes} />
       <NotesField value={notes} onChange={setNotes} />
@@ -143,8 +182,7 @@ function AmountForm({ onDone }: { onDone: () => void }) {
     if (drankMl == null) return;
     const when = at ?? new Date();
     const stopped = await autoStop({ kind: 'bottle' }, when);
-    // An end time is always set: equal to the start for an untimed bottle, so it never
-    // looks like a running bottle timer (migration 0007).
+    // Always an end time: equal to the start when untimed, so it never looks like a running timer (0007).
     const end = minutes && minutes > 0 ? new Date(when.getTime() + minutes * 60_000) : when;
     const e = await add('bottle', {
       started_at: when.toISOString(), ended_at: end.toISOString(), bottle_ml: drankMl,
