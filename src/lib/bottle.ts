@@ -2,7 +2,7 @@ import { isoDay } from './reports';
 import type { EventRow } from './types';
 
 /** Bottles the household compares (design doc §8a L). */
-export const BOTTLE_BRANDS = ['Comotomo', 'Philips Avent', 'MAM', "Dr. Brown's", 'Other'] as const;
+export const BOTTLE_BRANDS = ['Comotomo', 'Philips Avent', 'MAM', "Dr. Brown's", 'Spectra', 'Other'] as const;
 
 /** Shortest timed bottle that counts for flow rate (shorter ones are treated as untimed). */
 export const MIN_TIMED_MIN = 1;

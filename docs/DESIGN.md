@@ -741,7 +741,7 @@ This is Phase 2 of E5 and I.
 - Migration 0008:
   - Adds `events.bottle_brand` (text).
   - `app_features()` now reads the schema (start_timer accepts bottle → `bottle_timer`; `bottle_start_ml` column → `bottle_start`; `bottle_brand` column → `bottle_brand`). So 0007 and 0008 can be run in any order or again, and the app shows only what exists.
-- Bottle screen: a "Bottle" drop-down (Comotomo, Philips Avent, MAM, Dr. Brown's, Other), remembered from the last bottle. It's on Start and in "Forgot to time it?", and editable in the edit sheet. The running screen shows "In the bottle: 3 oz · Comotomo". Entries include the brand.
+- Bottle screen: a "Bottle" drop-down (Comotomo, Philips Avent, MAM, Dr. Brown's, Spectra (added 2026-10-21), Other), remembered from the last bottle. It's on Start and in "Forgot to time it?", and editable in the edit sheet. The running screen shows "In the bottle: 3 oz · Comotomo". Entries include the brand.
 - Reports gets **Overview | Bottles** (remembered per phone). The daily "Bottle flow rate" chart is removed. Bottles shows, for timed feeds with an amount in the selected 7/14/30 days:
   1. **By bottle** table: feeds, median flow, median length, median amount drunk.
   2. **Flow per feed:** a strip chart, one column per brand and one dot per feed, coloured breast milk (blue), formula (coral), mixed/not set (teal), with a median bar per brand. Tapping a dot shows when, drank (of start), length and flow.
