@@ -54,6 +54,10 @@ export default function BottleReport({ days }: { days: number }) {
   const fmtRate = useMemo(() => (v: number) => (oz ? v.toFixed(2) : v.toFixed(1)), [oz]);
   const fmtMin = useMemo(() => (v: number) => `${Math.round(v)}m`, []);
   const band = useMemo(() => ({ from: 10, to: 20, label: '10–20 min: often suggested for a paced feed' }), []);
+  // The family's chosen target flow, 3–6 ml/min (design doc §8a L).
+  const flowBand = useMemo(() => (oz
+    ? { from: mlToOz(3), to: mlToOz(6), label: '0.10–0.20 oz/min (3–6 ml/min): our target' }
+    : { from: 3, to: 6, label: '3–6 ml/min: our target' }), [oz]);
   const list = brand ? view.feeds.filter((f) => f.brand === brand) : view.feeds;
 
   if (!view.feeds.length) {
@@ -84,7 +88,7 @@ export default function BottleReport({ days }: { days: number }) {
       <p className="hint">Middle (median) values per bottle.</p>
 
       <StripChart title={`Flow per feed (${unit}/min)`} categories={view.cats} points={view.flow} groups={view.groups}
-        format={fmtRate} medians={view.flowMedians} />
+        format={fmtRate} medians={view.flowMedians} band={flowBand} />
       <StripChart title="Feed length (minutes)" categories={view.cats} points={view.length} groups={view.groups}
         format={fmtMin} medians={view.lengthMedians} band={band} />
 

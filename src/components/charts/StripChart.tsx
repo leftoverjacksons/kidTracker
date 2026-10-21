@@ -64,7 +64,8 @@ export default function StripChart({ title, categories, points, groups, format, 
           x: { type: 'linear', min: -0.5, max: n - 0.5, grid: { display: false }, border: { color: theme.grid },
                afterBuildTicks: (axis) => { axis.ticks = categories.map((_, k) => ({ value: k })); },
                ticks: { color: theme.text, font: { size: 11 }, autoSkip: false, maxRotation: 0, callback: (v) => categories[Number(v)] ?? '' } },
-          y: { beginAtZero: true, border: { display: false }, grid: { color: theme.grid },
+          // The whole reference band stays in view even when every feed is below it.
+          y: { beginAtZero: true, suggestedMax: band ? band.to * 1.1 : undefined, border: { display: false }, grid: { color: theme.grid },
                ticks: { color: theme.muted, maxTicksLimit: 5, font: { size: 11 }, callback: (v) => format(Number(v)) } },
         },
         plugins: {

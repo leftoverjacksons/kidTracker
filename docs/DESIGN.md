@@ -745,6 +745,7 @@ This is Phase 2 of E5 and I.
 - Reports gets **Overview | Bottles** (remembered per phone). The daily "Bottle flow rate" chart is removed. Bottles shows, for timed feeds with an amount in the selected 7/14/30 days:
   1. **By bottle** table: feeds, median flow, median length, median amount drunk.
   2. **Flow per feed:** a strip chart, one column per brand and one dot per feed, coloured breast milk (blue), formula (coral), mixed/not set (teal), with a median bar per brand. Tapping a dot shows when, drank (of start), length and flow.
+  - **Target flow band (2026-10-21):** the flow chart shades **3–6 ml/min** (0.10–0.20 oz/min), the family's chosen target. It is a family choice, not an official figure (see below). It is consistent with the length band: 60 ml over 10–20 min is 3–6 ml/min.
   3. **Feed length:** the same strip chart, with a shaded 10–20 min band labelled "often suggested for a paced feed".
   4. **Feeds** list (filter chips by brand; tap to edit).
 - No official flow target exists. Feeding guidance is about feed length: paced bottle feeds of roughly 10–20 min (some guidance says at least 20), with pauses. Lab tests of nipples (Pados et al. 2016) found flow varies widely, even within one "slow" label (1.7 to over 15 ml/min). Comparing brands on this family's own feeds, plus asking their lactation consultant, is the approach.
