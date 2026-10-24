@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, averageFeedByDay, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, alignPump, averageFeedByDay, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -69,5 +69,25 @@ describe('pumps with feeds', () => {
     const pump = (s: string) => ({ type: 'pump', started_at: at(s), ended_at: at(s) });
     const r = pumpsWithFeeds([pump('08:40'), pump('12:45'), pump('15:00')], f, new Date(at('00:00')));
     expect(r).toEqual({ aligned: 2, total: 3 });
+  });
+});
+
+describe('pump alignment', () => {
+  const now = new Date(at('12:00'));
+  const pump = (last: string, due: string) => ({ last: new Date(at(last)), due: new Date(at(due)) });
+  it('moves the pump to a feed within 30 minutes (later or earlier)', () => {
+    expect(alignPump(pump('10:00', '12:20'), [new Date(at('12:40'))], now)).toEqual({ due: new Date(at('12:40')), withFeed: new Date(at('12:40')) });
+    expect(alignPump(pump('10:00', '12:40'), [new Date(at('12:15'))], now).due).toEqual(new Date(at('12:15')));
+  });
+  it('never to less than 2 hours after the last session', () => {
+    const r = alignPump(pump('10:30', '12:40'), [new Date(at('12:15'))], now);
+    expect(r.due).toEqual(new Date(at('12:30')));
+    expect(r.withFeed).toEqual(new Date(at('12:15'))); // 15 min off: still with that feed
+  });
+  it('leaves it alone when no feed is within 30 minutes', () => {
+    expect(alignPump(pump('10:00', '12:20'), [new Date(at('13:30'))], now)).toEqual({ due: new Date(at('12:20')), withFeed: null });
+  });
+  it('can join a feed that started in the last 30 minutes', () => {
+    expect(alignPump(pump('09:30', '12:10'), [new Date(at('11:45'))], now).due).toEqual(new Date(at('11:45')));
   });
 });

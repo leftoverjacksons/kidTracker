@@ -812,7 +812,13 @@ Source: the family's lactation consultant's care plan and handout (2026-10-23). 
 - **Bottle tile:** "Next 4:10 PM · ~2/2.8 oz" (last feed vs. the middle of today's target), then "Due now" (first 5 min) and "Overdue 25m". Falls back to the old "2h ago · 2 oz" when there's no feed in the last two days.
 - **Reports → Overview → "Average feed (estimated)":** average estimated intake per feed for each day, with the target shaded per day (the by-age band rises with age).
 - **Settings → Feeding plan (shared, migration 0011, `household_settings.feeding_plan` jsonb):** target (by age or own range), nursing credit (0–6 ml/min), feed every (2–4 h). Before 0011 the defaults apply and the fields are read-only.
-- **Pumping with feeds (goal):** the care plan pairs pumping (15–20 min) with bottle feeds, and the family wants to line pump sessions up with feeds when they can. For now, the "Milk pumped per day" note counts sessions that started from 30 min before a feed to 30 min after it ended ("12 of 20 sessions"). Possible later: a pump nudge on the Bottle tile when a feed is due.
+- **Pumping with feeds (built 2026-10-24):** the care plan pairs pumping (15–20 min) with bottle feeds, and the family wants pump sessions and feeds to coincide when they can.
+  - When the next pump session (this phone's "Remind me to pump" interval) is due within **30 min** of a feed (the one that started up to 30 min ago, one running now, or the next forecast feed), the pump time moves to that feed's time. Earlier or later are both fine, but never to less than **2 h** after the last pump session. Feeds are never moved.
+  - The Pump tile shows "Next 4:10 PM · with feed", and the "Time to pump" card says "…, with the feed".
+  - Limitation: phone notifications for pumping (push-tick on the server) still use the plain interval; only the in-app tile and card line up with feeds.
+  - The "Milk pumped per day" note counts sessions that started from 30 min before a feed to 30 min after it ended ("12 of 20 sessions").
+- **Nursing:** ad hoc for now. A nursing session followed by a bottle within 20 min is one feed (nursing replaces the first part of the bottle feed), counted at the nursing credit per minute.
+- **Interval tolerance (owner, 2026-10-24):** going a little past 3 h is fine; the consultant said one or two 4 h gaps are fine so he can rest. Roughly 2.5–3.25 h between feeds is the working range for now.
 - **Later:** the care plan allows one stretch of up to 4 h at night once he's back to birth weight. This could switch on automatically from logged weights.
 
 Goals from the handout, for reference:

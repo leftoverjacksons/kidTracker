@@ -18,7 +18,8 @@ import { ageLabel } from '../lib/units';
 import PumpGauge from '../components/PumpGauge';
 import StillRunning from '../components/StillRunning';
 import PumpReminder from '../components/PumpReminder';
-import { pumpCounts, pumpDue, pumpEveryMin } from '../lib/pump';
+import { pumpCounts } from '../lib/pump';
+import { usePumpPlan } from '../lib/usePumpPlan';
 import TypeIcon from '../components/TypeIcon';
 
 const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'growth'];
@@ -29,6 +30,7 @@ export default function Home() {
   const { baby, settings, viewer } = useHousehold();
   const data = useData();
   const now = useNow();
+  const pumpPlan = usePumpPlan(now);
   const [open, setOpen] = useState<EventType | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
   // Rarely used tiles live under "More" (design doc §8a E2); open/closed is remembered per phone.
@@ -73,8 +75,9 @@ export default function Home() {
         if (run) return { text: `Pumping ${elapsed(run)}`, live: true };
         {
           // Next session due (reminder interval set per phone in Settings).
-          const due = pumpDue(data.events, now, pumpEveryMin());
-          if (due) return { text: due.due <= now ? `Due now · last ${formatAgo(due.last, now)}` : `Next ${formatWhen(due.due, now)}`, live: false };
+          // Lined up with a feed when one is within 30 min (never under 2 h after the last session).
+          const due = pumpPlan;
+          if (due) return { text: due.due <= now ? `Due now · last ${formatAgo(due.last, now)}` : `Next ${formatWhen(due.due, now)}${due.withFeed ? ' · with feed' : ''}`, live: false };
         }
         return { text: last ? `${ago(last)}${last.pump_left_ml || last.pump_right_ml ? ` · ${formatVolume((last.pump_left_ml ?? 0) + (last.pump_right_ml ?? 0), settings)}` : ''}` : '—', live: false };
       case 'tummy_time': {

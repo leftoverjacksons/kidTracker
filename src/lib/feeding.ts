@@ -159,3 +159,28 @@ export function pumpsWithFeeds(events: { type: string; started_at: string; ended
   }).length;
   return { aligned, total: pumps.length };
 }
+
+/** Pump times are moved to a feed when within this many minutes of it… */
+export const ALIGN_WINDOW_MIN = 30;
+/** …but never to less than this long after the last pumping session. */
+export const PUMP_MIN_GAP_MIN = 120;
+
+/**
+ * Line the next pumping session up with a feed (design doc §8a Q): when the pump is due
+ * within 30 minutes of the feed that just started (up to 30 minutes ago) or of the next
+ * forecast feed, move it to that feed's time, but never earlier than 2 hours after the
+ * last session. Feeds are never moved. Returns the pump's due time unchanged otherwise.
+ */
+export function alignPump(pump: { due: Date; last: Date }, feedTimes: Date[], now: Date = new Date()): { due: Date; withFeed: Date | null } {
+  const W = ALIGN_WINDOW_MIN * 60_000;
+  const earliest = pump.last.getTime() + PUMP_MIN_GAP_MIN * 60_000;
+  const best = feedTimes
+    .filter((t) => t.getTime() >= now.getTime() - W)
+    .map((t) => ({ t, gap: Math.abs(t.getTime() - pump.due.getTime()) }))
+    .filter((x) => x.gap <= W)
+    .sort((a, b) => a.gap - b.gap)[0];
+  if (!best) return { due: pump.due, withFeed: null };
+  const due = new Date(Math.max(best.t.getTime(), earliest));
+  // Still counts as "with the feed" only if the 2-hour floor didn't push it far from the feed.
+  return { due, withFeed: Math.abs(due.getTime() - best.t.getTime()) <= W ? best.t : null };
+}

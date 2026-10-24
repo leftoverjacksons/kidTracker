@@ -2,7 +2,8 @@ import { IonButton } from '@ionic/react';
 import { useState } from 'react';
 import { useData, useNow } from '../lib/data';
 import { formatDuration } from '../lib/format';
-import { PUMP_TARGET, pumpCounts, pumpDue, pumpEveryMin } from '../lib/pump';
+import { PUMP_TARGET, pumpCounts } from '../lib/pump';
+import { usePumpPlan } from '../lib/usePumpPlan';
 
 const SNOOZE_KEY = 'kt.pumpSnooze';
 const SIDE = { left: 'left side', right: 'right side', both: 'both sides' } as const;
@@ -15,7 +16,7 @@ export default function PumpReminder({ onStart }: { onStart: () => void }) {
   const [snooze, setSnooze] = useState<{ last: string; until: number } | null>(() => {
     try { return JSON.parse(localStorage.getItem(SNOOZE_KEY) ?? 'null'); } catch { return null; }
   });
-  const d = pumpDue(data.events, now, pumpEveryMin());
+  const d = usePumpPlan(now); // lined up with a feed when one is within 30 min
   if (!d || d.due > now) return null;
   if (snooze && snooze.last === d.last.toISOString() && snooze.until > now.getTime()) return null;
   const c = pumpCounts(data.events, now);
@@ -26,7 +27,7 @@ export default function PumpReminder({ onStart }: { onStart: () => void }) {
   };
   return (
     <div className="still-running pump-reminder" data-type="pump" style={{ ['--acc' as string]: 'var(--acc-pump)' }}>
-      <p className="still-running-q"><b>Time to pump{d.side !== 'both' ? ` (${SIDE[d.side]})` : ''}.</b> Last session {formatDuration(now.getTime() - d.last.getTime())} ago.</p>
+      <p className="still-running-q"><b>Time to pump{d.side !== 'both' ? ` (${SIDE[d.side]})` : ''}{d.withFeed ? ', with the feed' : ''}.</b> Last session {formatDuration(now.getTime() - d.last.getTime())} ago.</p>
       <p className="still-running-who">
         Last 24 h: L {c.left} · R {c.right} sessions of 15+ min (aim {PUMP_TARGET.min}–{PUMP_TARGET.max} each)
       </p>
