@@ -62,7 +62,7 @@ export default function FeedingPlanSettings() {
       <IonItem>
         <IonSelect label="Count nursing as" value={plan.nursing_ml_per_min} interface="action-sheet" disabled={!editable}
           onIonChange={(e) => void save({ nursing_ml_per_min: Number(e.detail.value) })}>
-          {[0, 1, 2, 3, 4, 5, 6].map((r) => <IonSelectOption key={r} value={r}>{r ? `${r} ml per minute` : 'Nothing (bottles only)'}</IonSelectOption>)}
+          {[0, 1, 1.5, 2, 2.1, 2.5, 3, 4, 5, 6].map((r) => <IonSelectOption key={r} value={r}>{r === 2.1 ? '2.1 ml per minute (weighed: 1 oz in 14 min)' : r ? `${r} ml per minute` : 'Nothing (bottles only)'}</IonSelectOption>)}
         </IonSelect>
       </IonItem>
       <IonItem>

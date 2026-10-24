@@ -804,7 +804,7 @@ Reports → Export → Pediatrician summary (Print → Save as PDF).
 Source: the family's lactation consultant's care plan and handout (2026-10-23). No feeding notifications for now.
 
 - **A feed** = nursing entries and bottles where each starts within 20 min of the previous one *ending* (same rule as "Feeds per day").
-- **Estimated intake** = bottle ml + nursing minutes × a credit (default **3 ml/min**). The owner's own examples, "20 min nursing + 30 ml" and "10 min nursing + 60 ml", both equal 90 ml at 3 ml/min. The credit is a placeholder: replace it with the consultant's weighed-feed result (grams gained ≈ ml, ÷ minutes nursed). Shown with "~" when nursing is part of it.
+- **Estimated intake** = bottle ml + nursing minutes × a credit, default **2.1 ml/min** (2026-10-24): the weighed feed at the consult, as the family recalls it, was 1 oz in 14 min (29.6 ml ÷ 14). It replaced a first guess of 3 ml/min taken from the owner's examples ("20 min nursing + 30 ml" and "10 min nursing + 60 ml" both = 90 ml at 3 ml/min; at 2.1 they're ~72 and ~81 ml). Editable in Settings. Shown with "~" when nursing is part of it.
 - **Target per feed**, either:
   - **By age:** the handout's ranges (days 4–7: 1.5–2 oz; week 2: 2.5–3 oz; week 3: 3.5–4 oz; weeks 4–6+: 4–5 oz), each placed at the middle of its week (days 5.5, 11, 18, 25), joined by straight lines so it rises daily instead of in steps. In ml: 45–60, 75–90, 105–120, 120–150. Flat before day 5.5 and after day 25. The handout's table is a daily total ÷ feeds per day, binned by week, which is why it looks like steps.
   - **Our own numbers** (e.g. the care plan's 75–90 ml), set in Settings.

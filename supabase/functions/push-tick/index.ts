@@ -64,7 +64,7 @@ export function pumpDue(events: Ev[], now: Date, everyMin: number | null) {
 
 export interface Plan { target: 'age' | { min_ml: number; max_ml: number }; nursing_ml_per_min: number; every_min: number }
 export interface Ctx { plan: Plan; birthDate: string | null }
-export const DEFAULT_CTX: Ctx = { plan: { target: 'age', nursing_ml_per_min: 3, every_min: 180 }, birthDate: null };
+export const DEFAULT_CTX: Ctx = { plan: { target: 'age', nursing_ml_per_min: 2.1, every_min: 180 }, birthDate: null };
 const FEED_GAP_MIN = 20, ALIGN_WINDOW_MIN = 30, PUMP_MIN_GAP_MIN = 120;
 const AGE_CURVE = [{ day: 5.5, min: 45, max: 60 }, { day: 11, min: 75, max: 90 }, { day: 18, min: 105, max: 120 }, { day: 25, min: 120, max: 150 }];
 
@@ -73,7 +73,7 @@ export function readPlan(raw: unknown): Plan {
   const t = r.target;
   const target = t && typeof t === 'object' && t.min_ml > 0 && t.max_ml >= t.min_ml ? { min_ml: t.min_ml, max_ml: t.max_ml } : 'age';
   const rate = Number(r.nursing_ml_per_min), every = Number(r.every_min);
-  return { target, nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : 3, every_min: every >= 60 && every <= 360 ? every : 180 };
+  return { target, nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : 2.1, every_min: every >= 60 && every <= 360 ? every : 180 };
 }
 function ageTarget(day: number) {
   const c = AGE_CURVE;

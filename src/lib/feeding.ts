@@ -6,7 +6,7 @@ import type { NursingSegment } from './types';
  *
  * A feed groups nursing and bottle entries that start within FEED_GAP_MIN of the previous
  * one ending. Its estimated intake is the bottle millilitres plus nursing minutes times a
- * per-minute credit (3 ml/min until a weighed feed gives a real number).
+ * per-minute credit: 2.1 ml/min by default, from the weighed feed at the consult (1 oz in 14 min).
  */
 
 export interface FeedingPlan {
@@ -16,7 +16,7 @@ export interface FeedingPlan {
   every_min: number;
 }
 
-export const DEFAULT_PLAN: FeedingPlan = { target: 'age', nursing_ml_per_min: 3, every_min: 180 };
+export const DEFAULT_PLAN: FeedingPlan = { target: 'age', nursing_ml_per_min: 2.1, every_min: 180 };
 
 /** Accepts whatever is stored (or nothing) and returns a usable plan. */
 export function readPlan(raw: unknown): FeedingPlan {

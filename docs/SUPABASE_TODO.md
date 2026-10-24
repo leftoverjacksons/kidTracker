@@ -8,7 +8,7 @@ Run them **in order**. Every script is safe to run twice.
 
 ### Feeding plan (target per feed, nursing credit, feed interval)
 
-- [ ] **Run `supabase/migrations/0011_feeding_plan.sql`**. One step, safe to re-run. Until then the Bottle tile, the "Average feed" chart and Settings → Feeding plan all work with the defaults (target by age, nursing = 3 ml per minute, every 3 hours), but the settings can't be changed.
+- [ ] **Run `supabase/migrations/0011_feeding_plan.sql`**. One step, safe to re-run. Until then the Bottle tile, the "Average feed" chart and Settings → Feeding plan all work with the defaults (target by age, nursing = 2.1 ml per minute, every 3 hours), but the settings can't be changed.
 - [ ] **Update the `push-tick` function** (only if you've already created it in "Phone notifications" step 4; otherwise step 4 gets the new version). Pumping notifications then go out at the times lined up with feeds, the same as the app shows.
   - In Supabase open **Edge Functions → push-tick**, then its **Code** tab.
   - Select all the code and delete it. Paste the whole of `supabase/functions/push-tick/index.ts` (open it on GitHub → copy raw file).
