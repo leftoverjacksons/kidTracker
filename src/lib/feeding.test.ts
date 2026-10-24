@@ -76,7 +76,7 @@ describe('pump and feed schedule', () => {
   const now = new Date(at('12:00'));
   const T = (hhmm: string) => new Date(at(hhmm));
   const pump = (last: string, due: string) => ({ last: T(last), due: T(due), side: 'both' as const });
-  const next = (due: string) => ({ due: T(due), last: { start: T('09:00'), end: T('09:20'), bottleMl: 90, nursingMin: 0, estMl: 90 }, target: null });
+  const next = (due: string) => ({ due: T(due), last: { start: T('09:00'), end: T('09:20'), bottleMl: 90, nursingMin: 0, estMl: 90, ids: [] }, target: null });
   it('pump and next feed within 30 min both move to meet halfway', () => {
     const s = schedule(next('13:00'), pump('10:00', '12:40'), [], now);
     expect(s.feed!.due).toEqual(T('12:50'));

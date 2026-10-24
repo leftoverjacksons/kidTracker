@@ -79,11 +79,13 @@ export interface Feed {
   nursingMin: number;
   /** bottleMl + nursingMin × the plan's credit */
   estMl: number;
+  /** The entries that make up this feed (when the events have ids), oldest first. */
+  ids: string[];
 }
 
-export type FeedEvent = { type: string; started_at: string; ended_at: string | null; bottle_ml: number | null; nursing_segments?: NursingSegment[] | null };
+export type FeedEvent = { id?: string; type: string; started_at: string; ended_at: string | null; bottle_ml: number | null; nursing_segments?: NursingSegment[] | null };
 
-function nursingMinutes(e: FeedEvent): number {
+export function nursingMinutes(e: FeedEvent): number {
   const t = sideTotals(e.nursing_segments ?? []);
   const ms = t.left + t.right || (e.ended_at ? Date.parse(e.ended_at) - Date.parse(e.started_at) : 0);
   return Math.max(0, ms / 60_000);
@@ -93,7 +95,7 @@ function nursingMinutes(e: FeedEvent): number {
 export function feeds(events: FeedEvent[], plan: FeedingPlan): Feed[] {
   const items = events
     .filter((e) => (e.type === 'nursing' || e.type === 'bottle') && e.ended_at)
-    .map((e) => ({ s: Date.parse(e.started_at), e: Date.parse(e.ended_at!), ml: e.type === 'bottle' ? Number(e.bottle_ml ?? 0) : 0, min: e.type === 'nursing' ? nursingMinutes(e) : 0 }))
+    .map((e) => ({ id: e.id, s: Date.parse(e.started_at), e: Date.parse(e.ended_at!), ml: e.type === 'bottle' ? Number(e.bottle_ml ?? 0) : 0, min: e.type === 'nursing' ? nursingMinutes(e) : 0 }))
     .sort((a, b) => a.s - b.s);
   const out: Feed[] = [];
   for (const it of items) {
@@ -101,8 +103,9 @@ export function feeds(events: FeedEvent[], plan: FeedingPlan): Feed[] {
     if (cur && it.s - cur.end.getTime() <= FEED_GAP_MIN * 60_000) {
       cur.end = new Date(Math.max(cur.end.getTime(), it.e));
       cur.bottleMl += it.ml; cur.nursingMin += it.min;
+      if (it.id) cur.ids.push(it.id);
     } else {
-      out.push({ start: new Date(it.s), end: new Date(it.e), bottleMl: it.ml, nursingMin: it.min, estMl: 0 });
+      out.push({ start: new Date(it.s), end: new Date(it.e), bottleMl: it.ml, nursingMin: it.min, estMl: 0, ids: it.id ? [it.id] : [] });
     }
   }
   for (const f of out) f.estMl = f.bottleMl + f.nursingMin * plan.nursing_ml_per_min;

@@ -374,3 +374,23 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .fields-off { opacity: 0.35; pointer-events: none; }
 .big-btn-pause { background: var(--tile-bg); color: var(--tile-fg); border: 2px solid var(--c-amber); }
 .bottle-paused { color: var(--c-amber); font-weight: 600; }
+
+/* ── Feed brackets in entry lists (design doc §8a Q) ── */
+.feed-bracket { position: relative; }
+.feed-bracket ion-item { --padding-start: 30px; }
+.feed-bracket-line {
+  position: absolute; left: 9px; top: 14px; bottom: 14px; width: 9px; z-index: 2; pointer-events: none;
+  border: 2px solid var(--acc-bottle); border-right: 0; border-radius: 6px 0 0 6px;
+}
+.feed-bracket-label {
+  position: absolute; left: 13px; top: 50%; z-index: 3; pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-90deg); white-space: nowrap;
+  font-size: 11px; font-weight: 700; line-height: 1; padding: 2px 5px; border-radius: 6px;
+  background: var(--ion-item-background, var(--tile-bg)); color: var(--acc-bottle);
+  font-variant-numeric: tabular-nums;
+}
+/* A tick from the bracket to each entry that's part of the feed (others inside the span have none). */
+.feed-bracket ion-item.in-feed::before {
+  content: ''; position: absolute; left: 9px; top: 50%; width: 16px; height: 2px; z-index: 2; pointer-events: none;
+  background: var(--acc-bottle);
+}

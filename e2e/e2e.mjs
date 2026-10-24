@@ -340,6 +340,10 @@ await shot(A, 'home-full');
 await A.locator('ion-content').evaluate((el) => el.scrollToBottom(0));
 await wait(A, 400);
 await shot(A, 'home-today-list');
+// Feeds made of several entries are bracketed with their estimated total; nursing rows show an estimate
+if (!(await A.locator('.feed-bracket .feed-bracket-label').count())) problems.push('no feed bracket in the Today list');
+if (!(await A.locator('ion-item', { hasText: 'Nurse' }).filter({ hasText: '~' }).count())) problems.push('nursing rows show no estimated amount');
+{ const b = A.locator('.feed-bracket').first(); if (await b.count()) { await b.scrollIntoViewIfNeeded(); await b.screenshot({ path: `${OUT}/feed-bracket.png` }); } }
 
 // Edit an entry from the Today list: bottle 3 → 4 oz
 await A.locator('ion-item', { hasText: 'Bottle' }).first().click(); await wait(A);
