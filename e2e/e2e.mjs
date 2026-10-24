@@ -593,6 +593,15 @@ const bottlesPage = A.locator('.ion-page:not(.ion-page-hidden)').last();
 await shot(A, 'reports-bottles');
 const flowCard = bottlesPage.locator('.chart-card', { hasText: 'Flow per feed' });
 if (!(await flowCard.count())) problems.push('no flow-per-feed chart'); else { await flowCard.scrollIntoViewIfNeeded(); await flowCard.screenshot({ path: `${OUT}/bottles-flow.png` }); }
+// History: every feed is bracketed, including a single bottle; those below the target are dashed
+await A.locator('ion-tab-button[tab="history"]').click(); await wait(A, 800);
+await A.locator('.filter-row ion-chip', { hasText: 'Bottle' }).click(); await wait(A, 800);
+const brackets = await A.locator('.feed-bracket').count();
+if (brackets < 5) problems.push(`expected single bottles to be bracketed as feeds, found ${brackets} brackets`);
+if (!(await A.locator('.feed-bracket.under').count())) problems.push('no dashed (below target) feed bracket');
+await shot(A, 'history-feed-brackets');
+await A.locator('.filter-row ion-chip', { hasText: 'Bottle' }).click(); await wait(A, 500);
+await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 800);
 const lenCard = bottlesPage.locator('.chart-card', { hasText: 'Feed length' });
 if (await lenCard.count()) { await lenCard.scrollIntoViewIfNeeded(); await lenCard.screenshot({ path: `${OUT}/bottles-length.png` }); }
 await A.locator('.reports-tabs ion-segment-button[value="overview"]').click(); await wait(A, 500);

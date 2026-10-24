@@ -2,21 +2,21 @@ import { IonItem, IonLabel, IonList, IonListHeader, IonNote } from '@ionic/react
 import { useMemo, type ReactNode } from 'react';
 import { useData, useNow } from '../lib/data';
 import { META, summarize } from '../lib/describe';
-import { feeds, nursingMinutes, readPlan } from '../lib/feeding';
+import { feeds, nursingMinutes, readPlan, targetAt } from '../lib/feeding';
 import { formatDayHeading, formatTime, formatVolume, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import type { EventRow } from '../lib/types';
 import TypeIcon from './TypeIcon';
 
 /**
- * Entries grouped by day, newest first. Tapping one opens it for editing. Entries that
- * make up one feed (nursing and bottles less than 20 min apart) are joined by a bracket
- * on the left carrying the feed's estimated total (design doc §8a Q).
+ * Entries grouped by day, newest first. Tapping one opens it for editing. Every feed (one
+ * entry, or nursing and bottles less than 20 min apart) gets a bracket on the left carrying
+ * its estimated total, dashed when it's below the target for his age (design doc §8a Q).
  */
 export default function EventList({ events, onOpen, groupByDay = true }: {
   events: EventRow[]; onOpen: (e: EventRow) => void; groupByDay?: boolean;
 }) {
-  const { settings } = useHousehold();
+  const { baby, settings } = useHousehold();
   const data = useData();
   const { meds, names } = data;
   const now = useNow(30_000);
@@ -24,13 +24,16 @@ export default function EventList({ events, onOpen, groupByDay = true }: {
 
   // Feeds are worked out from all loaded entries, so a filtered list still brackets correctly.
   const feedOf = useMemo(() => {
-    const m = new Map<string, { key: string; estMl: number; nursed: boolean }>();
+    const m = new Map<string, { key: string; estMl: number; nursed: boolean; under: boolean }>();
     for (const f of feeds(data.events, plan)) {
-      if (f.ids.length < 2) continue;
-      for (const id of f.ids) m.set(id, { key: f.ids[0], estMl: f.estMl, nursed: f.nursingMin > 0 && plan.nursing_ml_per_min > 0 });
+      if (!f.ids.length) continue;
+      // Below the target range for his age at the time: drawn dashed.
+      const t = targetAt(plan, baby?.birth_date ?? null, f.start);
+      const info = { key: f.ids[0], estMl: f.estMl, nursed: f.nursingMin > 0 && plan.nursing_ml_per_min > 0, under: !!t && f.estMl < t.min };
+      for (const id of f.ids) m.set(id, info);
     }
     return m;
-  }, [data.events, plan.nursing_ml_per_min]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data.events, plan, baby?.birth_date]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const groups = new Map<number, EventRow[]>();
   for (const e of events) {
@@ -65,10 +68,11 @@ export default function EventList({ events, onOpen, groupByDay = true }: {
     for (let i = 0; i < list.length; i++) {
       const f = feedOf.get(list[i].id);
       const last = f ? list.reduce((j, e, k) => (feedOf.get(e.id)?.key === f.key ? k : j), i) : i;
-      if (!f || last === i) { out.push(row(list[i], false)); continue; }
+      if (!f) { out.push(row(list[i], false)); continue; }
       const span = list.slice(i, last + 1);
       out.push(
-        <div key={`feed-${f.key}`} className="feed-bracket" role="group" aria-label={`Feed, about ${formatVolume(f.estMl, settings)}`}>
+        <div key={`feed-${f.key}`} className={`feed-bracket${f.under ? ' under' : ''}`} role="group"
+          aria-label={`Feed, about ${formatVolume(f.estMl, settings)}${f.under ? ', below the target' : ''}`}>
           <span className="feed-bracket-line" aria-hidden="true" />
           <span className="feed-bracket-label">{f.nursed ? '~' : ''}{formatVolume(f.estMl, settings)}</span>
           {span.map((e) => row(e, feedOf.get(e.id)?.key === f.key))}

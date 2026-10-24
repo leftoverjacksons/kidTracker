@@ -389,6 +389,9 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
   background: var(--ion-item-background, var(--tile-bg)); color: var(--acc-bottle);
   font-variant-numeric: tabular-nums;
 }
+/* Below the target range: dashed bracket, dimmer label. */
+.feed-bracket.under .feed-bracket-line { border-style: dashed; }
+.feed-bracket.under .feed-bracket-label { opacity: 0.75; }
 /* A tick from the bracket to each entry that's part of the feed (others inside the span have none). */
 .feed-bracket ion-item.in-feed::before {
   content: ''; position: absolute; left: 9px; top: 50%; width: 16px; height: 2px; z-index: 2; pointer-events: none;
