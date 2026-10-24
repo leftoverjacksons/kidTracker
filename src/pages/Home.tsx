@@ -9,7 +9,6 @@ import { diaperLabel, META } from '../lib/describe';
 import { formatAgo, formatClock, formatDuration, formatTemp, formatVolume, formatWeight, formatWhen, startOfDay } from '../lib/format';
 import { medStatus } from '../lib/meds';
 import { activeMs } from '../lib/bottle';
-import { feeds, nextFeed, readPlan } from '../lib/feeding';
 import { mlToOz } from '../lib/units';
 import { useHousehold } from '../lib/household';
 import { activeSide, countFeeds, lastFeedStart, lastSide, sideTotals } from '../lib/nursing';
@@ -19,7 +18,7 @@ import PumpGauge from '../components/PumpGauge';
 import StillRunning from '../components/StillRunning';
 import PumpReminder from '../components/PumpReminder';
 import { pumpCounts } from '../lib/pump';
-import { usePumpPlan } from '../lib/usePumpPlan';
+import { useSchedule } from '../lib/useSchedule';
 import TypeIcon from '../components/TypeIcon';
 
 const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'growth'];
@@ -30,7 +29,7 @@ export default function Home() {
   const { baby, settings, viewer } = useHousehold();
   const data = useData();
   const now = useNow();
-  const pumpPlan = usePumpPlan(now);
+  const sched = useSchedule(now);
   const [open, setOpen] = useState<EventType | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
   // Rarely used tiles live under "More" (design doc §8a E2); open/closed is remembered per phone.
@@ -76,7 +75,7 @@ export default function Home() {
         {
           // Next session due (reminder interval set per phone in Settings).
           // Lined up with a feed when one is within 30 min (never under 2 h after the last session).
-          const due = pumpPlan;
+          const due = sched.pump;
           if (due) return { text: due.due <= now ? `Due now · last ${formatAgo(due.last, now)}` : `Next ${formatWhen(due.due, now)}${due.withFeed ? ' · with feed' : ''}`, live: false };
         }
         return { text: last ? `${ago(last)}${last.pump_left_ml || last.pump_right_ml ? ` · ${formatVolume((last.pump_left_ml ?? 0) + (last.pump_right_ml ?? 0), settings)}` : ''}` : '—', live: false };
@@ -90,11 +89,11 @@ export default function Home() {
         const run = data.running.bottle;
         if (run) return { text: `${run.paused_at ? 'Paused' : 'Feeding'} ${formatClock(activeMs(run, now))}`, live: true };
         // Next feed (design doc §8a Q): a feed at the middle of the target buys the interval; less or more moves it proportionally.
-        const plan = readPlan(settings.feeding_plan);
-        const nf = nextFeed(feeds(data.events, plan), plan, baby?.birth_date ?? null, now);
+        const plan = sched.plan;
+        const nf = sched.feed; // already lined up with pumping when they're close
         if (nf) {
           const late = now.getTime() - nf.due.getTime();
-          const when = late < 0 ? `Next ${formatWhen(nf.due, now)}` : late < 5 * 60_000 ? 'Due now' : `Overdue ${formatDuration(late)}`;
+          const when = late < 0 ? `Next ${formatWhen(nf.due, now)}${nf.withPump ? ' + pump' : ''}` : late < 5 * 60_000 ? 'Due now' : `Overdue ${formatDuration(late)}`;
           const n = (ml: number) => (settings.volume_unit === 'oz' ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml));
           const est = nf.last.nursingMin > 0 && plan.nursing_ml_per_min > 0; // nursing part is an estimate
           // Last feed vs. the middle of the target (the amount that buys exactly the interval).

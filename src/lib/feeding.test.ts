@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, alignPump, averageFeedByDay, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, averageFeedByDay, schedule, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -72,22 +72,34 @@ describe('pumps with feeds', () => {
   });
 });
 
-describe('pump alignment', () => {
+describe('pump and feed schedule', () => {
   const now = new Date(at('12:00'));
-  const pump = (last: string, due: string) => ({ last: new Date(at(last)), due: new Date(at(due)) });
-  it('moves the pump to a feed within 30 minutes (later or earlier)', () => {
-    expect(alignPump(pump('10:00', '12:20'), [new Date(at('12:40'))], now)).toEqual({ due: new Date(at('12:40')), withFeed: new Date(at('12:40')) });
-    expect(alignPump(pump('10:00', '12:40'), [new Date(at('12:15'))], now).due).toEqual(new Date(at('12:15')));
+  const T = (hhmm: string) => new Date(at(hhmm));
+  const pump = (last: string, due: string) => ({ last: T(last), due: T(due), side: 'both' as const });
+  const next = (due: string) => ({ due: T(due), last: { start: T('09:00'), end: T('09:20'), bottleMl: 90, nursingMin: 0, estMl: 90 }, target: null });
+  it('pump and next feed within 30 min both move to meet halfway', () => {
+    const s = schedule(next('13:00'), pump('10:00', '12:40'), [], now);
+    expect(s.feed!.due).toEqual(T('12:50'));
+    expect(s.pump!.due).toEqual(T('12:50'));
+    expect(s.feed!.withPump && s.pump!.withFeed).toBe(true);
   });
-  it('never to less than 2 hours after the last session', () => {
-    const r = alignPump(pump('10:30', '12:40'), [new Date(at('12:15'))], now);
-    expect(r.due).toEqual(new Date(at('12:30')));
-    expect(r.withFeed).toEqual(new Date(at('12:15'))); // 15 min off: still with that feed
+  it('pumping never under 2 h after the last session; the feed meets it there', () => {
+    const s = schedule(next('12:10'), pump('10:30', '12:40'), [], now); // halfway 12:25 < floor 12:30
+    expect(s.pump!.due).toEqual(T('12:30'));
+    expect(s.feed!.due).toEqual(T('12:30'));
   });
-  it('leaves it alone when no feed is within 30 minutes', () => {
-    expect(alignPump(pump('10:00', '12:20'), [new Date(at('13:30'))], now)).toEqual({ due: new Date(at('12:20')), withFeed: null });
+  it('more than 30 min apart: nothing moves', () => {
+    const s = schedule(next('13:30'), pump('10:00', '12:20'), [], now);
+    expect(s.feed!.due).toEqual(T('13:30'));
+    expect(s.pump!.due).toEqual(T('12:20'));
+    expect(s.pump!.withFeed || s.feed!.withPump).toBe(false);
   });
-  it('can join a feed that started in the last 30 minutes', () => {
-    expect(alignPump(pump('09:30', '12:10'), [new Date(at('11:45'))], now).due).toEqual(new Date(at('11:45')));
+  it('pump joins a feed that is happening now', () => {
+    const s = schedule(next('15:00'), pump('09:30', '12:10'), [T('11:45')], now);
+    expect(s.pump!.due).toEqual(T('11:45'));
+    expect(s.feed!.due).toEqual(T('15:00'));
+  });
+  it('no pump reminder: the feed stays as forecast', () => {
+    expect(schedule(next('13:00'), null, [], now)).toEqual({ feed: { ...next('13:00'), withPump: false }, pump: null });
   });
 });

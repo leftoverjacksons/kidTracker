@@ -160,27 +160,39 @@ export function pumpsWithFeeds(events: { type: string; started_at: string; ended
   return { aligned, total: pumps.length };
 }
 
-/** Pump times are moved to a feed when within this many minutes of it… */
+/** A pump session and a feed this close together are lined up… */
 export const ALIGN_WINDOW_MIN = 30;
-/** …but never to less than this long after the last pumping session. */
+/** …but pumping never moves to less than this long after the last pumping session. */
 export const PUMP_MIN_GAP_MIN = 120;
 
+export interface Schedule<P extends { due: Date; last: Date }> {
+  /** Next feed (null without a feed in the last two days); `due` already adjusted. */
+  feed: (NonNullable<ReturnType<typeof nextFeed>> & { withPump: boolean }) | null;
+  /** Next pumping session (null when reminders are off etc.); `due` already adjusted. */
+  pump: (P & { withFeed: boolean }) | null;
+}
+
 /**
- * Line the next pumping session up with a feed (design doc §8a Q): when the pump is due
- * within 30 minutes of the feed that just started (up to 30 minutes ago) or of the next
- * forecast feed, move it to that feed's time, but never earlier than 2 hours after the
- * last session. Feeds are never moved. Returns the pump's due time unchanged otherwise.
+ * Line pumping and feeds up (design doc §8a Q). `pump` is the plain next pumping session
+ * (pumpDue); `current` are start times of feeds happening now or that started within the
+ * last 30 minutes.
+ * - Pump due within 30 min of a feed that's happening now: the pump joins that feed.
+ * - Otherwise, pump due within 30 min of the next forecast feed: both move to meet halfway.
+ * In both cases pumping never moves to less than 2 h after the last session; if that floor
+ * pushes the meeting point later, the feed moves with it (so they still coincide).
  */
-export function alignPump(pump: { due: Date; last: Date }, feedTimes: Date[], now: Date = new Date()): { due: Date; withFeed: Date | null } {
+export function schedule<P extends { due: Date; last: Date }>(next: ReturnType<typeof nextFeed>, pump: P | null, current: Date[], now: Date = new Date()): Schedule<P> {
   const W = ALIGN_WINDOW_MIN * 60_000;
-  const earliest = pump.last.getTime() + PUMP_MIN_GAP_MIN * 60_000;
-  const best = feedTimes
-    .filter((t) => t.getTime() >= now.getTime() - W)
-    .map((t) => ({ t, gap: Math.abs(t.getTime() - pump.due.getTime()) }))
-    .filter((x) => x.gap <= W)
-    .sort((a, b) => a.gap - b.gap)[0];
-  if (!best) return { due: pump.due, withFeed: null };
-  const due = new Date(Math.max(best.t.getTime(), earliest));
-  // Still counts as "with the feed" only if the 2-hour floor didn't push it far from the feed.
-  return { due, withFeed: Math.abs(due.getTime() - best.t.getTime()) <= W ? best.t : null };
+  const feed = next ? { ...next, withPump: false } : null;
+  if (!pump) return { feed, pump: null };
+  const floor = pump.last.getTime() + PUMP_MIN_GAP_MIN * 60_000;
+  const p = pump.due.getTime();
+  const happening = current.map((t) => t.getTime()).filter((t) => t >= now.getTime() - W && t <= now.getTime() && Math.abs(t - p) <= W)
+    .sort((x, y) => Math.abs(x - p) - Math.abs(y - p))[0];
+  if (happening != null) return { feed, pump: { ...pump, due: new Date(Math.max(happening, floor)), withFeed: true } };
+  if (feed && Math.abs(feed.due.getTime() - p) <= W) {
+    const meet = new Date(Math.max((feed.due.getTime() + p) / 2, floor));
+    return { feed: { ...feed, due: meet, withPump: true }, pump: { ...pump, due: meet, withFeed: true } };
+  }
+  return { feed, pump: { ...pump, withFeed: false } };
 }

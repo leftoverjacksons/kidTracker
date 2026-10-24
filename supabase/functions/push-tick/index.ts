@@ -18,6 +18,8 @@ export interface Env {
 export interface Ev {
   id: string; type: string; started_at: string; ended_at: string | null;
   created_by: string | null; pump_side: string | null;
+  bottle_ml?: number | null;
+  nursing_segments?: { side: string; started_at: string; ended_at: string | null }[] | null;
 }
 export interface Sub {
   id: string; caregiver_id: string; endpoint: string; p256dh: string; auth: string;
@@ -58,13 +60,97 @@ export function pumpDue(events: Ev[], now: Date, everyMin: number | null) {
   return { due: new Date(last + everyMin * 60_000), last: new Date(last), side };
 }
 
+// ───────────── Feeds and lining pumping up with them (mirrors src/lib/feeding.ts) ─────────────
+
+export interface Plan { target: 'age' | { min_ml: number; max_ml: number }; nursing_ml_per_min: number; every_min: number }
+export interface Ctx { plan: Plan; birthDate: string | null }
+export const DEFAULT_CTX: Ctx = { plan: { target: 'age', nursing_ml_per_min: 3, every_min: 180 }, birthDate: null };
+const FEED_GAP_MIN = 20, ALIGN_WINDOW_MIN = 30, PUMP_MIN_GAP_MIN = 120;
+const AGE_CURVE = [{ day: 5.5, min: 45, max: 60 }, { day: 11, min: 75, max: 90 }, { day: 18, min: 105, max: 120 }, { day: 25, min: 120, max: 150 }];
+
+export function readPlan(raw: unknown): Plan {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Plan>;
+  const t = r.target;
+  const target = t && typeof t === 'object' && t.min_ml > 0 && t.max_ml >= t.min_ml ? { min_ml: t.min_ml, max_ml: t.max_ml } : 'age';
+  const rate = Number(r.nursing_ml_per_min), every = Number(r.every_min);
+  return { target, nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : 3, every_min: every >= 60 && every <= 360 ? every : 180 };
+}
+function ageTarget(day: number) {
+  const c = AGE_CURVE;
+  if (day <= c[0].day) return { min: c[0].min, max: c[0].max };
+  for (let i = 1; i < c.length; i++) {
+    if (day <= c[i].day) {
+      const f = (day - c[i - 1].day) / (c[i].day - c[i - 1].day);
+      const lerp = (a: number, b: number) => Math.round(a + (b - a) * f);
+      return { min: lerp(c[i - 1].min, c[i].min), max: lerp(c[i - 1].max, c[i].max) };
+    }
+  }
+  return { min: c[c.length - 1].min, max: c[c.length - 1].max };
+}
+function targetAt(ctx: Ctx, t: Date) {
+  if (ctx.plan.target !== 'age') return { min: ctx.plan.target.min_ml, max: ctx.plan.target.max_ml };
+  if (!ctx.birthDate) return null;
+  const [y, m, d] = ctx.birthDate.split('-').map(Number);
+  return ageTarget((t.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000);
+}
+interface Feed { start: number; end: number; estMl: number }
+export function feeds(events: Ev[], plan: Plan): Feed[] {
+  const items = events.filter((e) => (e.type === 'nursing' || e.type === 'bottle') && e.ended_at).map((e) => {
+    let min = 0;
+    if (e.type === 'nursing') {
+      const segMs = (e.nursing_segments ?? []).reduce((a, s) => a + Math.max(0, (s.ended_at ? Date.parse(s.ended_at) : Date.now()) - Date.parse(s.started_at)), 0);
+      min = Math.max(0, (segMs || Date.parse(e.ended_at!) - Date.parse(e.started_at)) / 60_000);
+    }
+    return { s: Date.parse(e.started_at), e: Date.parse(e.ended_at!), ml: e.type === 'bottle' ? Number(e.bottle_ml ?? 0) : 0, min };
+  }).sort((a, b) => a.s - b.s);
+  const out: (Feed & { ml: number; min: number })[] = [];
+  for (const it of items) {
+    const cur = out[out.length - 1];
+    if (cur && it.s - cur.end <= FEED_GAP_MIN * 60_000) { cur.end = Math.max(cur.end, it.e); cur.ml += it.ml; cur.min += it.min; }
+    else out.push({ start: it.s, end: it.e, ml: it.ml, min: it.min, estMl: 0 });
+  }
+  for (const f of out) f.estMl = f.ml + f.min * plan.nursing_ml_per_min;
+  return out;
+}
+/** Next feed: the middle of the target buys the interval, less or more in proportion (capped at the top). */
+export function nextFeed(all: Feed[], ctx: Ctx, now: Date): number | null {
+  const recent = all.filter((f) => f.start > now.getTime() - 2 * 86_400_000 && f.start <= now.getTime());
+  const interval = ctx.plan.every_min * 60_000;
+  let due: number | null = null;
+  for (const f of recent) {
+    const t = targetAt(ctx, new Date(f.start));
+    const mid = t ? (t.min + t.max) / 2 : 0;
+    const share = mid > 0 ? f.estMl / mid : 1, maxShare = mid > 0 ? t!.max / mid : 1;
+    const from: number = due == null ? f.start : Math.max(due, f.start);
+    due = Math.min(from + interval * share, f.start + interval * maxShare);
+  }
+  return due;
+}
+/** Pumping due time lined up with feeds, exactly as the app's schedule() does. */
+export function alignedPump(events: Ev[], ctx: Ctx, pump: { due: Date; last: Date } | null, now: Date): { due: Date; withFeed: boolean } | null {
+  if (!pump) return null;
+  const W = ALIGN_WINDOW_MIN * 60_000;
+  const fd = feeds(events, ctx.plan);
+  const next = nextFeed(fd, ctx, now);
+  const floor = pump.last.getTime() + PUMP_MIN_GAP_MIN * 60_000;
+  const p = pump.due.getTime();
+  const current = [...fd.slice(-1).map((f) => f.start),
+    ...events.filter((e) => (e.type === 'bottle' || e.type === 'nursing') && !e.ended_at).map((e) => Date.parse(e.started_at))];
+  const happening = current.filter((t) => t >= now.getTime() - W && t <= now.getTime() && Math.abs(t - p) <= W)
+    .sort((x, y) => Math.abs(x - p) - Math.abs(y - p))[0];
+  if (happening != null) return { due: new Date(Math.max(happening, floor)), withFeed: true };
+  if (next != null && Math.abs(next - p) <= W) return { due: new Date(Math.max((next + p) / 2, floor)), withFeed: true };
+  return { due: pump.due, withFeed: false };
+}
+
 /**
  * Messages due at `now`. Keys make each one go out once:
  * - a timer past its threshold → its starter's phones, again each further threshold (4 h, 8 h…);
  *   if the starter has no phone signed up, everyone's;
- * - pumping due → each phone with a reminder interval, at the due time and once more 30 min later.
+ * - pumping due → each phone with a reminder interval, at the due time and once more 30 min later;
+ *   the due time is lined up with feeds the same way the app does (src/lib/feeding.ts schedule()).
  */
-export function decide(now: Date, events: Ev[], subs: Sub[]): Msg[] {
+export function decide(now: Date, events: Ev[], subs: Sub[], ctx: Ctx = DEFAULT_CTX): Msg[] {
   const out: Msg[] = [];
   for (const e of events) {
     const limit = STILL_RUNNING_MIN[e.type];
@@ -81,15 +167,17 @@ export function decide(now: Date, events: Ev[], subs: Sub[]): Msg[] {
     });
   }
   for (const s of subs) {
-    const d = pumpDue(events, now, s.pump_every_min);
-    if (!d) continue;
+    const plain = pumpDue(events, now, s.pump_every_min);
+    if (!plain) continue;
+    const a = alignedPump(events, ctx, plain, now)!; // lined up with a feed when they're within 30 min
+    const d = { ...plain, due: a.due };
     const late = now.getTime() - d.due.getTime();
     if (late < 0 || late >= 60 * 60_000) continue; // remind at the due time and once 30 min later, then stop
     const stage = late < 30 * 60_000 ? 0 : 1;
     out.push({
       key: `pump:${s.id}:${d.last.toISOString()}:${stage}`, subs: [s], tag: 'pump', url: '#/home?log=pump',
       title: stage ? 'Pumping is overdue' : 'Time to pump',
-      body: `Last session ${duration(now.getTime() - d.last.getTime())} ago${SIDE[d.side]}.`,
+      body: `Last session ${duration(now.getTime() - d.last.getTime())} ago${SIDE[d.side]}.${a.withFeed && !stage ? ' Lined up with the feed.' : ''}`,
     });
   }
   return out.filter((m) => m.subs.length);
@@ -188,8 +276,11 @@ export async function tick(env: Env, now = new Date()) {
   const subs = await rest(env, 'push_subscriptions?select=id,caregiver_id,endpoint,p256dh,auth,pump_every_min,still_running') as Sub[];
   if (!subs.length) return { sent: 0, due: 0 };
   const since = new Date(now.getTime() - 3 * 86_400_000).toISOString();
-  const events = await rest(env, `events?select=id,type,started_at,ended_at,created_by,pump_side&deleted_at=is.null&or=(ended_at.is.null,and(type.eq.pump,started_at.gte.${since}))`) as Ev[];
-  const msgs = decide(now, events, subs);
+  const events = await rest(env, `events?select=id,type,started_at,ended_at,created_by,pump_side,bottle_ml,nursing_segments(side,started_at,ended_at)&deleted_at=is.null&or=(ended_at.is.null,and(type.in.(pump,nursing,bottle),started_at.gte.${since}))`) as Ev[];
+  // Feeding plan (migration 0011; select=* so it still works before it) and birth date for the by-age target.
+  const [settings] = (await rest(env, 'household_settings?select=*')) as { feeding_plan?: unknown }[];
+  const [baby] = (await rest(env, 'babies?select=birth_date&order=created_at&limit=1')) as { birth_date: string | null }[];
+  const msgs = decide(now, events, subs, { plan: readPlan(settings?.feeding_plan), birthDate: baby?.birth_date ?? null });
   let sent = 0;
   for (const m of msgs) {
     // Claim the key first; a duplicate (already sent) comes back empty.

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useData, useNow } from '../lib/data';
 import { formatDuration } from '../lib/format';
 import { PUMP_TARGET, pumpCounts } from '../lib/pump';
-import { usePumpPlan } from '../lib/usePumpPlan';
+import { useSchedule } from '../lib/useSchedule';
 
 const SNOOZE_KEY = 'kt.pumpSnooze';
 const SIDE = { left: 'left side', right: 'right side', both: 'both sides' } as const;
@@ -16,7 +16,7 @@ export default function PumpReminder({ onStart }: { onStart: () => void }) {
   const [snooze, setSnooze] = useState<{ last: string; until: number } | null>(() => {
     try { return JSON.parse(localStorage.getItem(SNOOZE_KEY) ?? 'null'); } catch { return null; }
   });
-  const d = usePumpPlan(now); // lined up with a feed when one is within 30 min
+  const d = useSchedule(now).pump; // lined up with a feed when one is within 30 min
   if (!d || d.due > now) return null;
   if (snooze && snooze.last === d.last.toISOString() && snooze.until > now.getTime()) return null;
   const c = pumpCounts(data.events, now);
