@@ -8,6 +8,7 @@ import { useHousehold } from '../../lib/household';
 import type { EventRow } from '../../lib/types';
 import NotesField from '../NotesField';
 import NumberField from '../NumberField';
+import { openFeed, readPlan, targetAt, topUp } from '../../lib/feeding';
 import TimeField from '../TimeField';
 import TypeIcon from '../TypeIcon';
 import { useBottleAmounts } from './BottleAmounts';
@@ -74,6 +75,31 @@ function BrandPicker({ value, onChange }: { value: string | null; onChange: (b: 
   );
 }
 
+/**
+ * After nursing (or a partial bottle) less than 20 min ago: how much he's had so far and the
+ * supplement that would make it a full feed (design doc §8a Q).
+ */
+function SupplementHint() {
+  const { baby, settings } = useHousehold();
+  const data = useData();
+  const now = new Date();
+  const plan = readPlan(settings.feeding_plan);
+  const open = openFeed(data.events, plan, now);
+  const tgt = targetAt(plan, baby?.birth_date ?? null, now);
+  if (!open || !tgt) return null;
+  const sup = topUp(open.estMl, tgt);
+  const nursed = open.nursingMin > 0 && plan.nursing_ml_per_min > 0;
+  return (
+    <p className="hint center supplement-hint">
+      {nursed ? `Nursed ${Math.round(open.nursingMin)} min` : 'Already had'}{open.bottleMl > 0 && nursed ? ` + ${formatVolume(open.bottleMl, settings)}` : ''}
+      {' '}≈ <b>{formatVolume(open.estMl, settings)}</b>{nursed ? ' (est.)' : ''}.{' '}
+      {sup.max > 0
+        ? <>Supplement <b>{formatVolume(sup.min, settings)}–{formatVolume(sup.max, settings)}</b> for a full feed ({formatVolume(tgt.min, settings)}–{formatVolume(tgt.max, settings)}).</>
+        : <>That's already a full feed ({formatVolume(tgt.min, settings)}–{formatVolume(tgt.max, settings)}).</>}
+    </p>
+  );
+}
+
 /** 1. How much is in the bottle → Start. */
 function Start() {
   const { settings } = useHousehold();
@@ -86,6 +112,7 @@ function Start() {
   const ok = inBottle != null && inBottle > 0;
   return (
     <>
+      <SupplementHint />
       <IonList inset>
         <NumberField label="In the bottle" unit={v.unit} value={inBottle} onChange={setInBottle} autoFocus />
         <ContentsPicker value={contents} onChange={setContents} />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, averageFeedByDay, schedule, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, averageFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -101,5 +101,29 @@ describe('pump and feed schedule', () => {
   });
   it('no pump reminder: the feed stays as forecast', () => {
     expect(schedule(next('13:00'), null, [], now)).toEqual({ feed: { ...next('13:00'), withPump: false }, pump: null });
+  });
+});
+
+describe('open feed and top-up', () => {
+  const plan = readPlan({ target: { min_ml: 75, max_ml: 90 }, nursing_ml_per_min: 2, every_min: 180 });
+  it('a nursing session that ended under 20 min ago is open; its top-up fills the target', () => {
+    const f = openFeed([nurse('10:00', '10:15')], plan, new Date(at('10:25')))!;
+    expect(f.estMl).toBe(30);
+    expect(topUp(f.estMl, { min: 75, max: 90 })).toEqual({ min: 45, max: 60 });
+  });
+  it('nursing in progress counts up to now; a bottle already given counts too', () => {
+    const running = { type: 'nursing', started_at: at('10:00'), ended_at: null, bottle_ml: null };
+    expect(openFeed([running], plan, new Date(at('10:10')))!.estMl).toBe(20);
+    const f = openFeed([nurse('10:00', '10:15'), bottle('10:20', 40)], plan, new Date(at('10:30')))!;
+    expect(f.estMl).toBe(70);
+    expect(topUp(f.estMl, { min: 75, max: 90 })).toEqual({ min: 5, max: 20 });
+  });
+  it('more than 20 min after it ended, nothing is open; a full feed needs no top-up', () => {
+    expect(openFeed([nurse('10:00', '10:15')], plan, new Date(at('10:40')))).toBeNull();
+    expect(topUp(95, { min: 75, max: 90 })).toEqual({ min: 0, max: 0 });
+  });
+  it('daily target: the handout curve by age, or 8 × the family range', () => {
+    expect(dailyTargetAt(DEFAULT_PLAN, '2026-10-14', new Date(2026, 9, 25))).toEqual({ min: 590, max: 710 }); // day 11
+    expect(dailyTargetAt(plan, null, new Date())).toEqual({ min: 600, max: 720 });
   });
 });

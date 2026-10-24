@@ -5,10 +5,11 @@ import { createContext, useContext, useEffect, useState } from 'react';
  * Only these pairs are used together in one chart, and each was validated with the
  * dataviz checker on the card surfaces (#fbf6ec light, #14213d dark):
  * blue+coral, blue+amber, teal+coral. Amber and coral are never paired (too close for CVD).
+ * Gray is a neutral for "other / not labelled" (2026-10-24); it differs from all four in lightness and chroma.
  */
 export const PALETTE = {
-  light: { blue: '#2f74e8', coral: '#e2553a', teal: '#0b8f80', amber: '#b97c0c' },
-  dark: { blue: '#4b8dfc', coral: '#e85e42', teal: '#12a896', amber: '#bd8216' },
+  light: { blue: '#2f74e8', coral: '#e2553a', teal: '#0b8f80', amber: '#b97c0c', gray: '#8a8578' },
+  dark: { blue: '#4b8dfc', coral: '#e85e42', teal: '#12a896', amber: '#bd8216', gray: '#8e98ae' },
 };
 export type Hue = keyof typeof PALETTE.light;
 

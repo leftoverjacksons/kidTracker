@@ -81,7 +81,7 @@ export interface Feed {
   estMl: number;
 }
 
-type FeedEvent = { type: string; started_at: string; ended_at: string | null; bottle_ml: number | null; nursing_segments?: NursingSegment[] | null };
+export type FeedEvent = { type: string; started_at: string; ended_at: string | null; bottle_ml: number | null; nursing_segments?: NursingSegment[] | null };
 
 function nursingMinutes(e: FeedEvent): number {
   const t = sideTotals(e.nursing_segments ?? []);
@@ -195,4 +195,48 @@ export function schedule<P extends { due: Date; last: Date }>(next: ReturnType<t
     return { feed: { ...feed, due: meet, withPump: true }, pump: { ...pump, due: meet, withFeed: true } };
   }
   return { feed, pump: { ...pump, withFeed: false } };
+}
+
+/**
+ * The feed that can still be topped up: one that's happening now (nursing in progress)
+ * or ended less than FEED_GAP_MIN ago, so a bottle now would count as part of it.
+ * Nursing in progress is counted up to `now`.
+ */
+export function openFeed(events: FeedEvent[], plan: FeedingPlan, now: Date = new Date()): Feed | null {
+  const asOfNow = events.map((e) => (e.type === 'nursing' && !e.ended_at && Date.parse(e.started_at) <= now.getTime()
+    ? { ...e, ended_at: now.toISOString(), nursing_segments: (e.nursing_segments ?? []).map((s) => (s.ended_at ? s : { ...s, ended_at: now.toISOString() })) }
+    : e));
+  const last = feeds(asOfNow, plan).filter((f) => f.start <= now).pop();
+  return last && now.getTime() - last.end.getTime() < FEED_GAP_MIN * 60_000 ? last : null;
+}
+
+/** Top-up that would make `soFar` (ml, estimated) a full feed: up to the target range; 0 once reached. */
+export function topUp(soFarMl: number, target: { min: number; max: number }): { min: number; max: number } {
+  return { min: Math.max(0, Math.round(target.min - soFarMl)), max: Math.max(0, Math.round(target.max - soFarMl)) };
+}
+
+/**
+ * The handout's expected intake per day (days 4–7: 12–16 oz; week 2: 20–24 oz; week 3:
+ * 26–28 oz; weeks 4–6+: 28–32 oz), placed and joined like AGE_CURVE.
+ */
+export const DAILY_CURVE: { day: number; min: number; max: number }[] = [
+  { day: 5.5, min: 355, max: 475 },
+  { day: 11, min: 590, max: 710 },
+  { day: 18, min: 770, max: 830 },
+  { day: 25, min: 830, max: 945 },
+];
+
+/** Daily intake target: the handout's daily curve by age, or 8 feeds × the family's own range. */
+export function dailyTargetAt(plan: FeedingPlan, birthDate: string | null, t: Date): { min: number; max: number } | null {
+  if (plan.target !== 'age') return { min: plan.target.min_ml * 8, max: plan.target.max_ml * 8 };
+  if (!birthDate) return null;
+  const d = dayOfLife(birthDate, t), c = DAILY_CURVE;
+  if (d <= c[0].day) return { min: c[0].min, max: c[0].max };
+  for (let i = 1; i < c.length; i++) {
+    if (d <= c[i].day) {
+      const f = (d - c[i - 1].day) / (c[i].day - c[i - 1].day);
+      return { min: Math.round(c[i - 1].min + (c[i].min - c[i - 1].min) * f), max: Math.round(c[i - 1].max + (c[i].max - c[i - 1].max) * f) };
+    }
+  }
+  return { min: c[c.length - 1].min, max: c[c.length - 1].max };
 }

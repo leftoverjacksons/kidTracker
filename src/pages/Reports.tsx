@@ -8,12 +8,12 @@ import LineChart from '../components/charts/LineChart';
 import GrowthChart from '../components/charts/GrowthChart';
 import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
-import { averageFeedByDay, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
+import { averageFeedByDay, dailyTargetAt, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import BottleReport from '../components/BottleReport';
-import { dailyCharts, fillDays, isoDay, trimLeading, type DailyRow } from '../lib/reports';
+import { bottleByContents, dailyCharts, fillDays, isoDay, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
 import { cmToIn, mlToOz } from '../lib/units';
@@ -91,8 +91,27 @@ export default function Reports() {
       band: { from: t.map((x) => (x ? toVol(x.min) : null)), to: t.map((x) => (x ? toVol(x.max) : null)),
         label: plan.target === 'age' ? 'Target by age (lactation handout)' : 'Our target' },
       pumps: pumpsWithFeeds(data.events, fd, from),
+      intake: (() => {
+        // Everything he took each day: bottles by contents plus nursing minutes × the credit.
+        const b = bottleByContents(bottles, days);
+        const other = rows.map((r, k) => Math.max(0, r.bottle_ml - b.breastMilk[k] - b.formula[k]));
+        const nursed = rows.map((r) => (r.nursing_left_min + r.nursing_right_min) * plan.nursing_ml_per_min);
+        const daily = days.map((d) => dailyTargetAt(plan, baby?.birth_date ?? null, new Date(`${d}T12:00`)));
+        const series = [
+          { label: 'Breast milk (bottle)', short: 'BM', data: b.breastMilk.map(toVol), hue: 'blue' as const },
+          { label: 'Formula', short: 'F', data: b.formula.map(toVol), hue: 'coral' as const },
+          ...(other.some((v) => v > 0) ? [{ label: 'Mixed / not labelled', short: 'Mix', data: other.map(toVol), hue: 'gray' as const }] : []),
+          ...(nursed.some((v) => v > 0) ? [{ label: 'Nursing (estimated)', short: 'N', data: nursed.map(toVol), hue: 'teal' as const }] : []),
+        ];
+        return {
+          has: series.some((x) => x.data.some((v) => v > 0)),
+          series, hues: series.map((x) => x.hue),
+          band: { from: daily.map((x) => (x ? toVol(x.min) : null)), to: daily.map((x) => (x ? toVol(x.max) : null)),
+            label: plan.target === 'age' ? 'Daily target by age (lactation handout)' : '8 feeds × our target' },
+        };
+      })(),
     };
-  }, [rows, data.events, plan, baby?.birth_date, toVol]);
+  }, [rows, data.events, plan, baby?.birth_date, toVol, bottles]);
 
   return (
     <IonPage>
@@ -147,6 +166,11 @@ export default function Reports() {
               <LineChart partialLast={view.partial} title={`Average feed (${volUnit}, estimated)`} labels={view.labels} series={feedView.series}
                 format={fmtVolAxis} hues={['teal']} band={feedView.band}
                 note={`A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
+            )}
+            {feedView?.intake.has && (
+              <LineChart partialLast={view.partial} stacked title={`Total intake per day (${volUnit}, estimated)`} labels={view.labels}
+                series={feedView.intake.series} hues={feedView.intake.hues} format={fmtVolAxis} band={feedView.intake.band}
+                note={`Shaded areas stack: the top edge is everything he took. Nursing counts as ${plan.nursing_ml_per_min} ml per minute.`} />
             )}
             {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
               <LineChart partialLast={view.partial} integer stacked title="Nursing minutes per day" labels={view.labels} series={view.nursing} format={fmtMin} hues={['blue', 'coral']}

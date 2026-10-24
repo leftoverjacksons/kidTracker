@@ -19,6 +19,7 @@ import StillRunning from '../components/StillRunning';
 import PumpReminder from '../components/PumpReminder';
 import { pumpCounts } from '../lib/pump';
 import { useSchedule } from '../lib/useSchedule';
+import { openFeed, targetAt, topUp } from '../lib/feeding';
 import TypeIcon from '../components/TypeIcon';
 
 const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'growth'];
@@ -89,11 +90,20 @@ export default function Home() {
         const run = data.running.bottle;
         if (run) return { text: `${run.paused_at ? 'Paused' : 'Feeding'} ${formatClock(activeMs(run, now))}`, live: true };
         // Next feed (design doc §8a Q): a feed at the middle of the target buys the interval; less or more moves it proportionally.
+        // A feed still open (nursing now, or a feed that ended < 20 min ago): what he's had so far
+        // and the supplement that would make it a full feed (design doc §8a Q).
+        const n = (ml: number) => (settings.volume_unit === 'oz' ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml));
+        const open = openFeed(data.events, sched.plan, now);
+        const tgt = targetAt(sched.plan, baby?.birth_date ?? null, now);
+        if (open && tgt) {
+          const sup = topUp(open.estMl, tgt);
+          const so = `Last ${open.nursingMin > 0 && sched.plan.nursing_ml_per_min > 0 ? '~' : ''}${n(open.estMl)}\u00a0${settings.volume_unit}`;
+          return { text: `${so} · ${sup.max > 0 ? `sup\u00a0${n(sup.min)}\u2060–\u2060${n(sup.max)}\u00a0${settings.volume_unit}` : 'full feed'}`, live: false };
+        }
         const nf = sched.feed; // already lined up with pumping when they're close
         if (nf) {
           const late = now.getTime() - nf.due.getTime();
           const when = late < 0 ? `Next ${formatWhen(nf.due, now)}${nf.withPump ? ' + pump' : ''}` : late < 5 * 60_000 ? 'Due now' : `Overdue ${formatDuration(late)}`;
-          const n = (ml: number) => (settings.volume_unit === 'oz' ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml));
           // What to aim for at the next feed (today's target range).
           // No-break spaces and word joiners keep "aim 2.5–3 oz" together when the tile wraps.
           const amt = nf.target ? ` · aim\u00a0${n(nf.target.min)}\u2060–\u2060${n(nf.target.max)}\u00a0${settings.volume_unit}` : '';
