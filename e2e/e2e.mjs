@@ -487,7 +487,7 @@ await expectText(A, 'Not set up in Supabase yet');
 // ── Reports
 await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 2000);
 const reports = A.locator('.ion-page:not(.ion-page-hidden)').last();
-await expectText(A, 'Daily average');
+await expectText(A, 'Sleep per day');
 if (await reports.getByText('Sleep map').count()) problems.push('sleep map should have moved to History → Timeline');
 const canvases = await reports.locator('canvas').count();
 if (canvases < 5) problems.push(`expected >= 5 charts on Reports, saw ${canvases}`);
@@ -536,7 +536,7 @@ if (printCharts < 3) problems.push(`pediatrician summary: expected its charts on
 await A.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-print.png`, fullPage: true });
 await A.pdf({ path: `${OUT}/pediatrician-summary.pdf`, format: 'Letter', printBackground: true }).catch((e) => problems.push(`summary PDF: ${e.message}`));
 await A.getByRole('button', { name: /back/i }).click(); await wait(A, 1000);
-await expectText(A, 'Daily average');
+await expectText(A, 'Sleep per day');
 
 // Milk pumped per breast: add five earlier days of pumping, then look at the line chart
 psql(`insert into events (baby_id, type, started_at, ended_at, pump_side, pump_left_ml, pump_right_ml)
@@ -604,6 +604,14 @@ await A.locator('.filter-row ion-chip', { hasText: 'Bottle' }).click(); await wa
 await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 800);
 const lenCard = bottlesPage.locator('.chart-card', { hasText: 'Feed length' });
 if (await lenCard.count()) { await lenCard.scrollIntoViewIfNeeded(); await lenCard.screenshot({ path: `${OUT}/bottles-length.png` }); }
+// Daily: the last 24 hours, with the averages under each number; no 7/14/30 range there
+await A.locator('.reports-tabs ion-segment-button[value="daily"]').click(); await wait(A, 1200);
+await expectText(A, 'Last 24 hours');
+await expectText(A, 'avg ', '.summary-row-avg');
+for (const t of ['Intake, last 24 hours', 'Milk pumped, last 24 hours'])
+  if (!(await A.locator('.chart-card', { hasText: t }).count())) problems.push(`Daily tab chart missing: ${t}`);
+if (await A.locator('.reports-range').count()) problems.push('7/14/30 range shown on the Daily tab');
+await shot(A, 'reports-daily');
 await A.locator('.reports-tabs ion-segment-button[value="overview"]').click(); await wait(A, 500);
 
 // ── Guest (viewer) phone: sees the data, can't change anything, no notes, no Mom's medicines
@@ -625,7 +633,7 @@ await C.locator('ion-item', { hasText: 'Diaper' }).first().click(); await wait(C
 if (await C.locator('ion-modal.show-modal').count()) problems.push('guest could open the edit sheet');
 await shot(C, 'guest-home');
 await C.locator('ion-tab-button[tab="reports"]').click(); await wait(C, 1500);
-await expectText(C, 'Daily average');
+await expectText(C, 'Sleep per day');
 if (await C.getByText('Daily summary (CSV)').count()) problems.push('guest sees exports');
 await C.locator('ion-tab-button[tab="settings"]').click(); await wait(C, 800);
 await expectText(C, 'Guest account');

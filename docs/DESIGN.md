@@ -832,6 +832,14 @@ Goals from the handout, for reference:
 - Pacing: no faster than 5 minutes per ounce (at most ~6 ml/min), which matches the top of the 3–6 ml/min flow band.
 - Diapers: at least 4 stools and close to 8 wet diapers a day.
 
+### R. Reports → Daily tab (last 24 hours) — built 2026-10-24 (app-only)
+
+- Reports now has three tabs, **Overview | Bottles | Daily**, with the 7/14/30-day range under them (hidden on Daily, which is always the last 24 hours). Each phone remembers its tab.
+- **Top of Daily:** the readout (sleep, feeds, bottle, wet and dirty diapers, pumped) for the rolling last 24 hours, with each daily average (complete days, from Overview's range) in small type underneath. It moved here from the top of Overview.
+- **Intake, last 24 hours (estimated):** running total by the hour, stacked: breast-milk bottles, formula, mixed or unlabelled (gray, when present), nursing × the credit. Shaded: "on pace", the day's target (the handout's daily curve, or 8 × our range) spread evenly over 24 hours. Bottles and nursing count at their start time.
+- **Milk pumped, last 24 hours:** running total by the hour, left, right and both.
+- Logic in `src/lib/daily.ts` (unit-tested): sleep counts only the part inside the window (a running sleep up to now); feeds use the same 20-minute grouping as elsewhere, counting feeds that start inside the window.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).

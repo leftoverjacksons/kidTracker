@@ -10,9 +10,10 @@ import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
 import { averageFeedByDay, dailyTargetAt, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
 import { useData } from '../lib/data';
-import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
+import { formatDuration, formatLength, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import BottleReport from '../components/BottleReport';
+import DailyReport from '../components/DailyReport';
 import { bottleByContents, dailyCharts, fillDays, isoDay, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
@@ -27,8 +28,10 @@ export default function Reports() {
   const [toast] = useIonToast();
   const [days, setDays] = useState(14);
   // Overview (daily charts) or Bottles (per-feed comparison by bottle brand), remembered per phone.
-  const [tab, setTab] = useState<'overview' | 'bottles'>(() => { try { return localStorage.getItem('kt.reportsTab') === 'bottles' ? 'bottles' : 'overview'; } catch { return 'overview'; } });
-  const pickTab = (t: 'overview' | 'bottles') => { setTab(t); try { localStorage.setItem('kt.reportsTab', t); } catch { /* ignore */ } };
+  // Overview, Bottles (per-feed comparison by bottle brand) or Daily (last 24 h), remembered per phone.
+  type Tab = 'overview' | 'bottles' | 'daily';
+  const [tab, setTab] = useState<Tab>(() => { try { const t = localStorage.getItem('kt.reportsTab'); return t === 'bottles' || t === 'daily' ? t : 'overview'; } catch { return 'overview'; } });
+  const pickTab = (t: Tab) => { setTab(t); try { localStorage.setItem('kt.reportsTab', t); } catch { /* ignore */ } };
   const [rows, setRows] = useState<DailyRow[] | null>(null);
   const [growth, setGrowth] = useState<GrowthRow[]>([]);
   const [sleeps, setSleeps] = useState<{ start_date: string; duration_min: number }[]>([]);
@@ -127,26 +130,20 @@ export default function Reports() {
           </div>
         ) : !view ? <div className="centered"><IonSpinner /></div> : (
           <>
-            <IonSegment value={String(days)} onIonChange={(e) => setDays(Number(e.detail.value))}>
-              <IonSegmentButton value="7">7 days</IonSegmentButton>
-              <IonSegmentButton value="14">14 days</IonSegmentButton>
-              <IonSegmentButton value="30">30 days</IonSegmentButton>
-            </IonSegment>
-            <IonSegment className="reports-tabs" value={tab} onIonChange={(e) => pickTab(e.detail.value as 'overview' | 'bottles')}>
+            <IonSegment className="reports-tabs" value={tab} onIonChange={(e) => pickTab(e.detail.value as Tab)}>
               <IonSegmentButton value="overview">Overview</IonSegmentButton>
               <IonSegmentButton value="bottles">Bottles</IonSegmentButton>
+              <IonSegmentButton value="daily">Daily</IonSegmentButton>
             </IonSegment>
-            {tab === 'bottles' ? <BottleReport days={days} /> : <>
-
-            <h2 className="section-title">Daily average <span className="subtle">({view.avgDays === 1 && view.partial ? 'today so far' : `${view.avgDays} complete day${view.avgDays === 1 ? '' : 's'}`})</span></h2>
-            <div className="summary-row summary-row-3">
-              <div><b>{formatDuration(view.avg.sleepMin * 60_000)}</b><span>sleep</span></div>
-              <div><b>{fmtCount(view.avg.feeds)}</b><span>feeds</span></div>
-              <div><b>{formatVolume(view.avg.bottleMl, settings)}</b><span>bottle</span></div>
-              <div><b>{fmtCount(view.avg.wet)}</b><span>wet diapers</span></div>
-              <div><b>{fmtCount(view.avg.dirty)}</b><span>dirty diapers</span></div>
-              <div><b>{formatVolume(view.avg.pumpMl, settings)}</b><span>pumped</span></div>
-            </div>
+            {/* Daily is always the last 24 hours, so the range only applies to the other two. */}
+            {tab !== 'daily' && (
+              <IonSegment className="reports-range" value={String(days)} onIonChange={(e) => setDays(Number(e.detail.value))}>
+                <IonSegmentButton value="7">7 days</IonSegmentButton>
+                <IonSegmentButton value="14">14 days</IonSegmentButton>
+                <IonSegmentButton value="30">30 days</IonSegmentButton>
+              </IonSegment>
+            )}
+            {tab === 'daily' ? <DailyReport avg={view.avg} avgDays={view.avgDays} /> : tab === 'bottles' ? <BottleReport days={days} /> : <>
 
             <LineChart partialLast={view.partial} integer minutesAxis stacked title="Sleep per day" labels={view.labels} series={view.sleep} format={fmtHours} hues={['blue', 'amber']}
               note="Shaded areas stack: the top edge is total sleep." />

@@ -363,7 +363,9 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .bottle-err { color: var(--ion-color-danger); }
 
 /* Reports → Bottles (design doc §8a L) */
-.reports-tabs { margin-top: 8px; }
+.reports-tabs { margin-top: 0; }
+.reports-range { margin-top: 8px; }
+.summary-row-avg small { display: block; font-size: 11px; opacity: 0.6; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .brand-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; background: var(--tile-bg); border-radius: 12px; overflow: hidden; }
 .brand-table th, .brand-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ion-border-color, rgba(0,0,0,0.08)); white-space: nowrap; }
