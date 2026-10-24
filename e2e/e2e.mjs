@@ -90,7 +90,8 @@ async function closeSheet(page) {
   if (await sheet(page).count()) { await sheet(page).getByRole('button', { name: 'Close' }).click(); await wait(page, 500); }
 }
 async function expectText(page, text, where = 'body') {
-  const ok = await page.locator(where).getByText(text, { exact: false }).first().isVisible().catch(() => false);
+  // Waits up to 4 s: the screen updates after a database round trip, which is slower on CI runners.
+  const ok = await page.locator(where).getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false);
   if (!ok) problems.push(`expected to see "${text}" at step ${step}`);
 }
 const refresh = async (page) => { await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await wait(page, 900); };
