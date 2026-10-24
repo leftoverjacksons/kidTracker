@@ -146,6 +146,8 @@ await sheet(A).locator('ion-input').nth(0).locator('input').fill('3'); await wai
 await shot(A, 'bottle-sheet');
 await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
 await expectText(A, ' · sup', '.tile'); // Bottle tile right after a feed: "Last 3 oz · sup 1–1.9 oz" (top-up to a full feed)
+await expectText(A, 'or next', '.tile'); // …and when the next feed is if it isn't topped up
+await A.locator('.tile', { hasText: 'Bottle' }).first().screenshot({ path: `${OUT}/bottle-tile-open-feed.png` });
 
 // Bottle, timed: type what's in the bottle → Start → Stop → type what's left → drank + flow rate
 await tile(A, 'Bottle').click(); await wait(A);

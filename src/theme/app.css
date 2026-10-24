@@ -92,7 +92,7 @@
   animation: pulse 1.6s ease-in-out infinite;
 }
 @keyframes pulse { 50% { opacity: 0.3; } }
-.tile-sub { font-variant-numeric: tabular-nums; }
+.tile-sub { font-variant-numeric: tabular-nums; white-space: pre-line; } /* \n starts a second line (Bottle tile) */
 .tile-sub-small { font-size: 11px; text-align: center; }
 
 /* ── Today summary ── */
