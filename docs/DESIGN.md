@@ -794,11 +794,10 @@ Reports → Export → Pediatrician summary (Print → Save as PDF).
 - Left out on purpose: pumping and tummy time (they're in Reports and the CSVs); the WHO percentile charts (the growth table gives the percentiles).
 - **How it's built:** the summary draws the same series as Reports (`dailyCharts` in `src/lib/reports.ts`). Charts inside the summary always use the light colours on white, whatever the phone's dark mode setting, and are drawn at 3× resolution so they print sharply. Chart cards have a fixed width (334 px), the same on screen and on paper, so nothing has to be redrawn when printing; two fit side by side on Letter or A4.
 
-### P. Diaper sheet stays open for details — built 2026-10-24 (app-only)
+### P. Diaper sheet: type, details, Save — revised 2026-10-24 (app-only)
 
-- The first tap on Wet / Dirty / Both / Dry logs the diaper immediately (one-tap logging is unchanged, as are auto-stop and Undo).
-- The sheet then stays open with "Saved: Dirty · 2:14 PM" and the details: poop colour and consistency (Dirty/Both only), rash, time, notes. Each detail is saved to that same diaper as it's chosen; notes save once typing pauses. Tapping another type corrects the same diaper rather than logging a second one; switching to Wet or Dry clears the poop details.
-- Done (or swiping the sheet away) closes it. If Undo is tapped while the sheet is open, the sheet goes back to the type buttons.
+- First version (same day): the first tap logged the diaper and the sheet stayed open for details. The owner found it unintuitive, so it was replaced.
+- Now: one screen with the four types (tap selects, it doesn't save; the chosen one is outlined), the details always visible (poop colour and consistency, greyed out when Wet or Dry is picked; rash; time; notes), and a **Save** button that's enabled once a type is picked. Save logs the diaper with its details, runs auto-stop, shows the Undo toast and closes.
 
 ### Q. Feeding targets and "next feed" on the Bottle card — under discussion (2026-10-24), not built
 

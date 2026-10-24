@@ -113,29 +113,29 @@ await A.getByRole('button', { name: 'Save' }).click();
 await wait(A, 1500);
 await shot(A, 'home-empty');
 
-// Diaper: one tap
+// Diaper: pick a type, then Save
 await tile(A, 'Diaper').click(); await wait(A);
 await shot(A, 'diaper-sheet');
-await sheet(A).locator('.big-btn', { hasText: 'Wet' }).click(); await wait(A, 1000);
+await sheet(A).locator('.big-btn', { hasText: 'Wet' }).click(); await wait(A, 300);
+if (await A.locator('ion-toast').count()) problems.push('diaper saved before Save was pressed');
+await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
 await expectText(A, 'Diaper logged');
-await expectText(A, 'Saved:', '.diaper-saved'); // the sheet stays open for details
-await sheet(A).getByRole('button', { name: 'Done' }).click(); await wait(A, 500);
 await expectText(A, 'Wet', '.tile');
 
-// Diaper with details: log first, then add details to the same diaper (one row, not two)
+// Diaper with details: type, details (always shown), Save — one row
 const diapersBefore = Number(psql(`select count(*) from events where type = 'diaper' and deleted_at is null`));
 await tile(A, 'Diaper').click(); await wait(A);
-await sheet(A).locator('.big-btn', { hasText: 'Dirty' }).click(); await wait(A, 1000);
-await sheet(A).locator('.big-btn', { hasText: 'Both' }).click(); await wait(A, 800); // corrects it, no second diaper
-await sheet(A).locator('ion-chip', { hasText: 'yellow' }).click(); await wait(A, 500);
-await sheet(A).locator('ion-chip', { hasText: 'seedy' }).click(); await wait(A, 500);
-await sheet(A).locator('ion-textarea textarea').fill('blowout'); await wait(A, 1200);
-await sheet(A).getByRole('button', { name: 'Done' }).click(); await wait(A, 800);
+await sheet(A).locator('.big-btn', { hasText: 'Both' }).click(); await wait(A, 300);
+await sheet(A).locator('ion-chip', { hasText: 'yellow' }).click();
+await sheet(A).locator('ion-chip', { hasText: 'seedy' }).click();
+await sheet(A).locator('ion-textarea textarea').fill('blowout');
+await shot(A, 'diaper-details');
+await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
 const diaperRow = psql(`select diaper_wet, diaper_dirty, poop_color, poop_consistency, notes from events
   where type = 'diaper' and deleted_at is null order by started_at desc limit 1`);
 const diapersAfter = Number(psql(`select count(*) from events where type = 'diaper' and deleted_at is null`));
 if (diapersAfter !== diapersBefore + 1) problems.push(`diaper details: expected one new diaper, got ${diapersAfter - diapersBefore}`);
-if (!/^t\|t\|yellow\|seedy\|blowout$/.test(diaperRow)) problems.push(`diaper details not saved to the logged diaper: ${diaperRow}`);
+if (!/^t\|t\|yellow\|seedy\|blowout$/.test(diaperRow)) problems.push(`diaper details not saved: ${diaperRow}`);
 
 // Bottle, untimed: "Forgot to time it?" → type the amount drunk
 await tile(A, 'Bottle').click(); await wait(A);
@@ -244,8 +244,8 @@ await tile(A, 'Sleep').click(); await wait(A);
 await sheet(A).locator('.big-btn-start').click(); await wait(A, 1200);
 await closeSheet(A);
 await tile(A, 'Diaper').click(); await wait(A);
-await sheet(A).locator('.big-btn', { hasText: 'Wet' }).click(); await wait(A, 1500);
-await closeSheet(A);
+await sheet(A).locator('.big-btn', { hasText: 'Wet' }).click();
+await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1500);
 const autoToast = await A.locator('ion-toast').last().evaluate((t) => t.message);
 if (!/Sleep ended/.test(autoToast)) problems.push(`diaper did not end the running sleep (toast: ${autoToast})`);
 await expectText(A, 'Awake', '.tile');
