@@ -25,6 +25,8 @@ export interface HouseholdSettings {
   length_unit: 'in' | 'cm';
   /** IANA zone used by the report views to split days; absent until migration 0002. */
   timezone?: string;
+  /** Shared feeding plan (migration 0011); absent before it, null until first saved. Read with readPlan(). */
+  feeding_plan?: unknown;
 }
 
 export const DEFAULT_SETTINGS: HouseholdSettings = {

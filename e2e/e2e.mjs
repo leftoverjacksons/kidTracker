@@ -144,7 +144,7 @@ await sheet(A).locator('ion-segment-button[value="drank"]').click(); await wait(
 await sheet(A).locator('ion-input').nth(0).locator('input').fill('3'); await wait(A, 200);
 await shot(A, 'bottle-sheet');
 await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
-await expectText(A, '3 oz', '.tile');
+await expectText(A, ' · 3/', '.tile'); // Bottle tile: next feed and last feed vs. target, e.g. "Next 4:10 PM · 3/4.6 oz"
 
 // Bottle, timed: type what's in the bottle → Start → Stop → type what's left → drank + flow rate
 await tile(A, 'Bottle').click(); await wait(A);
@@ -345,7 +345,7 @@ await A.locator('ion-item', { hasText: 'Bottle' }).first().click(); await wait(A
 await shot(A, 'edit-bottle');
 await sheet(A).locator('ion-input[type="number"] input').fill('4');
 await sheet(A).getByRole('button', { name: 'Save changes' }).click(); await wait(A, 1000);
-await expectText(A, '4 oz', '.tile');
+await expectText(A, '4 oz', 'ion-item'); // the edited entry in the Today list
 
 // Delete with undo
 await A.locator('ion-item', { hasText: 'Bath' }).first().click(); await wait(A);
@@ -446,6 +446,17 @@ if (await B.locator('.still-running').count()) problems.push('check still showin
 await A.locator('ion-tab-button[tab="settings"]').click(); await wait(A, 800);
 await A.locator('ion-select', { hasText: 'Sex' }).click(); await wait(A, 600);
 await A.locator('ion-action-sheet button', { hasText: 'Female' }).click(); await wait(A, 1200);
+// Feeding plan (migration 0011): shared, saved to household_settings
+await A.locator('ion-select', { hasText: 'Count nursing as' }).click(); await wait(A, 600);
+await A.locator('ion-action-sheet button', { hasText: '2 ml per minute' }).click(); await wait(A, 1200);
+const savedPlan = psql(`select feeding_plan->>'nursing_ml_per_min' || ' ' || (feeding_plan->>'every_min') || ' ' || (feeding_plan->>'target') from household_settings`);
+if (savedPlan !== '2 180 age') problems.push(`feeding plan not saved: ${savedPlan}`);
+await A.locator('ion-select', { hasText: 'Count nursing as' }).click(); await wait(A, 600);
+await A.locator('ion-action-sheet button', { hasText: '3 ml per minute' }).click(); await wait(A, 1200);
+await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 800);
+const bottleTile = await A.locator('.tile', { hasText: 'Bottle' }).first().innerText();
+if (!/Next|Due now|Overdue/.test(bottleTile)) problems.push(`bottle tile shows no next feed: ${bottleTile}`);
+await A.locator('ion-tab-button[tab="settings"]').click(); await wait(A, 800);
 // Notifications: the push-tick function isn't deployed here, so Settings says so and nothing breaks
 await expectText(A, 'Not set up in Supabase yet');
 // The service worker turns a push message into a notification (delivered via DevTools, as a push service would).
@@ -555,7 +566,7 @@ psql(`insert into events (baby_id, type, started_at, ended_at)
     from babies b, generate_series(1, 5) d, generate_series(1, 3) h`);
 psql(`update events set bottle_ml = 60 where type = 'bottle' and bottle_ml is null`);
 await refresh(A); await wait(A, 1500);
-for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Time between feeds', 'Bottle (oz) per day']) {
+for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Time between feeds', 'Bottle (oz) per day', 'Average feed (oz, estimated)']) {
   const card = A.locator('.chart-card', { hasText: t });
   if (!(await card.count())) { problems.push(`chart missing: ${t}`); continue; }
   await card.scrollIntoViewIfNeeded(); await wait(A, 300);

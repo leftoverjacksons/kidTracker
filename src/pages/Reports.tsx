@@ -8,6 +8,7 @@ import LineChart from '../components/charts/LineChart';
 import GrowthChart from '../components/charts/GrowthChart';
 import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
+import { averageFeedByDay, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
@@ -75,6 +76,24 @@ export default function Reports() {
 
   const volUnit = oz ? 'oz' : 'ml';
 
+  // Average feed vs. the target (design doc §8a Q), and pump sessions paired with a feed.
+  const plan = useMemo(() => readPlan(settings.feeding_plan), [settings.feeding_plan]);
+  const feedView = useMemo(() => {
+    if (!rows) return null;
+    const fd = feeds(data.events, plan);
+    const days = rows.map((r) => r.day);
+    const avg = averageFeedByDay(fd, days, isoDay);
+    const t = days.map((d) => targetAt(plan, baby?.birth_date ?? null, new Date(`${d}T12:00`)));
+    const from = new Date(`${days[0]}T00:00`);
+    return {
+      has: avg.some((v) => v != null),
+      series: [{ label: 'Average feed', data: avg.map((v) => (v == null ? null : toVol(v))) }],
+      band: { from: t.map((x) => (x ? toVol(x.min) : null)), to: t.map((x) => (x ? toVol(x.max) : null)),
+        label: plan.target === 'age' ? 'Target by age (lactation handout)' : 'Our target' },
+      pumps: pumpsWithFeeds(data.events, fd, from),
+    };
+  }, [rows, data.events, plan, baby?.birth_date, toVol]);
+
   return (
     <IonPage>
       <IonHeader><IonToolbar><IonTitle>Reports</IonTitle></IonToolbar></IonHeader>
@@ -124,6 +143,11 @@ export default function Reports() {
             )}
             {view.has('bottle_ml') && <LineChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle.series} format={fmtVolAxis} hues={['teal', 'blue', 'coral']}
                 note={`Amount drunk.${view.bottle.hasMixed ? ' Mixed bottles count in the total only.' : ''}`} />}
+            {feedView?.has && (
+              <LineChart partialLast={view.partial} title={`Average feed (${volUnit}, estimated)`} labels={view.labels} series={feedView.series}
+                format={fmtVolAxis} hues={['teal']} band={feedView.band}
+                note={`A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
+            )}
             {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
               <LineChart partialLast={view.partial} integer stacked title="Nursing minutes per day" labels={view.labels} series={view.nursing} format={fmtMin} hues={['blue', 'coral']}
                 note="Shaded areas stack: the top edge is total nursing time." />}
@@ -133,7 +157,8 @@ export default function Reports() {
             {view.has('pump_ml') && (
               <LineChart partialLast={view.partial} title={`Milk pumped per day (${volUnit})`} labels={view.labels}
                 series={view.pumpSides} hues={['teal', 'blue', 'coral']} format={fmtVolAxis}
-                note="Total and each breast, from the amount entered for each side of every pumping session." />
+                note={`Total and each breast, from the amount entered for each side of every pumping session.${feedView && feedView.pumps.total
+                  ? ` Lined up with a feed (within 30 min): ${feedView.pumps.aligned} of ${feedView.pumps.total} sessions in this period.` : ''}`} />
             )}
             {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} hues={['teal']} />}
 

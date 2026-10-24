@@ -1,0 +1,157 @@
+import { FEED_GAP_MIN, sideTotals } from './nursing';
+import type { NursingSegment } from './types';
+
+/**
+ * Feeding targets and "next feed" (design doc §8a Q).
+ *
+ * A feed groups nursing and bottle entries that start within FEED_GAP_MIN of the previous
+ * one ending. Its estimated intake is the bottle millilitres plus nursing minutes times a
+ * per-minute credit (3 ml/min until a weighed feed gives a real number).
+ */
+
+export interface FeedingPlan {
+  /** 'age' = the lactation handout's curve; otherwise the family's own range. */
+  target: 'age' | { min_ml: number; max_ml: number };
+  nursing_ml_per_min: number;
+  every_min: number;
+}
+
+export const DEFAULT_PLAN: FeedingPlan = { target: 'age', nursing_ml_per_min: 3, every_min: 180 };
+
+/** Accepts whatever is stored (or nothing) and returns a usable plan. */
+export function readPlan(raw: unknown): FeedingPlan {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<FeedingPlan>;
+  const t = r.target;
+  const target = t && typeof t === 'object' && t.min_ml > 0 && t.max_ml >= t.min_ml ? { min_ml: t.min_ml, max_ml: t.max_ml } : 'age';
+  const rate = Number(r.nursing_ml_per_min);
+  const every = Number(r.every_min);
+  return {
+    target,
+    nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : DEFAULT_PLAN.nursing_ml_per_min,
+    every_min: every >= 60 && every <= 360 ? every : DEFAULT_PLAN.every_min,
+  };
+}
+
+/**
+ * The handout's expected intake per feed (days 4–7: 1.5–2 oz; week 2: 2.5–3 oz;
+ * week 3: 3.5–4 oz; weeks 4–6+: 4–5 oz), each taken as true at the middle of its
+ * week, joined by straight lines so the target rises a little each day instead of
+ * jumping at week boundaries. Flat before day 5.5 (the handout starts at day 4) and
+ * after day 25.
+ */
+export const AGE_CURVE: { day: number; min: number; max: number }[] = [
+  { day: 5.5, min: 45, max: 60 },
+  { day: 11, min: 75, max: 90 },
+  { day: 18, min: 105, max: 120 },
+  { day: 25, min: 120, max: 150 },
+];
+
+export function ageTarget(dayOfLife: number): { min: number; max: number } {
+  const c = AGE_CURVE;
+  if (dayOfLife <= c[0].day) return { min: c[0].min, max: c[0].max };
+  for (let i = 1; i < c.length; i++) {
+    if (dayOfLife <= c[i].day) {
+      const f = (dayOfLife - c[i - 1].day) / (c[i].day - c[i - 1].day);
+      const lerp = (a: number, b: number) => Math.round(a + (b - a) * f);
+      return { min: lerp(c[i - 1].min, c[i].min), max: lerp(c[i - 1].max, c[i].max) };
+    }
+  }
+  const last = c[c.length - 1];
+  return { min: last.min, max: last.max };
+}
+
+/** Days since the birth date (birth date = day 0), fractional, at time `t`. */
+export function dayOfLife(birthDate: string, t: Date): number {
+  const [y, m, d] = birthDate.split('-').map(Number);
+  return (t.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000;
+}
+
+/** Target per feed (ml) at time `t`: the family's own range, else the age curve (needs a birth date). */
+export function targetAt(plan: FeedingPlan, birthDate: string | null, t: Date): { min: number; max: number } | null {
+  if (plan.target !== 'age') return { min: plan.target.min_ml, max: plan.target.max_ml };
+  return birthDate ? ageTarget(dayOfLife(birthDate, t)) : null;
+}
+
+export interface Feed {
+  start: Date;
+  end: Date;
+  bottleMl: number;
+  nursingMin: number;
+  /** bottleMl + nursingMin × the plan's credit */
+  estMl: number;
+}
+
+type FeedEvent = { type: string; started_at: string; ended_at: string | null; bottle_ml: number | null; nursing_segments?: NursingSegment[] | null };
+
+function nursingMinutes(e: FeedEvent): number {
+  const t = sideTotals(e.nursing_segments ?? []);
+  const ms = t.left + t.right || (e.ended_at ? Date.parse(e.ended_at) - Date.parse(e.started_at) : 0);
+  return Math.max(0, ms / 60_000);
+}
+
+/** Finished nursing entries and bottles grouped into feeds, oldest first. */
+export function feeds(events: FeedEvent[], plan: FeedingPlan): Feed[] {
+  const items = events
+    .filter((e) => (e.type === 'nursing' || e.type === 'bottle') && e.ended_at)
+    .map((e) => ({ s: Date.parse(e.started_at), e: Date.parse(e.ended_at!), ml: e.type === 'bottle' ? Number(e.bottle_ml ?? 0) : 0, min: e.type === 'nursing' ? nursingMinutes(e) : 0 }))
+    .sort((a, b) => a.s - b.s);
+  const out: Feed[] = [];
+  for (const it of items) {
+    const cur = out[out.length - 1];
+    if (cur && it.s - cur.end.getTime() <= FEED_GAP_MIN * 60_000) {
+      cur.end = new Date(Math.max(cur.end.getTime(), it.e));
+      cur.bottleMl += it.ml; cur.nursingMin += it.min;
+    } else {
+      out.push({ start: new Date(it.s), end: new Date(it.e), bottleMl: it.ml, nursingMin: it.min, estMl: 0 });
+    }
+  }
+  for (const f of out) f.estMl = f.bottleMl + f.nursingMin * plan.nursing_ml_per_min;
+  return out;
+}
+
+/**
+ * When the next feed is due. Each feed buys time in proportion to how full it was:
+ * a full feed (the top of the target) buys the whole interval, a half feed half of it.
+ * A partial feed tops up whatever time the previous feeds left, but never past one
+ * full interval from its own start.
+ */
+export function nextFeed(all: Feed[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
+  const recent = all.filter((f) => f.start.getTime() > now.getTime() - 2 * 86_400_000 && f.start <= now);
+  if (!recent.length) return null;
+  const interval = plan.every_min * 60_000;
+  let due: number | null = null;
+  for (const f of recent) {
+    const target = targetAt(plan, birthDate, f.start);
+    const share = target ? Math.min(1, f.estMl / target.max) : 1;
+    const from: number = due == null ? f.start.getTime() : Math.max(due, f.start.getTime());
+    due = Math.min(from + interval * share, f.start.getTime() + interval);
+  }
+  const last = recent[recent.length - 1];
+  return { due: new Date(due!), last, target: targetAt(plan, birthDate, now) };
+}
+
+/** Average estimated intake per feed for each local day in `days` (YYYY-MM-DD); null where there was no feed. */
+export function averageFeedByDay(all: Feed[], days: string[], dayOf: (d: Date) => string): (number | null)[] {
+  const sum = new Map<string, { ml: number; n: number }>();
+  for (const f of all) {
+    const k = dayOf(f.start);
+    const v = sum.get(k) ?? { ml: 0, n: 0 };
+    v.ml += f.estMl; v.n += 1;
+    sum.set(k, v);
+  }
+  return days.map((d) => { const v = sum.get(d); return v ? Math.round(v.ml / v.n) : null; });
+}
+
+/**
+ * Pump sessions that line up with a feed: started from 30 minutes before a feed began
+ * to 30 minutes after it ended (the care plan pairs pumping with bottle feeds).
+ */
+export function pumpsWithFeeds(events: { type: string; started_at: string; ended_at: string | null }[], all: Feed[], from: Date): { aligned: number; total: number } {
+  const W = 30 * 60_000;
+  const pumps = events.filter((e) => e.type === 'pump' && e.ended_at && Date.parse(e.started_at) >= from.getTime());
+  const aligned = pumps.filter((p) => {
+    const t = Date.parse(p.started_at);
+    return all.some((f) => t >= f.start.getTime() - W && t <= f.end.getTime() + W);
+  }).length;
+  return { aligned, total: pumps.length };
+}

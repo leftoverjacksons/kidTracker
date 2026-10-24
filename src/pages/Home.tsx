@@ -9,6 +9,8 @@ import { diaperLabel, META } from '../lib/describe';
 import { formatAgo, formatClock, formatDuration, formatTemp, formatVolume, formatWeight, formatWhen, startOfDay } from '../lib/format';
 import { medStatus } from '../lib/meds';
 import { activeMs } from '../lib/bottle';
+import { feeds, nextFeed, readPlan } from '../lib/feeding';
+import { mlToOz } from '../lib/units';
 import { useHousehold } from '../lib/household';
 import { activeSide, countFeeds, lastFeedStart, lastSide, sideTotals } from '../lib/nursing';
 import type { EventRow, EventType } from '../lib/types';
@@ -84,6 +86,17 @@ export default function Home() {
       case 'bottle': {
         const run = data.running.bottle;
         if (run) return { text: `${run.paused_at ? 'Paused' : 'Feeding'} ${formatClock(activeMs(run, now))}`, live: true };
+        // Next feed (design doc §8a Q): a full last feed moves it a whole interval, a smaller one proportionally.
+        const plan = readPlan(settings.feeding_plan);
+        const nf = nextFeed(feeds(data.events, plan), plan, baby?.birth_date ?? null, now);
+        if (nf) {
+          const late = now.getTime() - nf.due.getTime();
+          const when = late < 0 ? `Next ${formatWhen(nf.due, now)}` : late < 5 * 60_000 ? 'Due now' : `Overdue ${formatDuration(late)}`;
+          const n = (ml: number) => (settings.volume_unit === 'oz' ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml));
+          const est = nf.last.nursingMin > 0 && plan.nursing_ml_per_min > 0; // nursing part is an estimate
+          const amt = nf.target ? ` · ${est ? '~' : ''}${n(nf.last.estMl)}/${n(nf.target.max)} ${settings.volume_unit}` : '';
+          return { text: when + amt, live: false };
+        }
         return { text: last ? `${ago(last)} · ${formatVolume(last.bottle_ml, settings)}` : '—', live: false };
       }
       case 'diaper': return { text: last ? `${ago(last)} · ${diaperLabel(last)}` : '—', live: false };

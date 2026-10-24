@@ -3,6 +3,7 @@ import {
   IonPage, IonSelect, IonSelectOption, IonTitle, IonToggle, IonToolbar, useIonToast,
 } from '@ionic/react';
 import { useEffect, useState } from 'react';
+import FeedingPlanSettings from '../components/FeedingPlanSettings';
 import { useHousehold } from '../lib/household';
 import { pumpEveryMin, setPumpEveryMin } from '../lib/pump';
 import { disablePush, enablePush, pushState, setStillRunningPref, stillRunningPref, syncPushPrefs, type PushState } from '../lib/push';
@@ -125,6 +126,8 @@ export default function Settings() {
             </IonSelect>
           </IonItem>
         </IonList>
+
+        <FeedingPlanSettings />
 
         <IonList inset>
           <IonListHeader><IonLabel>Reminders (this phone)</IonLabel></IonListHeader>

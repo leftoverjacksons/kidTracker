@@ -6,6 +6,10 @@ Run them **in order**. Every script is safe to run twice.
 
 ## Waiting
 
+### Feeding plan (target per feed, nursing credit, feed interval)
+
+- [ ] **Run `supabase/migrations/0011_feeding_plan.sql`**. One step, safe to re-run. Until then the Bottle tile, the "Average feed" chart and Settings → Feeding plan all work with the defaults (target by age, nursing = 3 ml per minute, every 3 hours), but the settings can't be changed.
+
 ### Bottle timer (flow rate)
 
 - [ ] **Run `supabase/migrations/0007_bottle_timer.sql`** (copy raw file → SQL Editor → New query → Run). It's one step, and separate from notifications.

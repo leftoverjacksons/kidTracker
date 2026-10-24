@@ -27,6 +27,8 @@ psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0009_viewers.sql -f ../migr
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f viewers_test.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0010_bottle_pause.sql -f ../migrations/0010_bottle_pause.sql -f ../migrations/0009_viewers.sql -f post_grants.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f bottle_pause_test.sql
+psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../migrations/0011_feeding_plan.sql -f ../migrations/0011_feeding_plan.sql -f post_grants.sql
+psql -q -v ON_ERROR_STOP=1 -d "$DB" -f feeding_plan_test.sql
 psql -q -v ON_ERROR_STOP=1 -d "$DB" -f ../reset_data.sql
 test "$(psql -qtA -d "$DB" -c 'select (select count(*) from events) + (select count(*) from babies) + (select count(*) from nursing_segments)')" = 0
 test "$(psql -qtA -d "$DB" -c "select count(*) from caregivers where role = 'caregiver'")" = 2

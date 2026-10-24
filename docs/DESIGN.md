@@ -799,9 +799,21 @@ Reports → Export → Pediatrician summary (Print → Save as PDF).
 - First version (same day): the first tap logged the diaper and the sheet stayed open for details. The owner found it unintuitive, so it was replaced.
 - Now: one screen with the four types (tap selects, it doesn't save; the chosen one is outlined), the details always visible (poop colour and consistency, greyed out when Wet or Dry is picked; rash; time; notes), and a **Save** button that's enabled once a type is picked. Save logs the diaper with its details, runs auto-stop, shows the Undo toast and closes.
 
-### Q. Feeding targets and "next feed" on the Bottle card — under discussion (2026-10-24), not built
+### Q. Feeding targets and "next feed" on the Bottle tile — built 2026-10-24 (settings need migration 0011)
 
-Source: the family's lactation consultant's care plan and handout (2026-10-23). Decided so far: no feeding push notifications for now; show the target and the next feed on the Bottle card; a Reports chart of average bottle feed per day with the goal visible. Open: how to decide what "the last feed" was when nursing and bottles are combined (see the discussion in the conversation; the agreed rules go here before building).
+Source: the family's lactation consultant's care plan and handout (2026-10-23). No feeding notifications for now.
+
+- **A feed** = nursing entries and bottles where each starts within 20 min of the previous one *ending* (same rule as "Feeds per day").
+- **Estimated intake** = bottle ml + nursing minutes × a credit (default **3 ml/min**). The owner's own examples, "20 min nursing + 30 ml" and "10 min nursing + 60 ml", both equal 90 ml at 3 ml/min. The credit is a placeholder: replace it with the consultant's weighed-feed result (grams gained ≈ ml, ÷ minutes nursed). Shown with "~" when nursing is part of it.
+- **Target per feed**, either:
+  - **By age:** the handout's ranges (days 4–7: 1.5–2 oz; week 2: 2.5–3 oz; week 3: 3.5–4 oz; weeks 4–6+: 4–5 oz), each placed at the middle of its week (days 5.5, 11, 18, 25), joined by straight lines so it rises daily instead of in steps. In ml: 45–60, 75–90, 105–120, 120–150. Flat before day 5.5 and after day 25. The handout's table is a daily total ÷ feeds per day, binned by week, which is why it looks like steps.
+  - **Our own numbers** (e.g. the care plan's 75–90 ml), set in Settings.
+- **Next feed (proportional):** each feed buys time in proportion to how full it was: estimate ÷ top of the target × the interval (default 3 h), capped at one interval from that feed's start. A top-up adds to whatever time is left. Example, every 3 h with a 90 ml target: 60 ml at 9:00 → due 11:00; another 30 ml at 10:00 → due 12:00. Two full feeds can't bank beyond one interval.
+- **Bottle tile:** "Next 4:10 PM · ~2/2.8 oz" (last feed vs. top of today's target), then "Due now" (first 5 min) and "Overdue 25m". Falls back to the old "2h ago · 2 oz" when there's no feed in the last two days.
+- **Reports → Overview → "Average feed (estimated)":** average estimated intake per feed for each day, with the target shaded per day (the by-age band rises with age).
+- **Settings → Feeding plan (shared, migration 0011, `household_settings.feeding_plan` jsonb):** target (by age or own range), nursing credit (0–6 ml/min), feed every (2–4 h). Before 0011 the defaults apply and the fields are read-only.
+- **Pumping with feeds (goal):** the care plan pairs pumping (15–20 min) with bottle feeds, and the family wants to line pump sessions up with feeds when they can. For now, the "Milk pumped per day" note counts sessions that started from 30 min before a feed to 30 min after it ended ("12 of 20 sessions"). Possible later: a pump nudge on the Bottle tile when a feed is due.
+- **Later:** the care plan allows one stretch of up to 4 h at night once he's back to birth weight. This could switch on automatically from logged weights.
 
 Goals from the handout, for reference:
 - Expected intake by age: days 4–7: 1.5–2 oz/feed, 12–16 oz/day; week 2: 2.5–3 oz/feed, 20–24 oz/day; week 3: 3.5–4 oz/feed, 26–28 oz/day; weeks 4–6+: 4–5 oz/feed, 28–32 oz/day.

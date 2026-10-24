@@ -14,9 +14,11 @@ export interface LineSeries { label: string; short?: string; data: (number | nul
  * today is dashed and today's point hollow, since the day isn't over. `stacked` draws
  * shaded areas stacked on each other (the top line is the total).
  */
-export default function LineChart({ title, labels, series, hues, format, partialLast = false, note, stacked = false, minutesAxis = false, integer = false }: {
+export default function LineChart({ title, labels, series, hues, format, partialLast = false, note, stacked = false, minutesAxis = false, integer = false, band }: {
   title: string; labels: string[]; series: LineSeries[]; hues: Hue[]; format: (v: number) => string;
   partialLast?: boolean; note?: string; stacked?: boolean;
+  /** Shaded goal band per day (null = none that day), labelled in the legend row. */
+  band?: { from: (number | null)[]; to: (number | null)[]; label: string };
   /** Values are minutes: ticks on whole/half hours. */ minutesAxis?: boolean;
   /** Whole-number ticks (counts). */ integer?: boolean;
 }) {
@@ -48,6 +50,32 @@ export default function LineChart({ title, labels, series, hues, format, partial
         const over = labs.length ? labs[labs.length - 1].y - (chart.chartArea.bottom + 6) : 0;
         if (over > 0) labs.forEach((l) => { l.y -= over; });
         labs.forEach((l) => ctx.fillText(l.text, l.x, l.y));
+        ctx.restore();
+      },
+    };
+    const goalBand: Plugin<'line'> = {
+      id: 'goalBand',
+      beforeDatasetsDraw(chart) {
+        if (!band) return;
+        const { ctx, scales } = chart;
+        const pts = labels.map((_, k) => (band.from[k] != null && band.to[k] != null
+          ? { x: scales.x.getPixelForValue(k), lo: scales.y.getPixelForValue(band.from[k]!), hi: scales.y.getPixelForValue(band.to[k]!) } : null));
+        ctx.save();
+        ctx.fillStyle = theme.dark ? 'rgba(233,238,251,0.09)' : 'rgba(19,33,63,0.08)';
+        // One filled run per stretch of consecutive days that have a band.
+        let run: { x: number; lo: number; hi: number }[] = [];
+        const flush = () => {
+          if (run.length) {
+            const r = run.length === 1 ? [{ ...run[0], x: run[0].x - 6 }, { ...run[0], x: run[0].x + 6 }] : run;
+            ctx.beginPath();
+            r.forEach((p, i) => (i ? ctx.lineTo(p.x, p.hi) : ctx.moveTo(p.x, p.hi)));
+            [...r].reverse().forEach((p) => ctx.lineTo(p.x, p.lo));
+            ctx.closePath(); ctx.fill();
+          }
+          run = [];
+        };
+        pts.forEach((p) => (p ? run.push(p) : flush()));
+        flush();
         ctx.restore();
       },
     };
@@ -85,7 +113,7 @@ export default function LineChart({ title, labels, series, hues, format, partial
         scales: {
           x: { stacked, grid: { display: false }, border: { color: theme.grid },
                ticks: { color: theme.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 7, font: { size: 11 } } },
-          y: { stacked, beginAtZero: true, border: { display: false }, grid: { color: theme.grid },
+          y: { stacked, beginAtZero: true, suggestedMax: band ? Math.max(0, ...band.to.map((v) => v ?? 0)) * 1.1 : undefined, border: { display: false }, grid: { color: theme.grid },
                ticks: { color: theme.muted, maxTicksLimit: 5, font: { size: 11 }, precision: integer ? 0 : undefined, stepSize, callback: (v) => format(Number(v)) } },
         },
         plugins: {
@@ -102,15 +130,16 @@ export default function LineChart({ title, labels, series, hues, format, partial
           },
         },
       },
-      plugins: [endLabels, crosshair],
+      plugins: [goalBand, endLabels, crosshair],
     };
     const chart = new Chart(canvas.current, config);
     return () => chart.destroy();
-  }, [labels, series, format, partialLast, theme, hues.join(), stacked, minutesAxis, integer]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [labels, series, format, partialLast, theme, hues.join(), stacked, minutesAxis, integer, band]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <figure className="chart-card">
       <figcaption className="chart-title">{title}</figcaption>
+      {band && <div className="chart-legend-inline"><span><i className="band-swatch" />{band.label}</span></div>}
       <div className="chart-box"><canvas ref={canvas} role="img" aria-label={title} /></div>
       {(note || partialLast) && <div className="chart-note">{[partialLast && 'Dashed: today so far.', note].filter(Boolean).join(' ')}</div>}
     </figure>
