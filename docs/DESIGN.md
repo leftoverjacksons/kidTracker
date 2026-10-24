@@ -741,7 +741,7 @@ This is Phase 2 of E5 and I.
 - Migration 0008:
   - Adds `events.bottle_brand` (text).
   - `app_features()` now reads the schema (start_timer accepts bottle → `bottle_timer`; `bottle_start_ml` column → `bottle_start`; `bottle_brand` column → `bottle_brand`). So 0007 and 0008 can be run in any order or again, and the app shows only what exists.
-- Bottle screen: a "Bottle" drop-down (Comotomo, Philips Avent, MAM, Dr. Brown's, Spectra (added 2026-10-21), Other), remembered from the last bottle. It's on Start and in "Forgot to time it?", and editable in the edit sheet. The running screen shows "In the bottle: 3 oz · Comotomo". Entries include the brand.
+- Bottle screen: a "Bottle" drop-down (Comotomo, Philips Avent, MAM, Dr. Brown's, Spectra (added 2026-10-21), Lansinoh SS and Lansinoh S (nipple sizes as separate entries, added 2026-10-24), Other), remembered from the last bottle. It's on Start and in "Forgot to time it?", and editable in the edit sheet. The running screen shows "In the bottle: 3 oz · Comotomo". Entries include the brand.
 - Reports gets **Overview | Bottles** (remembered per phone). The daily "Bottle flow rate" chart is removed. Bottles shows, for timed feeds with an amount in the selected 7/14/30 days:
   1. **By bottle** table: feeds, median flow, median length, median amount drunk.
   2. **Flow per feed:** a strip chart, one column per brand and one dot per feed, coloured breast milk (blue), formula (coral), mixed/not set (teal), with a median bar per brand. Tapping a dot shows when, drank (of start), length and flow.
@@ -793,6 +793,22 @@ Reports → Export → Pediatrician summary (Print → Save as PDF).
 - **Following pages (raw numbers):** start on a new page. Day-by-day table, now with a **Day** column (days old, birth date = day 0) so diapers and feeds can be read against day of life. Then growth with WHO percentiles, baby medicines (Mom's are never included) and temperatures.
 - Left out on purpose: pumping and tummy time (they're in Reports and the CSVs); the WHO percentile charts (the growth table gives the percentiles).
 - **How it's built:** the summary draws the same series as Reports (`dailyCharts` in `src/lib/reports.ts`). Charts inside the summary always use the light colours on white, whatever the phone's dark mode setting, and are drawn at 3× resolution so they print sharply. Chart cards have a fixed width (334 px), the same on screen and on paper, so nothing has to be redrawn when printing; two fit side by side on Letter or A4.
+
+### P. Diaper sheet stays open for details — built 2026-10-24 (app-only)
+
+- The first tap on Wet / Dirty / Both / Dry logs the diaper immediately (one-tap logging is unchanged, as are auto-stop and Undo).
+- The sheet then stays open with "Saved: Dirty · 2:14 PM" and the details: poop colour and consistency (Dirty/Both only), rash, time, notes. Each detail is saved to that same diaper as it's chosen; notes save once typing pauses. Tapping another type corrects the same diaper rather than logging a second one; switching to Wet or Dry clears the poop details.
+- Done (or swiping the sheet away) closes it. If Undo is tapped while the sheet is open, the sheet goes back to the type buttons.
+
+### Q. Feeding targets and "next feed" on the Bottle card — under discussion (2026-10-24), not built
+
+Source: the family's lactation consultant's care plan and handout (2026-10-23). Decided so far: no feeding push notifications for now; show the target and the next feed on the Bottle card; a Reports chart of average bottle feed per day with the goal visible. Open: how to decide what "the last feed" was when nursing and bottles are combined (see the discussion in the conversation; the agreed rules go here before building).
+
+Goals from the handout, for reference:
+- Expected intake by age: days 4–7: 1.5–2 oz/feed, 12–16 oz/day; week 2: 2.5–3 oz/feed, 20–24 oz/day; week 3: 3.5–4 oz/feed, 26–28 oz/day; weeks 4–6+: 4–5 oz/feed, 28–32 oz/day.
+- Care plan (current): offer 2.5 oz after breastfeeding, 3 oz when skipping breastfeeding (75–90 ml per feed, eight feeds a day); wake to feed every 3 h day and night until back to birth weight; after that, one stretch of up to 4 h at night is fine.
+- Pacing: no faster than 5 minutes per ounce (at most ~6 ml/min), which matches the top of the 3–6 ml/min flow band.
+- Diapers: at least 4 stools and close to 8 wet diapers a day.
 
 ### C. Report ideas saved for later (2026-10-16)
 
