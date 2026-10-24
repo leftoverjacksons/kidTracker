@@ -145,7 +145,7 @@ await sheet(A).locator('ion-segment-button[value="drank"]').click(); await wait(
 await sheet(A).locator('ion-input').nth(0).locator('input').fill('3'); await wait(A, 200);
 await shot(A, 'bottle-sheet');
 await sheet(A).getByRole('button', { name: 'Save' }).click(); await wait(A, 1000);
-await expectText(A, ' · 3/', '.tile'); // Bottle tile: next feed and last feed vs. target, e.g. "Next 4:10 PM · 3/4.6 oz"
+await expectText(A, ' · aim', '.tile'); // Bottle tile: next feed and what to aim for, e.g. "Next 4:10 PM · aim 2.5–3 oz"
 
 // Bottle, timed: type what's in the bottle → Start → Stop → type what's left → drank + flow rate
 await tile(A, 'Bottle').click(); await wait(A);

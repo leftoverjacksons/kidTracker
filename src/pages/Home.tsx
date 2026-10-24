@@ -89,15 +89,14 @@ export default function Home() {
         const run = data.running.bottle;
         if (run) return { text: `${run.paused_at ? 'Paused' : 'Feeding'} ${formatClock(activeMs(run, now))}`, live: true };
         // Next feed (design doc §8a Q): a feed at the middle of the target buys the interval; less or more moves it proportionally.
-        const plan = sched.plan;
         const nf = sched.feed; // already lined up with pumping when they're close
         if (nf) {
           const late = now.getTime() - nf.due.getTime();
           const when = late < 0 ? `Next ${formatWhen(nf.due, now)}${nf.withPump ? ' + pump' : ''}` : late < 5 * 60_000 ? 'Due now' : `Overdue ${formatDuration(late)}`;
           const n = (ml: number) => (settings.volume_unit === 'oz' ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml));
-          const est = nf.last.nursingMin > 0 && plan.nursing_ml_per_min > 0; // nursing part is an estimate
-          // Last feed vs. the middle of the target (the amount that buys exactly the interval).
-          const amt = nf.target ? ` · ${est ? '~' : ''}${n(nf.last.estMl)}/${n((nf.target.min + nf.target.max) / 2)} ${settings.volume_unit}` : '';
+          // What to aim for at the next feed (today's target range).
+          // No-break spaces and word joiners keep "aim 2.5–3 oz" together when the tile wraps.
+          const amt = nf.target ? ` · aim\u00a0${n(nf.target.min)}\u2060–\u2060${n(nf.target.max)}\u00a0${settings.volume_unit}` : '';
           return { text: when + amt, live: false };
         }
         return { text: last ? `${ago(last)} · ${formatVolume(last.bottle_ml, settings)}` : '—', live: false };
