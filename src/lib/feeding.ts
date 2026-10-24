@@ -110,10 +110,12 @@ export function feeds(events: FeedEvent[], plan: FeedingPlan): Feed[] {
 }
 
 /**
- * When the next feed is due. Each feed buys time in proportion to how full it was:
- * a full feed (the top of the target) buys the whole interval, a half feed half of it.
- * A partial feed tops up whatever time the previous feeds left, but never past one
- * full interval from its own start.
+ * When the next feed is due. The middle of the target buys exactly the interval
+ * ("feed every 3 h"); less brings the next feed closer in proportion, more pushes it
+ * later in proportion, but never past what a top-of-target feed buys (with 75–90 ml:
+ * 82.5 ml → 3 h, 60 ml → 2 h 11 m, 90 ml or more → 3 h 16 m). Feeds close together
+ * add up: a top-up extends whatever time the previous feeds left, within the same cap
+ * measured from the top-up's start.
  */
 export function nextFeed(all: Feed[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
   const recent = all.filter((f) => f.start.getTime() > now.getTime() - 2 * 86_400_000 && f.start <= now);
@@ -122,9 +124,11 @@ export function nextFeed(all: Feed[], plan: FeedingPlan, birthDate: string | nul
   let due: number | null = null;
   for (const f of recent) {
     const target = targetAt(plan, birthDate, f.start);
-    const share = target ? Math.min(1, f.estMl / target.max) : 1;
+    const mid = target ? (target.min + target.max) / 2 : 0;
+    const share = mid > 0 ? f.estMl / mid : 1;
+    const maxShare = mid > 0 ? target!.max / mid : 1;
     const from: number = due == null ? f.start.getTime() : Math.max(due, f.start.getTime());
-    due = Math.min(from + interval * share, f.start.getTime() + interval);
+    due = Math.min(from + interval * share, f.start.getTime() + interval * maxShare);
   }
   const last = recent[recent.length - 1];
   return { due: new Date(due!), last, target: targetAt(plan, birthDate, now) };

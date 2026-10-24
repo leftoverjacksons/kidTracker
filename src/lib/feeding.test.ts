@@ -38,21 +38,24 @@ describe('feeds', () => {
 
 describe('next feed', () => {
   const now = new Date(at('13:00'));
-  it('a full feed buys the whole interval', () => {
-    expect(nextFeed(feeds([bottle('12:00', 90)], fixed), fixed, null, now)!.due).toEqual(new Date(at('15:00')));
+  const plan = readPlan({ target: { min_ml: 80, max_ml: 100 }, nursing_ml_per_min: 3, every_min: 180 }); // middle 90 ml
+  const due = (f: ReturnType<typeof feeds>) => nextFeed(f, plan, null, now)!.due;
+  it('the middle of the target buys exactly the interval', () => {
+    expect(due(feeds([bottle('12:00', 90)], plan))).toEqual(new Date(at('15:00')));
   });
-  it('a partial feed buys a share of it', () => {
-    expect(nextFeed(feeds([bottle('12:00', 60)], fixed), fixed, null, now)!.due).toEqual(new Date(at('14:00')));
+  it('less brings it closer in proportion', () => {
+    expect(due(feeds([bottle('12:00', 60)], plan))).toEqual(new Date(at('14:00')));
   });
-  it('a top-up adds to the time left, capped at one interval from the top-up', () => {
-    const f = feeds([bottle('09:00', 60), bottle('10:00', 30)], fixed); // 60 → due 11:00; +30 → 12:00
-    expect(nextFeed(f, fixed, null, now)!.due).toEqual(new Date(at('12:00')));
-    const g = feeds([bottle('09:00', 90), bottle('10:00', 90)], fixed); // can't bank beyond 13:00
-    expect(nextFeed(g, fixed, null, now)!.due).toEqual(new Date(at('13:00')));
+  it('more pushes it later in proportion, up to what the top of the target buys', () => {
+    expect(due(feeds([bottle('12:00', 100)], plan))).toEqual(new Date(at('15:20')));
+    expect(due(feeds([bottle('12:00', 150)], plan))).toEqual(new Date(at('15:20')));
+  });
+  it('a top-up adds to the time left, within the same cap from the top-up', () => {
+    expect(due(feeds([bottle('09:00', 60), bottle('10:00', 30)], plan))).toEqual(new Date(at('12:00')));
+    expect(due(feeds([bottle('09:00', 90), bottle('10:00', 90)], plan))).toEqual(new Date(at('13:20')));
   });
   it('a sip after an overdue gap counts from the sip', () => {
-    const f = feeds([bottle('06:00', 90), bottle('10:00', 30)], fixed); // due 09:00 passed; 30 ml → 11:00
-    expect(nextFeed(f, fixed, null, now)!.due).toEqual(new Date(at('11:00')));
+    expect(due(feeds([bottle('06:00', 90), bottle('10:00', 30)], plan))).toEqual(new Date(at('11:00')));
   });
   it('averages estimated intake per feed by day', () => {
     const f = feeds([bottle('08:00', 60), bottle('12:00', 90)], fixed);

@@ -54,7 +54,7 @@ export default function FeedingPlanSettings() {
       {mode === 'custom' && (
         <>
           <NumberField label="From" value={min} onChange={setMin} unit={oz ? 'oz' : 'ml'} />
-          <NumberField label="To (a full feed)" value={max} onChange={setMax} unit={oz ? 'oz' : 'ml'} />
+          <NumberField label="To" value={max} onChange={setMax} unit={oz ? 'oz' : 'ml'} />
           <IonButton expand="block" fill="outline" className="ion-margin-horizontal" disabled={!editable || !min || !max || max < min}
             onClick={() => void save({ target: { min_ml: Math.round(fromUnit(min!)), max_ml: Math.round(fromUnit(max!)) } })}>Save target</IonButton>
         </>
@@ -75,7 +75,7 @@ export default function FeedingPlanSettings() {
         <IonNote className="hint">
           {today ? <>Now: {range(today)} per feed{day != null && plan.target === 'age' ? ` (day ${day})` : ''}. </> : 'Set the birth date to use the by-age target. '}
           A feed is the bottles and nursing less than 20 minutes apart; its estimated amount is the bottles plus nursing minutes × the rate above.
-          A full feed (the top of the target) moves the next feed a whole interval later; a smaller one moves it proportionally.
+          A feed at the middle of the target sets the next one a whole interval later; less brings it closer in proportion, more pushes it later, up to what the top of the target allows.
           {!editable && ' To change these, run supabase/migrations/0011_feeding_plan.sql (see docs/SUPABASE_TODO.md).'}
         </IonNote>
       </IonItem>
