@@ -10,10 +10,11 @@ import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
 import { dailyTargetAt, medianFeedByDay, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
 import { useData } from '../lib/data';
-import { formatDuration, formatLength, formatWeight, startOfDay } from '../lib/format';
+import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import BottleReport from '../components/BottleReport';
 import DailyReport from '../components/DailyReport';
+import ReportSection from '../components/ReportSection';
 import { bottleByContents, dailyCharts, fillDays, isoDay, trimLeading, type DailyRow } from '../lib/reports';
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
@@ -78,6 +79,8 @@ export default function Reports() {
 
 
   const volUnit = oz ? 'oz' : 'ml';
+  const lastW = [...growth].reverse().find((g) => g.weight_g != null);
+  const latestWeight = lastW ? `${formatWeight(Number(lastW.weight_g), settings)} · ${new Date(lastW.started_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : undefined;
 
   // Typical (median) feed vs. the target (design doc §8a Q), and pump sessions paired with a feed.
   const plan = useMemo(() => readPlan(settings.feeding_plan), [settings.feeding_plan]);
@@ -145,45 +148,64 @@ export default function Reports() {
             )}
             {tab === 'daily' ? <DailyReport avg={view.avg} avgDays={view.avgDays} /> : tab === 'bottles' ? <BottleReport days={days} /> : <>
 
-            <LineChart partialLast={view.partial} integer minutesAxis stacked title="Sleep per day" labels={view.labels} series={view.sleep} format={fmtHours} hues={['blue', 'amber']}
-              note="Shaded areas stack: the top edge is total sleep." />
-            {view.has('sleeps') && (
-              <LineChart partialLast={view.partial} integer minutesAxis title="Longest sleep stretch" labels={view.labels} series={view.longest} format={fmtHours} hues={['blue']}
-                note="The longest single sleep that started that day." />
-            )}
-            <LineChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} hues={['coral']}
-              note="Entries less than 20 minutes apart count as one feed." />
-            {view.has('longest_feed_interval_min') && (
-              <LineChart partialLast={view.partial} integer minutesAxis title="Time between feeds" labels={view.labels} series={view.feedGap} format={fmtHours} hues={['teal', 'coral']}
-                note={`Start of one feed to the start of the next, by the day the feed started.${view.avg.feedIntervalMin ? ` Typical: every ${formatDuration(view.avg.feedIntervalMin * 60_000)}.` : ''}`} />
-            )}
-            {view.has('bottle_ml') && <LineChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle.series} format={fmtVolAxis} hues={['teal', 'blue', 'coral']}
-                note={`Amount drunk.${view.bottle.hasMixed ? ' Mixed bottles count in the total only.' : ''}`} />}
-            {feedView?.has && (
-              <LineChart partialLast={view.partial} title={`Typical feed (${volUnit}, estimated)`} labels={view.labels} series={feedView.series}
-                format={fmtVolAxis} hues={['teal']} band={feedView.band}
-                note={`The middle-sized feed of each day (median), so an odd snack doesn't pull it down. A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
-            )}
-            {feedView?.intake.has && (
-              <LineChart partialLast={view.partial} stacked title={`Total intake per day (${volUnit}, estimated)`} labels={view.labels}
-                series={feedView.intake.series} hues={feedView.intake.hues} format={fmtVolAxis} band={feedView.intake.band}
-                note={`Shaded areas stack: the top edge is everything he took. Nursing counts as ${plan.nursing_ml_per_min} ml per minute.`} />
-            )}
-            {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
-              <LineChart partialLast={view.partial} integer stacked title="Nursing minutes per day" labels={view.labels} series={view.nursing} format={fmtMin} hues={['blue', 'coral']}
-                note="Shaded areas stack: the top edge is total nursing time." />}
-            <BarChart partialLast={view.partial} integer title="Diapers per day" labels={view.labels} series={view.diapers} format={fmtCount} hues={['blue', 'amber']}
-              guides={view.diaperGuides}
-              note={view.diaperGuides.length ? 'Guide lines: a common first-two-weeks reference, counting the birth date as day 0 (wet ≈ days old up to 6+, dirty ≈ days old up to 3+). Ask your pediatrician what to expect for your baby.' : undefined} />
+            {/* Grouped and collapsible (design doc §8a U); summaries use the daily averages above. */}
+            <ReportSection id="feeding" title="Feeding" icon="bottle" defaultOpen
+              summary={`${fmtCount(view.avg.feeds)} feeds · ${formatVolume(view.avg.bottleMl, settings)} bottle a day`}>
+                {feedView?.intake.has && (
+                <LineChart partialLast={view.partial} stacked title={`Total intake per day (${volUnit}, estimated)`} labels={view.labels}
+                  series={feedView.intake.series} hues={feedView.intake.hues} format={fmtVolAxis} band={feedView.intake.band}
+                  note={`Shaded areas stack: the top edge is everything he took. Nursing counts as ${plan.nursing_ml_per_min} ml per minute.`} />
+              )}
+                {feedView?.has && (
+                <LineChart partialLast={view.partial} title={`Typical feed (${volUnit}, estimated)`} labels={view.labels} series={feedView.series}
+                  format={fmtVolAxis} hues={['teal']} band={feedView.band}
+                  note={`The middle-sized feed of each day (median), so an odd snack doesn't pull it down. A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
+              )}
+                <LineChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} hues={['coral']}
+                note="Entries less than 20 minutes apart count as one feed." />
+                {view.has('longest_feed_interval_min') && (
+                <LineChart partialLast={view.partial} integer minutesAxis title="Time between feeds" labels={view.labels} series={view.feedGap} format={fmtHours} hues={['teal', 'coral']}
+                  note={`Start of one feed to the start of the next, by the day the feed started.${view.avg.feedIntervalMin ? ` Typical: every ${formatDuration(view.avg.feedIntervalMin * 60_000)}.` : ''}`} />
+              )}
+                {view.has('bottle_ml') && <LineChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle.series} format={fmtVolAxis} hues={['teal', 'blue', 'coral']}
+                  note={`Amount drunk.${view.bottle.hasMixed ? ' Mixed bottles count in the total only.' : ''}`} />}
+                {(view.has('nursing_left_min') || view.has('nursing_right_min')) &&
+                <LineChart partialLast={view.partial} integer stacked title="Nursing minutes per day" labels={view.labels} series={view.nursing} format={fmtMin} hues={['blue', 'coral']}
+                  note="Shaded areas stack: the top edge is total nursing time." />}
+            </ReportSection>
+            <ReportSection id="sleep" title="Sleep" icon="sleep" summary={`${formatDuration(view.avg.sleepMin * 60_000)} a day`}>
+                <LineChart partialLast={view.partial} integer minutesAxis stacked title="Sleep per day" labels={view.labels} series={view.sleep} format={fmtHours} hues={['blue', 'amber']}
+                note="Shaded areas stack: the top edge is total sleep." />
+                {view.has('sleeps') && (
+                <LineChart partialLast={view.partial} integer minutesAxis title="Longest sleep stretch" labels={view.labels} series={view.longest} format={fmtHours} hues={['blue']}
+                  note="The longest single sleep that started that day." />
+              )}
+            </ReportSection>
+            <ReportSection id="diapers" title="Diapers" icon="diaper" summary={`${fmtCount(view.avg.wet)} wet · ${fmtCount(view.avg.dirty)} dirty a day`}>
+                <BarChart partialLast={view.partial} integer title="Diapers per day" labels={view.labels} series={view.diapers} format={fmtCount} hues={['blue', 'amber']}
+                guides={view.diaperGuides}
+                note={view.diaperGuides.length ? 'Guide lines: a common first-two-weeks reference, counting the birth date as day 0 (wet ≈ days old up to 6+, dirty ≈ days old up to 3+). Ask your pediatrician what to expect for your baby.' : undefined} />
+            </ReportSection>
             {view.has('pump_ml') && (
-              <LineChart partialLast={view.partial} title={`Milk pumped per day (${volUnit})`} labels={view.labels}
-                series={view.pumpSides} hues={['teal', 'blue', 'coral']} format={fmtVolAxis}
-                note={`Total and each breast, from the amount entered for each side of every pumping session.${feedView && feedView.pumps.total
-                  ? ` Lined up with a feed (within 30 min): ${feedView.pumps.aligned} of ${feedView.pumps.total} sessions in this period.` : ''}`} />
+              <ReportSection id="pumping" title="Pumping" icon="pump" summary={`${formatVolume(view.avg.pumpMl, settings)} a day`}>
+                    {view.has('pump_ml') && (
+                  <LineChart partialLast={view.partial} title={`Milk pumped per day (${volUnit})`} labels={view.labels}
+                    series={view.pumpSides} hues={['teal', 'blue', 'coral']} format={fmtVolAxis}
+                    note={`Total and each breast, from the amount entered for each side of every pumping session.${feedView && feedView.pumps.total
+                      ? ` Lined up with a feed (within 30 min): ${feedView.pumps.aligned} of ${feedView.pumps.total} sessions in this period.` : ''}`} />
+                )}
+              </ReportSection>
             )}
-            {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} hues={['teal']} />}
-
-            <GrowthSection rows={growth} />
+            {view.has('tummy_min') && (
+              <ReportSection id="tummy" title="Tummy time" icon="tummy_time" summary={`${fmtMin(view.avg.tummyMin)} a day`}>
+                    {view.has('tummy_min') && <BarChart partialLast={view.partial} integer title="Tummy time per day" labels={view.labels} series={view.tummy} format={fmtMin} hues={['teal']} />}
+              </ReportSection>
+            )}
+            {growth.length > 0 && (
+              <ReportSection id="growth" title="Growth" icon="growth" summary={latestWeight}>
+                <GrowthSection rows={growth} heading={false} />
+              </ReportSection>
+            )}
             </>}
 
             {!viewer && (
@@ -211,7 +233,7 @@ export default function Reports() {
   );
 }
 
-function GrowthSection({ rows }: { rows: GrowthRow[] }) {
+function GrowthSection({ rows, heading = true }: { rows: GrowthRow[]; heading?: boolean }) {
   const { baby, settings } = useHousehold();
   const toLb = useCallback((kg: number) => (settings.weight_unit === 'lb_oz' ? kg * 2.20462262 : kg), [settings.weight_unit]);
   const toLen = useCallback((cm: number) => (settings.length_unit === 'in' ? cmToIn(cm) : cm), [settings.length_unit]);
@@ -243,7 +265,7 @@ function GrowthSection({ rows }: { rows: GrowthRow[] }) {
   if (!baby?.birth_date || !baby.sex || !series) {
     return (
       <>
-        <h2 className="section-title">Growth</h2>
+        {heading && <h2 className="section-title">Growth</h2>}
         {weightCard}
         <p className="hint">Set the baby's birth date and sex in Settings to also compare against WHO percentiles.</p>
       </>
@@ -261,7 +283,7 @@ function GrowthSection({ rows }: { rows: GrowthRow[] }) {
 
   return (
     <>
-      <h2 className="section-title">Growth</h2>
+      {heading && <h2 className="section-title">Growth</h2>}
       <p className="hint">
         Latest ({new Date(last.started_at).toLocaleDateString()}):{' '}
         {[

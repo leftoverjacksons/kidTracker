@@ -848,6 +848,17 @@ Goals from the handout, for reference:
 - Bottle (no amount yet) and diaper (wet) open the edit sheet straight away to fill in, with the same Undo toast.
 - Pressing on an existing block still selects it; scrolling, a second finger (pinch) or lifting early cancels the long-press.
 
+### U. Reports → Overview in collapsible groups — built 2026-10-25 (app-only)
+
+- The Overview charts are grouped into sections with a header that shows a one-line summary from the daily averages, and opens or closes on tap:
+  - **Feeding** ("8.2 feeds · 610 ml bottle a day"): Total intake, Typical feed, Feeds per day, Time between feeds, Bottle per day, Nursing minutes.
+  - **Sleep** ("14h a day"): Sleep per day, Longest sleep stretch.
+  - **Diapers** ("6 wet · 5 dirty a day").
+  - **Pumping** ("430 ml a day"), only when there's pumping in the range.
+  - **Tummy time** ("15m a day"), only when there's tummy time in the range.
+  - **Growth** (latest weight and date): weight vs. birth weight, WHO charts.
+- Feeding starts open, the others closed; each phone remembers its choices (`kt.reportsOpen`). Charts are only drawn while their section is open.
+
 ### S. Explored, deferred or rejected (reference, 2026-10-21 to 10-25)
 
 Things discussed with the owner that were not built, or built differently, with the reasoning, so they needn't be re-derived.

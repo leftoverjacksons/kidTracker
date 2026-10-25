@@ -400,3 +400,16 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
   content: ''; position: absolute; left: 9px; top: 50%; width: 16px; height: 2px; z-index: 2; pointer-events: none;
   background: var(--acc-bottle);
 }
+
+/* ── Reports → Overview: collapsible groups (design doc §8a U) ── */
+.report-section { margin-top: 12px; }
+.report-section-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border-radius: 14px;
+  background: var(--tile-bg); color: var(--tile-fg); font: inherit; text-align: left;
+  border: 1px solid color-mix(in srgb, var(--tile-fg) 12%, transparent);
+}
+.report-section-head .type-icon { width: 28px; height: 28px; flex: none; }
+.report-section-title { font-size: 17px; font-weight: 700; }
+.report-section-summary { font-size: 13px; opacity: 0.7; margin-left: 4px; flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.report-section-chevron { margin-left: auto; opacity: 0.7; }
+.report-section-body > .chart-card:first-child { margin-top: 10px; }

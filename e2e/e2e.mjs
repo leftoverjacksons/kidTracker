@@ -94,6 +94,11 @@ async function expectText(page, text, where = 'body') {
   const ok = await page.locator(where).getByText(text, { exact: false }).first().waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false);
   if (!ok) problems.push(`expected to see "${text}" at step ${step}`);
 }
+// Reports → Overview groups its charts in collapsible sections; open them all (remembered per phone).
+async function openReportSections(page) {
+  const closed = page.locator('.report-section-head[aria-expanded="false"]');
+  for (let n = 0; n < 10 && (await closed.count()); n++) { await closed.first().click(); await wait(page, 200); }
+}
 const refresh = async (page) => { await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); await wait(page, 900); };
 
 // ── Phone A: wrong password, then sign in and onboard
@@ -509,6 +514,8 @@ await expectText(A, 'Not set up in Supabase yet');
 // ── Reports
 await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 2000);
 const reports = A.locator('.ion-page:not(.ion-page-hidden)').last();
+await shot(A, 'reports-sections');
+await openReportSections(A);
 await expectText(A, 'Sleep per day');
 if (await reports.getByText('Sleep map').count()) problems.push('sleep map should have moved to History → Timeline');
 const canvases = await reports.locator('canvas').count();
@@ -558,6 +565,7 @@ if (printCharts < 3) problems.push(`pediatrician summary: expected its charts on
 await A.screenshot({ path: `${OUT}/${String(++step).padStart(2, '0')}-print.png`, fullPage: true });
 await A.pdf({ path: `${OUT}/pediatrician-summary.pdf`, format: 'Letter', printBackground: true }).catch((e) => problems.push(`summary PDF: ${e.message}`));
 await A.getByRole('button', { name: /back/i }).click(); await wait(A, 1000);
+await openReportSections(A);
 await expectText(A, 'Sleep per day');
 
 // Milk pumped per breast: add five earlier days of pumping, then look at the line chart
@@ -655,6 +663,7 @@ await C.locator('ion-item', { hasText: 'Diaper' }).first().click(); await wait(C
 if (await C.locator('ion-modal.show-modal').count()) problems.push('guest could open the edit sheet');
 await shot(C, 'guest-home');
 await C.locator('ion-tab-button[tab="reports"]').click(); await wait(C, 1500);
+await openReportSections(C);
 await expectText(C, 'Sleep per day');
 if (await C.getByText('Daily summary (CSV)').count()) problems.push('guest sees exports');
 await C.locator('ion-tab-button[tab="settings"]').click(); await wait(C, 800);
