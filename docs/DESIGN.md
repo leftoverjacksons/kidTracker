@@ -841,6 +841,13 @@ Goals from the handout, for reference:
 - **Milk pumped, last 24 hours:** running total by the hour, left, right and both.
 - Logic in `src/lib/daily.ts` (unit-tested): sleep counts only the part inside the window (a running sleep up to now); feeds use the same 20-minute grouping as elsewhere, counting feeds that start inside the window.
 
+### T. Add from the timeline by long-press — built 2026-10-25 (app-only)
+
+- History → Timeline: long-press (about half a second, without moving) on empty space in a day column opens "Add at 2:10 AM" with Sleep, Nurse, Pump, Tummy time, Bottle and Diaper. The time is where you pressed, rounded to 5 minutes. Not in the future, and not for guests.
+- Timed entries go in with a typical length (sleep 1 h, nursing 15 min split L/R, pump 20 min both sides, tummy time 10 min), ending at "now" if that would run into the future. They come in selected, so the handles, ±5 and Edit are right there to correct them, and the toast has Undo.
+- Bottle (no amount yet) and diaper (wet) open the edit sheet straight away to fill in, with the same Undo toast.
+- Pressing on an existing block still selects it; scrolling, a second finger (pinch) or lifting early cancels the long-press.
+
 ### S. Explored, deferred or rejected (reference, 2026-10-21 to 10-25)
 
 Things discussed with the owner that were not built, or built differently, with the reasoning, so they needn't be re-derived.

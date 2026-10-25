@@ -1,4 +1,4 @@
-import { IonButton, IonIcon, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonToast } from '@ionic/react';
+import { IonButton, IonIcon, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, useIonActionSheet, useIonToast } from '@ionic/react';
 import { add, chevronBack, chevronForward, close, remove } from 'ionicons/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useData, useNow } from '../../lib/data';
@@ -7,7 +7,7 @@ import { formatDuration, formatTime, formatVolume } from '../../lib/format';
 import { useHousehold } from '../../lib/household';
 import { sideTotals } from '../../lib/nursing';
 import { columnBlocks, dayColumns, hourTicks, snap, type Block } from '../../lib/timeline';
-import type { EventRow } from '../../lib/types';
+import type { EventRow, EventType } from '../../lib/types';
 import { useChartTheme } from '../charts/theme';
 import TypeIcon from '../TypeIcon';
 
@@ -35,6 +35,13 @@ function savePrefs(p: Prefs) {
 }
 
 const CUTOFFS = [0, 17, 18, 19, 20, 21, 6];
+
+/** Long-press on empty space → add an entry there (design doc §8a T). Timed ones get a typical length to adjust. */
+const LONG_PRESS_MS = 550;
+const ADD_CHOICES: { type: EventType; minutes: number }[] = [
+  { type: 'sleep', minutes: 60 }, { type: 'nursing', minutes: 15 }, { type: 'pump', minutes: 20 },
+  { type: 'tummy_time', minutes: 10 }, { type: 'bottle', minutes: 0 }, { type: 'diaper', minutes: 0 },
+];
 const cutoffLabel = (h: number) => (h === 0 ? 'Midnight' : h === 12 ? 'Noon' : h < 12 ? `${h} am` : `${h - 12} pm`);
 
 interface Drag {
@@ -55,6 +62,7 @@ export default function WeekTimeline({ onEdit, readOnly = false }: { onEdit: (e:
   const { settings } = useHousehold();
   const theme = useChartTheme();
   const [toast] = useIonToast();
+  const [actionSheet] = useIonActionSheet();
   const now = useNow(30_000);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [page, setPage] = useState(0);
@@ -186,6 +194,73 @@ export default function WeekTimeline({ onEdit, readOnly = false }: { onEdit: (e:
     void commit(e, s2, e2);
   }
 
+  // ── Long-press on empty space: add an entry at that time ──
+  const pressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
+  const cancelPress = () => { if (pressRef.current) { clearTimeout(pressRef.current.timer); pressRef.current = null; } };
+  function startPress(ev: React.PointerEvent<HTMLDivElement>, col: { start: Date; end: Date }) {
+    if (readOnly || drag || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+    const rect = ev.currentTarget.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (ev.clientY - rect.top) / rect.height));
+    const at = snap(new Date(col.start.getTime() + frac * (col.end.getTime() - col.start.getTime())));
+    cancelPress();
+    pressRef.current = { x: ev.clientX, y: ev.clientY, timer: window.setTimeout(() => { pressRef.current = null; void offerAdd(at); }, LONG_PRESS_MS) };
+  }
+  // A scroll, a second finger or lifting early is not a long press.
+  useEffect(() => {
+    const onMove = (ev: PointerEvent) => {
+      const p = pressRef.current;
+      if (p && Math.hypot(ev.clientX - p.x, ev.clientY - p.y) > 8) cancelPress();
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', cancelPress);
+    window.addEventListener('pointercancel', cancelPress);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', cancelPress);
+      window.removeEventListener('pointercancel', cancelPress);
+    };
+  }, []);
+
+  async function offerAdd(at: Date) {
+    if (at.getTime() > Date.now()) { void toast({ message: "That's in the future", duration: 1500 }); return; }
+    if (navigator.vibrate) navigator.vibrate(20);
+    void actionSheet({
+      header: `Add at ${formatTime(at)}`,
+      buttons: [
+        ...ADD_CHOICES.map((c) => ({ text: META[c.type].label, handler: () => { void addAt(c.type, c.minutes, at); } })),
+        { text: 'Cancel', role: 'cancel' },
+      ],
+    });
+  }
+
+  async function addAt(type: EventType, minutes: number, at: Date) {
+    // Timed entries get a typical length; if that would run past now, they end now instead.
+    const end = new Date(Math.min(at.getTime() + minutes * MIN, Date.now()));
+    const start = minutes ? new Date(Math.min(at.getTime(), end.getTime() - minutes * MIN)) : at;
+    let e: EventRow | null = null;
+    if (type === 'nursing') {
+      const mid = new Date(start.getTime() + Math.round(minutes / 2) * MIN);
+      if (await data.addManualNursing(start, [{ side: 'left', started_at: start, ended_at: mid }, { side: 'right', started_at: mid, ended_at: end }], null)) {
+        e = eventsRef.current.find((x) => x.type === 'nursing' && Date.parse(x.started_at) === start.getTime()) ?? null;
+      }
+    } else {
+      e = await data.add(type, {
+        started_at: start.toISOString(), ended_at: minutes || type === 'bottle' ? end.toISOString() : null,
+        ...(type === 'pump' ? { pump_side: 'both' as const } : {}), ...(type === 'diaper' ? { diaper_wet: true } : {}),
+      });
+    }
+    if (!e) return;
+    // Bottles and diapers need an amount or a type: open them for editing right away.
+    const id = e.id;
+    const instant = type === 'bottle' || type === 'diaper';
+    void toast({
+      message: instant ? `${META[type].label} added at ${formatTime(start)}. Fill in the details.`
+        : `${META[type].label} added ${formatTime(start)}–${formatTime(end)}. Drag its ends to adjust, or tap Edit.`,
+      duration: 5000, buttons: [{ text: 'Undo', handler: () => { void data.remove(id); } }],
+    });
+    if (instant) onEdit(e); else setSelected(id);
+  }
+
   const first = cols[0].start, last = cols[cols.length - 1].start;
   const md = (d: Date) => d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   const rangeLabel = cols.length === 1
@@ -232,6 +307,7 @@ export default function WeekTimeline({ onEdit, readOnly = false }: { onEdit: (e:
     const onStart = (e: TouchEvent) => {
       if (e.touches.length === 1) selectedBefore = selectedRef.current;
       if (e.touches.length === 2) {
+        cancelPress();
         // A pinch is not a tap or a drag: undo whatever the first finger started.
         dragRef.current = null;
         setDrag(null);
@@ -321,7 +397,8 @@ export default function WeekTimeline({ onEdit, readOnly = false }: { onEdit: (e:
           const blocks = columnBlocks(events, c, now, 3 / colH);
           const nowIn = now >= c.start && now < c.end;
           return (
-            <div key={c.start.getTime()} className="tl-col" style={{ borderColor: theme.grid }}>
+            <div key={c.start.getTime()} className="tl-col" style={{ borderColor: theme.grid }}
+              onPointerDown={(ev) => startPress(ev, c)} onContextMenu={(ev) => ev.preventDefault()}>
               {gridTicks.map((t) => <div key={t.frac} className="tl-grid" style={{ top: t.frac * colH, background: theme.grid }} />)}
               {blocks.filter((b) => prefs.diapers || b.kind !== 'diaper').map((b) => (
                 <BlockView key={b.event.id + c.start.getTime()} b={b} colH={colH} color={color} theme={theme} wide={wide}

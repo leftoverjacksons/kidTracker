@@ -394,10 +394,30 @@ await A.locator('ion-toast').last().evaluate((t) => t.shadowRoot.querySelector('
 const undone = await tl.locator('.tl-card-detail').textContent();
 if (!/\(15m\)/.test(undone ?? '')) problems.push(`timeline undo did not restore: ${undone}`);
 await shot(A, 'history-timeline');
+// Long-press on empty space → add a sleep there; it comes in selected with a typical length (1 h)
+{
+  const col = await tl.locator('.tl-col').first().boundingBox();
+  const sleepsBefore = Number(psql(`select count(*) from events where type = 'sleep' and deleted_at is null`));
+  await A.mouse.move(col.x + col.width / 2, col.y + col.height * 0.3);
+  await A.mouse.down(); await wait(A, 800); await A.mouse.up(); await wait(A, 500);
+  const sheetBtn = A.locator('ion-action-sheet button', { hasText: 'Sleep' });
+  if (!(await sheetBtn.count())) problems.push('long-press on the timeline showed no add menu');
+  else {
+    await shot(A, 'timeline-add-menu');
+    await sheetBtn.click(); await wait(A, 1500);
+    const added = psql(`select count(*), max(extract(epoch from ended_at - started_at) / 60)::int from events where type = 'sleep' and deleted_at is null and created_at > now() - interval '15 seconds'`);
+    const sleepsAfter = Number(psql(`select count(*) from events where type = 'sleep' and deleted_at is null`));
+    if (sleepsAfter !== sleepsBefore + 1 || !/\|60$/.test(added)) problems.push(`long-press add: expected one 60-min sleep, got ${sleepsAfter - sleepsBefore} (${added})`);
+    if (!(await tl.locator('.tl-block.dragging, .tl-handle').count())) problems.push('the added sleep is not selected for adjusting');
+    await shot(A, 'timeline-added');
+    await A.locator('ion-toast').last().evaluate((t) => t.shadowRoot.querySelector('button').click()); await wait(A, 1200); // Undo
+    if (Number(psql(`select count(*) from events where type = 'sleep' and deleted_at is null`)) !== sleepsBefore) problems.push('Undo did not remove the added sleep');
+  }
+}
 // Zoom stretches only the time axis
 const tlBody = tl.locator('.tl-body');
 const hBefore = (await tlBody.boundingBox()).height, colsBefore = await tl.locator('.tl-col').count();
-await tl.locator('.tl-card-head ion-button').click(); await wait(A, 300);
+if (await tl.locator('.tl-card-head ion-button').count()) { await tl.locator('.tl-card-head ion-button').click(); await wait(A, 300); }
 await tl.locator('.tl-zoom ion-button').nth(1).click(); await wait(A, 500);
 const hAfter = (await tlBody.boundingBox()).height;
 if (!(hAfter > hBefore * 1.4) || (await tl.locator('.tl-col').count()) !== colsBefore) problems.push(`zoom: height ${hBefore}→${hAfter}, cols ${colsBefore}→${await tl.locator('.tl-col').count()}`);
