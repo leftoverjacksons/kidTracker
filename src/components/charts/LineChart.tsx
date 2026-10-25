@@ -78,6 +78,25 @@ export default function LineChart({ title, labels, series, hues, format, partial
         flush();
         ctx.restore();
       },
+      // Dashed edges drawn over the data, so the target stays visible above stacked areas.
+      afterDatasetsDraw(chart) {
+        if (!band) return;
+        const { ctx, scales } = chart;
+        ctx.save();
+        ctx.strokeStyle = theme.dark ? 'rgba(233,238,251,0.75)' : 'rgba(19,33,63,0.7)';
+        ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+        for (const edge of [band.from, band.to]) {
+          ctx.beginPath();
+          let on = false;
+          edge.forEach((v, k) => {
+            if (v == null) { on = false; return; }
+            const x = scales.x.getPixelForValue(k), y = scales.y.getPixelForValue(v);
+            if (on) ctx.lineTo(x, y); else { ctx.moveTo(x, y); on = true; }
+          });
+          ctx.stroke();
+        }
+        ctx.restore();
+      },
     };
     const crosshair: Plugin<'line'> = {
       id: 'crosshair',
