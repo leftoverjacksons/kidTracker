@@ -844,6 +844,43 @@ Goals from the handout, for reference:
 - **Milk pumped, last 24 hours:** running total by the hour, left, right and both.
 - Logic in `src/lib/daily.ts` (unit-tested): sleep counts only the part inside the window (a running sleep up to now); feeds use the same 20-minute grouping as elsewhere, counting feeds that start inside the window.
 
+### S. Explored, deferred or rejected (reference, 2026-10-21 to 10-25)
+
+Things discussed with the owner that were not built, or built differently, with the reasoning, so they needn't be re-derived.
+
+**Flow-rate target by age (tabled, then made unnecessary).**
+- Gemini suggested flow targets rising with age (0.10–0.15 oz/min newborn up to 0.40–0.50 oz/min at 6+ months). Checked and not used: it contradicted itself ("steady 0.15–0.25" vs a rising table), its rows didn't match its own volume ÷ time arithmetic, and it presented derived numbers as a clinical benchmark. No such benchmark exists; guidance sets feed length (paced, ~10–20 min) and volume by age.
+- Options considered: target flow = volume for age ÷ 10–20 min, with volume either from AAP's formula ranges by age (1–2 oz first week; 3–4 oz by 1 month; 6–8 oz at 6 months) or from weight (AAP ~2.5 oz per lb per day ÷ feeds). Noted: breastfed intake plateaus (~800 ml/day, about 106–126 ml per feed at 1–3 months, Kent et al. 2006), so formula scales overstate breast-milk bottles later.
+- Resolved by the consultant's pacing rule, "no faster than 5 minutes per ounce" (≤ ~6 ml/min), which doesn't change with age and matches the top of the family's 3–6 ml/min band. The band stays fixed.
+
+**Feed reminders as phone notifications.** Deferred by the owner (2026-10-23): the target and next feed show on the Bottle tile only. Pump notifications do use the lined-up times (§Q).
+
+**Next-feed timing variants.**
+- v1: the top of the target bought the full interval; nothing could extend it. Replaced so the middle buys the interval and more extends it a little (capped at the top).
+- "A partial feed earns only its own share, counted from when it happened" (dropping the time left). Rejected; see the decision in §Q.
+- A minimum size before a feed counts toward the clock (e.g. ignore < 15 ml). Offered, not wanted.
+- Pump alignment v1 moved only the pump to the feed; replaced by both meeting halfway.
+
+**Partial feeds in the statistics.**
+- Splitting "Feeds per day" into full and partial series: offered, not wanted.
+- Weighting each feed by the time it covered: rejected. The gaps in a day always sum to 24 h, so "feeds per day" would always equal 24 h ÷ interval and say nothing. Weighting by amount only repeats the total-intake chart.
+- Scaling a snack by how early it came (amount × normal gap ÷ actual gap): rejected. In the owner's example it still read as low (~68 vs 75 ml), mixing "ate early" with "ate little".
+- Chosen: early snacks left out of Average feed only (§Q). While designing it, the "then waited" test was first stated against the original forecast; corrected to the forecast that includes the snack, since the snack itself moves the schedule.
+
+**Proposed, not built: "short cycles".** The opposite of a snack: an early, below-target feed after which he was hungry early again. Possible meanings to tell apart with data the app already has: cluster feeding or a growth spurt (common ~2–3 and ~6 weeks, often evenings; daily total rises), tiring before full (e.g. slow nipple; total flat or low, long feeds, low flow), discomfort (fast flow, abrupt stops), comfort sucking (no rise in total). Idea: count them per day, show on the Daily tab with the time of day, and with daily intake against target. The owner was asked whether to build it or watch first.
+
+**Offline saving (discussed 2026-10-21, not built; Phase 3 in §8 is still pending).**
+- Collisions are small if offline is limited to adding entries: new one-off entries can't conflict (each row has its own UUID); timer stop, pause and resume carry their own tap times. Timer start can collide with the one-running-timer rule (needs "partner already started this" handling). Edits and deletes are the real conflict risk (last write wins).
+- Safety point: Mom's medicine 6-hour lockout can't see a partner's offline dose, so offline needs a warning on that button.
+- Recommendation given: queue new entries plus timer stop/pause/resume, allow timer start with the conflict rule, keep edits and deletes online-only, show "N waiting to send". Cheaper alternative: keep failed saves on screen as "Not saved, tap to retry". The owner pivoted to other work before deciding.
+
+**Smaller items.**
+- Bottle nipple size as its own field (any brand), instead of brand entries like "Lansinoh SS / S". Not needed yet. The care plan also mentions Lansinoh XS and Pigeon SS; the owner was asked whether to add them.
+- Nursing minutes per day split at midnight by when each side started, while the feeds CSV puts a whole entry on its start day. A feed across midnight therefore differs between the two (seen on 10/18 and 10/19). Kept as is, consistent with sleep.
+- Hiding today's point on daily charts until something's logged (the dashed line drops to zero just after midnight). Offered, not built.
+- "Forgot password?" on the login screen (needs a Supabase redirect setting). Offered; for now a password is reset with the SQL in SETUP.md.
+- Statistics before the snack rule: every feed counted as 1 in feeds per day and time between feeds, and partials lowered Average feed. That's still true except for Average feed.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).
