@@ -2,7 +2,7 @@ import { IonItem, IonLabel, IonList, IonListHeader, IonNote } from '@ionic/react
 import { useMemo, type ReactNode } from 'react';
 import { useData, useNow } from '../lib/data';
 import { META, summarize } from '../lib/describe';
-import { feeds, nursingMinutes, readPlan, targetAt } from '../lib/feeding';
+import { earlySnacks, feeds, nursingMinutes, readPlan, targetAt } from '../lib/feeding';
 import { formatDayHeading, formatTime, formatVolume, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import type { EventRow } from '../lib/types';
@@ -24,12 +24,14 @@ export default function EventList({ events, onOpen, groupByDay = true }: {
 
   // Feeds are worked out from all loaded entries, so a filtered list still brackets correctly.
   const feedOf = useMemo(() => {
-    const m = new Map<string, { key: string; estMl: number; nursed: boolean; under: boolean }>();
-    for (const f of feeds(data.events, plan)) {
+    const m = new Map<string, { key: string; estMl: number; nursed: boolean; under: boolean; snack: boolean }>();
+    const all = feeds(data.events, plan);
+    const snacks = earlySnacks(all, plan, baby?.birth_date ?? null);
+    for (const f of all) {
       if (!f.ids.length) continue;
       // Below the target range for his age at the time: drawn dashed.
       const t = targetAt(plan, baby?.birth_date ?? null, f.start);
-      const info = { key: f.ids[0], estMl: f.estMl, nursed: f.nursingMin > 0 && plan.nursing_ml_per_min > 0, under: !!t && f.estMl < t.min };
+      const info = { key: f.ids[0], estMl: f.estMl, nursed: f.nursingMin > 0 && plan.nursing_ml_per_min > 0, under: !!t && f.estMl < t.min, snack: snacks.has(f) };
       for (const id of f.ids) m.set(id, info);
     }
     return m;
@@ -72,9 +74,9 @@ export default function EventList({ events, onOpen, groupByDay = true }: {
       const span = list.slice(i, last + 1);
       out.push(
         <div key={`feed-${f.key}`} className={`feed-bracket${f.under ? ' under' : ''}`} role="group"
-          aria-label={`Feed, about ${formatVolume(f.estMl, settings)}${f.under ? ', below the target' : ''}`}>
+          aria-label={`${f.snack ? 'Early snack' : 'Feed'}, about ${formatVolume(f.estMl, settings)}${f.under && !f.snack ? ', below the target' : ''}`}>
           <span className="feed-bracket-line" aria-hidden="true" />
-          <span className="feed-bracket-label">{f.nursed ? '~' : ''}{formatVolume(f.estMl, settings)}</span>
+          <span className="feed-bracket-label">{f.nursed ? '~' : ''}{formatVolume(f.estMl, settings)}{f.snack && <><br />snack</>}</span>
           {span.map((e) => row(e, feedOf.get(e.id)?.key === f.key))}
         </div>,
       );

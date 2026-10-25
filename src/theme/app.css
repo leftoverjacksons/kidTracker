@@ -385,9 +385,9 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
   border: 2px solid var(--acc-bottle); border-right: 0; border-radius: 6px 0 0 6px;
 }
 .feed-bracket-label {
-  position: absolute; left: 13px; top: 50%; z-index: 3; pointer-events: none;
+  position: absolute; left: 13px; top: 50%; z-index: 3; pointer-events: none; text-align: center;
   transform: translate(-50%, -50%) rotate(-90deg); white-space: nowrap;
-  font-size: 11px; font-weight: 700; line-height: 1; padding: 2px 5px; border-radius: 6px;
+  font-size: 11px; font-weight: 700; line-height: 1.1; padding: 2px 5px; border-radius: 6px;
   background: var(--ion-item-background, var(--tile-bg)); color: var(--acc-bottle);
   font-variant-numeric: tabular-nums;
 }

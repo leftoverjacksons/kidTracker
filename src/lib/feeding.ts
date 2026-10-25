@@ -120,19 +120,22 @@ export function feeds(events: FeedEvent[], plan: FeedingPlan): Feed[] {
  * add up: a top-up extends whatever time the previous feeds left, within the same cap
  * measured from the top-up's start.
  */
+/** One step of the forecast: the next-feed time after feed `f`, given the time before it (null = none). */
+function advance(due: number | null, f: Feed, plan: FeedingPlan, birthDate: string | null, interval: number): number {
+  const target = targetAt(plan, birthDate, f.start);
+  const mid = target ? (target.min + target.max) / 2 : 0;
+  const share = mid > 0 ? f.estMl / mid : 1;
+  const maxShare = mid > 0 ? target!.max / mid : 1;
+  const from: number = due == null ? f.start.getTime() : Math.max(due, f.start.getTime());
+  return Math.min(from + interval * share, f.start.getTime() + interval * maxShare);
+}
+
 export function nextFeed(all: Feed[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
   const recent = all.filter((f) => f.start.getTime() > now.getTime() - 2 * 86_400_000 && f.start <= now);
   if (!recent.length) return null;
   const interval = plan.every_min * 60_000;
   let due: number | null = null;
-  for (const f of recent) {
-    const target = targetAt(plan, birthDate, f.start);
-    const mid = target ? (target.min + target.max) / 2 : 0;
-    const share = mid > 0 ? f.estMl / mid : 1;
-    const maxShare = mid > 0 ? target!.max / mid : 1;
-    const from: number = due == null ? f.start.getTime() : Math.max(due, f.start.getTime());
-    due = Math.min(from + interval * share, f.start.getTime() + interval * maxShare);
-  }
+  for (const f of recent) due = advance(due, f, plan, birthDate, interval);
   const last = recent[recent.length - 1];
   return { due: new Date(due!), last, target: targetAt(plan, birthDate, now) };
 }
@@ -242,4 +245,34 @@ export function dailyTargetAt(plan: FeedingPlan, birthDate: string | null, t: Da
     }
   }
   return { min: c[c.length - 1].min, max: c[c.length - 1].max };
+}
+
+/** A feed counts as on schedule when it comes no more than this much before the forecast. */
+export const SNACK_TOLERANCE_MIN = 30;
+
+/**
+ * Early snacks (design doc §8a Q): one-off partial feeds when he got hungry early after a
+ * proper meal. A feed is one when (0) the feed before it was in the target range, and it is
+ * (1) below the bottom of the target, (2) earlier than the forecast from the feeds before it,
+ * and (3) followed by a feed that came no more than 30 min before the forecast including the
+ * snack, i.e. he then waited. If he was hungry early again, or it ends a run of small feeds,
+ * it isn't a one-off and counts normally. Undecided (so not a snack) until the next feed is logged.
+ * Feeds more than a day apart restart the forecast, like nextFeed's two-day window.
+ */
+export function earlySnacks(all: Feed[], plan: FeedingPlan, birthDate: string | null): Set<Feed> {
+  const out = new Set<Feed>();
+  const interval = plan.every_min * 60_000;
+  const tol = SNACK_TOLERANCE_MIN * 60_000;
+  let due: number | null = null;
+  for (let i = 0; i < all.length; i++) {
+    const f = all[i], next = all[i + 1];
+    const before = due != null && f.start.getTime() - due < 86_400_000 ? due : null;
+    const after = advance(before, f, plan, birthDate, interval);
+    const t = targetAt(plan, birthDate, f.start);
+    const prev = all[i - 1], pt = prev && targetAt(plan, birthDate, prev.start);
+    const afterMeal = !!prev && !!pt && prev.estMl >= pt.min;
+    if (t && afterMeal && f.estMl < t.min && before != null && f.start.getTime() < before && next && next.start.getTime() >= after - tol) out.add(f);
+    due = after;
+  }
+  return out;
 }
