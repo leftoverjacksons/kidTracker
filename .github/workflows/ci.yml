@@ -44,7 +44,9 @@ jobs:
       - run: supabase/tests/run.sh
 
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04 (Oct 2026), which Playwright 1.56 can't install
+    # browsers on. Unpin after upgrading Playwright to a version that supports it.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
