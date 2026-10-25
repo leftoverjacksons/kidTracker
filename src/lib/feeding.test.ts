@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, averageFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -59,7 +59,11 @@ describe('next feed', () => {
   });
   it('averages estimated intake per feed by day', () => {
     const f = feeds([bottle('08:00', 60), bottle('12:00', 90)], fixed);
-    expect(averageFeedByDay(f, ['2026-10-23', '2026-10-24'], () => '2026-10-24')).toEqual([null, 75]);
+    expect(medianFeedByDay(f, ['2026-10-23', '2026-10-24'], () => '2026-10-24')).toEqual([null, 75]); // two feeds: the middle of 60 and 90
+    // One or two snacks barely move the median; a day of mostly small feeds pulls it down.
+    const day = (mls: number[]) => medianFeedByDay(feeds(mls.map((ml, k) => bottle(`${String(1 + k * 2).padStart(2, '0')}:00`, ml)), fixed), ['d'], () => 'd')[0];
+    expect(day([85, 90, 80, 85, 82, 88, 80, 45, 40])).toBe(82);
+    expect(day([50, 45, 55, 85, 40, 50, 80])).toBe(50);
   });
 });
 

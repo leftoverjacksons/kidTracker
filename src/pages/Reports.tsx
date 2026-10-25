@@ -8,7 +8,7 @@ import LineChart from '../components/charts/LineChart';
 import GrowthChart from '../components/charts/GrowthChart';
 import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
-import { averageFeedByDay, dailyTargetAt, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
+import { dailyTargetAt, medianFeedByDay, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
@@ -79,18 +79,18 @@ export default function Reports() {
 
   const volUnit = oz ? 'oz' : 'ml';
 
-  // Average feed vs. the target (design doc §8a Q), and pump sessions paired with a feed.
+  // Typical (median) feed vs. the target (design doc §8a Q), and pump sessions paired with a feed.
   const plan = useMemo(() => readPlan(settings.feeding_plan), [settings.feeding_plan]);
   const feedView = useMemo(() => {
     if (!rows) return null;
     const fd = feeds(data.events, plan);
     const days = rows.map((r) => r.day);
-    const avg = averageFeedByDay(fd, days, isoDay);
+    const avg = medianFeedByDay(fd, days, isoDay);
     const t = days.map((d) => targetAt(plan, baby?.birth_date ?? null, new Date(`${d}T12:00`)));
     const from = new Date(`${days[0]}T00:00`);
     return {
       has: avg.some((v) => v != null),
-      series: [{ label: 'Average feed', data: avg.map((v) => (v == null ? null : toVol(v))) }],
+      series: [{ label: 'Typical feed', data: avg.map((v) => (v == null ? null : toVol(v))) }],
       band: { from: t.map((x) => (x ? toVol(x.min) : null)), to: t.map((x) => (x ? toVol(x.max) : null)),
         label: plan.target === 'age' ? 'Target by age (lactation handout)' : 'Our target' },
       pumps: pumpsWithFeeds(data.events, fd, from),
@@ -160,9 +160,9 @@ export default function Reports() {
             {view.has('bottle_ml') && <LineChart partialLast={view.partial} title={`Bottle (${volUnit}) per day`} labels={view.labels} series={view.bottle.series} format={fmtVolAxis} hues={['teal', 'blue', 'coral']}
                 note={`Amount drunk.${view.bottle.hasMixed ? ' Mixed bottles count in the total only.' : ''}`} />}
             {feedView?.has && (
-              <LineChart partialLast={view.partial} title={`Average feed (${volUnit}, estimated)`} labels={view.labels} series={feedView.series}
+              <LineChart partialLast={view.partial} title={`Typical feed (${volUnit}, estimated)`} labels={view.labels} series={feedView.series}
                 format={fmtVolAxis} hues={['teal']} band={feedView.band}
-                note={`A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
+                note={`The middle-sized feed of each day (median), so an odd snack doesn't pull it down. A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
             )}
             {feedView?.intake.has && (
               <LineChart partialLast={view.partial} stacked title={`Total intake per day (${volUnit}, estimated)`} labels={view.labels}

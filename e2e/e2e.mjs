@@ -573,7 +573,7 @@ psql(`insert into events (baby_id, type, started_at, ended_at)
     from babies b, generate_series(1, 5) d, generate_series(1, 3) h`);
 psql(`update events set bottle_ml = 60 where type = 'bottle' and bottle_ml is null`);
 await refresh(A); await wait(A, 1500);
-for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Time between feeds', 'Bottle (oz) per day', 'Average feed (oz, estimated)', 'Total intake per day (oz, estimated)']) {
+for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Time between feeds', 'Bottle (oz) per day', 'Typical feed (oz, estimated)', 'Total intake per day (oz, estimated)']) {
   const card = A.locator('.chart-card', { hasText: t });
   if (!(await card.count())) { problems.push(`chart missing: ${t}`); continue; }
   await card.scrollIntoViewIfNeeded(); await wait(A, 300);

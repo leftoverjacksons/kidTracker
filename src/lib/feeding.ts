@@ -137,16 +137,20 @@ export function nextFeed(all: Feed[], plan: FeedingPlan, birthDate: string | nul
   return { due: new Date(due!), last, target: targetAt(plan, birthDate, now) };
 }
 
-/** Average estimated intake per feed for each local day in `days` (YYYY-MM-DD); null where there was no feed. */
-export function averageFeedByDay(all: Feed[], days: string[], dayOf: (d: Date) => string): (number | null)[] {
-  const sum = new Map<string, { ml: number; n: number }>();
-  for (const f of all) {
-    const k = dayOf(f.start);
-    const v = sum.get(k) ?? { ml: 0, n: 0 };
-    v.ml += f.estMl; v.n += 1;
-    sum.set(k, v);
-  }
-  return days.map((d) => { const v = sum.get(d); return v ? Math.round(v.ml / v.n) : null; });
+/**
+ * Typical (median) estimated intake per feed for each local day in `days` (YYYY-MM-DD);
+ * null where there was no feed. The median ignores an odd snack or two without labelling
+ * anything, but drops when small feeds become the majority (design doc §8a Q).
+ */
+export function medianFeedByDay(all: Feed[], days: string[], dayOf: (d: Date) => string): (number | null)[] {
+  const byDay = new Map<string, number[]>();
+  for (const f of all) byDay.set(dayOf(f.start), [...(byDay.get(dayOf(f.start)) ?? []), f.estMl]);
+  return days.map((d) => {
+    const v = byDay.get(d)?.sort((a, b) => a - b);
+    if (!v?.length) return null;
+    const m = v.length >> 1;
+    return Math.round(v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2);
+  });
 }
 
 /**
