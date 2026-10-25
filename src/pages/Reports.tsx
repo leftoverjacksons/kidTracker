@@ -8,7 +8,7 @@ import LineChart from '../components/charts/LineChart';
 import GrowthChart from '../components/charts/GrowthChart';
 import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
-import { averageFeedByDay, dailyTargetAt, earlySnacks, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
+import { averageFeedByDay, dailyTargetAt, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
@@ -85,14 +85,11 @@ export default function Reports() {
     if (!rows) return null;
     const fd = feeds(data.events, plan);
     const days = rows.map((r) => r.day);
-    // Per-meal average: one-off early snacks are left out (they still count in total intake).
-    const snacks = earlySnacks(fd, plan, baby?.birth_date ?? null);
-    const avg = averageFeedByDay(fd.filter((f) => !snacks.has(f)), days, isoDay);
-    const snacksInRange = [...snacks].filter((f) => days.includes(isoDay(f.start))).length;
+    const avg = averageFeedByDay(fd, days, isoDay);
     const t = days.map((d) => targetAt(plan, baby?.birth_date ?? null, new Date(`${d}T12:00`)));
     const from = new Date(`${days[0]}T00:00`);
     return {
-      has: avg.some((v) => v != null), snacksInRange,
+      has: avg.some((v) => v != null),
       series: [{ label: 'Average feed', data: avg.map((v) => (v == null ? null : toVol(v))) }],
       band: { from: t.map((x) => (x ? toVol(x.min) : null)), to: t.map((x) => (x ? toVol(x.max) : null)),
         label: plan.target === 'age' ? 'Target by age (lactation handout)' : 'Our target' },
@@ -165,8 +162,7 @@ export default function Reports() {
             {feedView?.has && (
               <LineChart partialLast={view.partial} title={`Average feed (${volUnit}, estimated)`} labels={view.labels} series={feedView.series}
                 format={fmtVolAxis} hues={['teal']} band={feedView.band}
-                note={`A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).${feedView.snacksInRange
-                  ? ` ${feedView.snacksInRange} early snack${feedView.snacksInRange === 1 ? '' : 's'} not included (partial, early, and he then waited for the next feed).` : ''}`} />
+                note={`A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
             )}
             {feedView?.intake.has && (
               <LineChart partialLast={view.partial} stacked title={`Total intake per day (${volUnit}, estimated)`} labels={view.labels}

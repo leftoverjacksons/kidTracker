@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, averageFeedByDay, dailyTargetAt, earlySnacks, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, averageFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -125,27 +125,5 @@ describe('open feed and top-up', () => {
   it('daily target: the handout curve by age, or 8 × the family range', () => {
     expect(dailyTargetAt(DEFAULT_PLAN, '2026-10-14', new Date(2026, 9, 25))).toEqual({ min: 590, max: 710 }); // day 11
     expect(dailyTargetAt(plan, null, new Date())).toEqual({ min: 600, max: 720 });
-  });
-});
-
-describe('early snacks', () => {
-  const plan = readPlan({ target: { min_ml: 75, max_ml: 90 }, nursing_ml_per_min: 2.1, every_min: 180 });
-  const snacks = (evs: Parameters<typeof feeds>[0]) => { const f = feeds(evs, plan); return [...earlySnacks(f, plan, null)].map((x) => x.estMl); };
-  it("your example: full at 12, 45 ml at 2 (forecast 3:00), then waited for the moved forecast", () => {
-    // 82.5 ml at 12:00 → due 3:00; 45 ml at 2:00 → due 3:00 + 1h38 = 4:38; next feed 4:40 → a snack.
-    expect(snacks([bottle('12:00', 82.5), bottle('14:00', 45), bottle('16:40', 85)])).toEqual([45]);
-  });
-  it('hungry early again afterwards: not a one-off, counts normally', () => {
-    expect(snacks([bottle('12:00', 82.5), bottle('14:00', 45), bottle('15:00', 50)])).toEqual([]);
-  });
-  it('partial but on time (not early) is a small meal, not a snack', () => {
-    expect(snacks([bottle('12:00', 82.5), bottle('15:00', 45), bottle('16:40', 85)])).toEqual([]);
-  });
-  it('the last of a run of small feeds is not a one-off snack, even if a long gap follows', () => {
-    expect(snacks([bottle('12:00', 60), bottle('13:00', 60), bottle('14:00', 60), bottle('20:00', 85)])).toEqual([]);
-  });
-  it('early but in the target range is a meal; undecided while it is the latest feed', () => {
-    expect(snacks([bottle('12:00', 82.5), bottle('14:00', 80), bottle('17:00', 85)])).toEqual([]);
-    expect(snacks([bottle('12:00', 82.5), bottle('14:00', 45)])).toEqual([]);
   });
 });

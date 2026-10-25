@@ -602,15 +602,6 @@ const brackets = await A.locator('.feed-bracket').count();
 if (brackets < 5) problems.push(`expected single bottles to be bracketed as feeds, found ${brackets} brackets`);
 if (!(await A.locator('.feed-bracket.under').count())) problems.push('no dashed (below target) feed bracket');
 await shot(A, 'history-feed-brackets');
-// An early snack (full bottle, 45 ml two hours later, then he waits for the moved forecast) is labelled "snack"
-psql(`insert into events (baby_id, type, started_at, ended_at, bottle_ml, bottle_contents)
-  select b.id, 'bottle', t, t, ml, 'breast_milk' from babies b,
-  (values (now() - interval '8 days', 105), (now() - interval '8 days' + interval '2 hours', 45), (now() - interval '8 days' + interval '4 hours 25 minutes', 105)) v(t, ml)`);
-await refresh(A); await wait(A, 1500);
-const snackLabel = A.locator('.feed-bracket-label', { hasText: 'snack' });
-if ((await snackLabel.count()) !== 1) problems.push(`expected one bottle labelled snack, found ${await snackLabel.count()}: ${JSON.stringify(await A.locator('.feed-bracket', { has: snackLabel }).allInnerTexts())}`);
-else if (!/1\.5 oz\s*snack/.test(await snackLabel.innerText())) problems.push(`the wrong bottle is labelled snack: ${await snackLabel.innerText()}`);
-else { const b = A.locator('.feed-bracket', { has: snackLabel }); await b.scrollIntoViewIfNeeded(); await b.screenshot({ path: `${OUT}/feed-snack.png` }); }
 await A.locator('.filter-row ion-chip', { hasText: 'Bottle' }).click(); await wait(A, 500);
 await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 800);
 const lenCard = bottlesPage.locator('.chart-card', { hasText: 'Feed length' });
