@@ -1,4 +1,4 @@
-import { IonItem, IonLabel, IonList, IonNote } from '@ionic/react';
+import { IonChip, IonItem, IonLabel, IonList, IonNote } from '@ionic/react';
 import { useMemo, useState } from 'react';
 import { byBrand, timedBottles } from '../lib/bottle';
 import { useData } from '../lib/data';
@@ -15,6 +15,10 @@ const GROUPS = [
   { label: 'Formula', hue: 'coral' as const },
   { label: 'Mixed / not set', hue: 'teal' as const },
 ];
+// Bottles hidden with the selector at the top, per phone.
+const HIDDEN_KEY = 'kt.bottlesHidden';
+const loadHidden = (): string[] => { try { return JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? '[]'); } catch { return []; } };
+
 const groupOf = (e: EventRow) => (e.bottle_contents === 'breast_milk' ? 0 : e.bottle_contents === 'formula' ? 1 : 2);
 
 /**
@@ -27,13 +31,18 @@ export default function BottleReport({ days }: { days: number }) {
   const data = useData();
   const [brand, setBrand] = useState<string | null>(null);
   const [editing, setEditing] = useState<EventRow | null>(null);
+  const [hidden, setHidden] = useState<string[]>(loadHidden);
+  const saveHidden = (h: string[]) => { setHidden(h); try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(h)); } catch { /* private mode */ } };
+  const toggleBrand = (b: string) => saveHidden(hidden.includes(b) ? hidden.filter((x) => x !== b) : [...hidden, b]);
   const oz = settings.volume_unit === 'oz';
   const unit = oz ? 'oz' : 'ml';
   const toRate = (mlPerMin: number) => (oz ? mlToOz(mlPerMin) : mlPerMin);
 
   const view = useMemo(() => {
     const since = new Date(Date.now() - days * 86_400_000);
-    const feeds = timedBottles(data.events, since);
+    const all = timedBottles(data.events, since);
+    const allBrands = byBrand(all).map((b) => b.brand); // every bottle in the range, for the selector
+    const feeds = all.filter((f) => !hidden.includes(f.brand));
     const brands = byBrand(feeds);
     const cats = brands.map((b) => b.brand);
     const tip = (f: (typeof feeds)[number]) => [
@@ -46,10 +55,10 @@ export default function BottleReport({ days }: { days: number }) {
     const usedGroups = GROUPS.filter((_, gi) => feeds.some((f) => groupOf(f.e) === gi));
     const remap = (pts: StripPoint[]) => pts.map((p) => ({ ...p, group: usedGroups.indexOf(GROUPS[p.group]) }));
     return {
-      feeds, brands, cats, groups: usedGroups, flow: remap(flow), length: remap(length),
+      all, allBrands, feeds, brands, cats, groups: usedGroups, flow: remap(flow), length: remap(length),
       flowMedians: brands.map((b) => toRate(b.rate)), lengthMedians: brands.map((b) => b.minutes),
     };
-  }, [data.events, days, settings]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data.events, days, settings, hidden]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fmtRate = useMemo(() => (v: number) => (oz ? v.toFixed(2) : v.toFixed(1)), [oz]);
   const fmtMin = useMemo(() => (v: number) => `${Math.round(v)}m`, []);
@@ -58,9 +67,9 @@ export default function BottleReport({ days }: { days: number }) {
   const flowBand = useMemo(() => (oz
     ? { from: mlToOz(3), to: mlToOz(6), label: '0.10–0.20 oz/min (3–6 ml/min): our target' }
     : { from: 3, to: 6, label: '3–6 ml/min: our target' }), [oz]);
-  const list = brand ? view.feeds.filter((f) => f.brand === brand) : view.feeds;
+  const list = brand && view.cats.includes(brand) ? view.feeds.filter((f) => f.brand === brand) : view.feeds;
 
-  if (!view.feeds.length) {
+  if (!view.all.length) {
     return (
       <div className="empty">
         <p><b>No timed bottles in the last {days} days.</b></p>
@@ -69,8 +78,32 @@ export default function BottleReport({ days }: { days: number }) {
     );
   }
 
+  const selector = view.allBrands.length > 1 && (
+    <div className="chips bottle-selector" role="group" aria-label="Bottles to show">
+      <IonChip outline={hidden.length > 0} color={hidden.length ? undefined : 'primary'} onClick={() => saveHidden([])}><IonLabel>All</IonLabel></IonChip>
+      {view.allBrands.map((b) => {
+        const on = !hidden.includes(b);
+        return (
+          <IonChip key={b} outline={!on} color={on ? 'primary' : undefined} onClick={() => toggleBrand(b)} aria-pressed={on}>
+            <IonLabel>{b}</IonLabel>
+          </IonChip>
+        );
+      })}
+    </div>
+  );
+
+  if (!view.feeds.length) {
+    return (
+      <>
+        {selector}
+        <div className="empty"><p>All bottles are hidden. Tap one above (or All) to show it.</p></div>
+      </>
+    );
+  }
+
   return (
     <>
+      {selector}
       <h2 className="section-title">By bottle <span className="subtle">(last {days} days, timed feeds)</span></h2>
       <div className="table-wrap">
         <table className="brand-table">

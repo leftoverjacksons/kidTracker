@@ -859,6 +859,10 @@ Goals from the handout, for reference:
   - **Growth** (latest weight and date): weight vs. birth weight, WHO charts.
 - Feeding starts open, the others closed; each phone remembers its choices (`kt.reportsOpen`). Charts are only drawn while their section is open.
 
+### V. Bottles tab: choose which bottles to compare — built 2026-10-26 (app-only)
+
+- A chip row at the top of Reports → Bottles lists every bottle used in the selected range, plus **All**. Tapping a bottle hides or shows it in the table, both strip charts and the feed list; All shows everything again. Filled = shown, outlined = hidden. Remembered per phone (`kt.bottlesHidden`). Shown only when there are two or more bottles.
+
 ### S. Explored, deferred or rejected (reference, 2026-10-21 to 10-25)
 
 Things discussed with the owner that were not built, or built differently, with the reasoning, so they needn't be re-derived.

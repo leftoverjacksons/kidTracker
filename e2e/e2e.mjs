@@ -618,6 +618,12 @@ await A.locator('ion-tab-button[tab="reports"]').click(); await wait(A, 800);
 await refresh(A);
 await A.locator('.reports-tabs ion-segment-button[value="bottles"]').click(); await wait(A, 1200);
 for (const t of ['Comotomo', 'Philips Avent', 'MAM', "Dr. Brown's"]) await expectText(A, t, '.brand-table');
+// Bottle selector: hide MAM, then All brings it back
+await A.locator('.bottle-selector ion-chip', { hasText: 'MAM' }).click(); await wait(A, 600);
+if (await A.locator('.brand-table', { hasText: 'MAM' }).count()) problems.push('hidden bottle still in the table');
+await shot(A, 'bottles-selector');
+await A.locator('.bottle-selector ion-chip', { hasText: 'All' }).click(); await wait(A, 600);
+await expectText(A, 'MAM', '.brand-table');
 if (await A.locator('.chart-card', { hasText: 'Bottle flow rate' }).count()) problems.push('old daily flow chart still shown');
 const bottlesPage = A.locator('.ion-page:not(.ion-page-hidden)').last();
 await shot(A, 'reports-bottles');
