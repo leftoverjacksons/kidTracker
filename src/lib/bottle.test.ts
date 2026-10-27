@@ -38,10 +38,10 @@ describe('brand comparison', () => {
 });
 
 describe('pauses', () => {
-  it('count in the feed length and flow (her pace is for the whole paced feed)', () => {
+  it('leave paused time out of the feed length and flow', () => {
     const e = { ...b('2026-10-20T10:00:00Z', 20, 60), paused_s: 240 } as EventRow;
-    expect(bottleMinutes(e)).toBe(20);
-    expect(flowRate(e)).toBe(3);
+    expect(bottleMinutes(e)).toBe(16);
+    expect(flowRate(e)).toBe(3.75);
   });
   it('her pace limit: 5 minutes per ounce is ~5.9 ml/min', () => {
     expect(MAX_FLOW_ML_PER_MIN).toBeCloseTo(5.915, 2);

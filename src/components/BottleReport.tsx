@@ -120,7 +120,7 @@ export default function BottleReport({ days }: { days: number }) {
           </tbody>
         </table>
       </div>
-      <p className="hint">Middle (median) values per bottle. min/oz is the pace: minutes per ounce over the whole feed, pauses included; her guidance is 5 or more (slower is fine early on). Faster than that is shown in red.</p>
+      <p className="hint">Middle (median) values per bottle. min/oz is the pace: minutes per ounce of drinking time (Pause-button time not counted); her guidance is 5 or more (slower is fine early on). Faster than that is shown in red.</p>
 
       <StripChart title={`Flow per feed (${unit}/min)`} categories={view.cats} points={view.flow} groups={view.groups}
         format={fmtRate} medians={view.flowMedians} band={flowBand} />

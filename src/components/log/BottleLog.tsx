@@ -177,7 +177,7 @@ function Leftover({ bottle, onDone }: { bottle: EventRow; onDone: () => void }) 
   const over = start != null && left != null && left > start;
   const drankMl = start != null && left != null && !over ? Math.max(0, v.toStore(start) - v.toStore(left)) : null;
   const rate = drankMl != null ? flowRate({ ...bottle, bottle_ml: drankMl }) : null;
-  const ms = activeMs(bottle); // drinking time on the clock; flow uses the whole feed (bottleMinutes)
+  const ms = activeMs(bottle); // pauses not counted
 
   async function save() {
     if (drankMl == null) return;
