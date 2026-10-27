@@ -369,7 +369,7 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .summary-row-avg small { display: block; font-size: 11px; opacity: 0.6; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .brand-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; background: var(--tile-bg); border-radius: 12px; overflow: hidden; }
-.brand-table th, .brand-table td { text-align: left; padding: 8px 7px; border-bottom: 1px solid var(--ion-border-color, rgba(0,0,0,0.08)); white-space: nowrap; }
+.brand-table th, .brand-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ion-border-color, rgba(0,0,0,0.08)); white-space: nowrap; }
 .brand-table th { font-weight: 600; font-size: 12px; opacity: 0.75; }
 .brand-table tr:last-child td { border-bottom: 0; }
 
@@ -413,6 +413,3 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .report-section-summary { font-size: 13px; opacity: 0.7; margin-left: 4px; flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
 .report-section-chevron { margin-left: auto; opacity: 0.7; }
 .report-section-body > .chart-card:first-child { margin-top: 10px; }
-
-/* Bottles table: pace faster than the consultant's 5 min per oz */
-.brand-table td.too-fast { color: var(--c-coral); font-weight: 600; }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeMs, bottleMinutes, byBrand, flowByDay, flowRate, MAX_FLOW_ML_PER_MIN, median, minPerOz, timedBottles } from './bottle';
+import { activeMs, bottleMinutes, byBrand, flowByDay, flowRate, median, timedBottles } from './bottle';
 import type { EventRow } from './types';
 
 const b = (start: string, min: number | null, ml: number | null) => ({
@@ -42,10 +42,6 @@ describe('pauses', () => {
     const e = { ...b('2026-10-20T10:00:00Z', 20, 60), paused_s: 240 } as EventRow;
     expect(bottleMinutes(e)).toBe(16);
     expect(flowRate(e)).toBe(3.75);
-  });
-  it('her pace limit: 5 minutes per ounce is ~5.9 ml/min', () => {
-    expect(MAX_FLOW_ML_PER_MIN).toBeCloseTo(5.915, 2);
-    expect(minPerOz(MAX_FLOW_ML_PER_MIN)).toBeCloseTo(5);
   });
   it('a running timer counts to now; a paused one is frozen at the pause', () => {
     const now = new Date('2026-10-20T10:10:00Z');

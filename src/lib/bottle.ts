@@ -23,12 +23,6 @@ export function bottleMinutes(e: Pick<EventRow, 'type' | 'started_at' | 'ended_a
   return min >= MIN_TIMED_MIN ? min : null;
 }
 
-/** The consultant's pace limit: no faster than 5 minutes per ounce, i.e. at most ~5.9 ml/min. */
-export const ML_PER_OZ_PACE = 29.5735;
-export const MAX_FLOW_ML_PER_MIN = ML_PER_OZ_PACE / 5;
-/** Minutes per ounce for a flow in ml/min (her unit). */
-export const minPerOz = (mlPerMin: number) => ML_PER_OZ_PACE / mlPerMin;
-
 /** Millilitres per minute for a finished, timed bottle with an amount; else null. */
 export function flowRate(e: Pick<EventRow, 'type' | 'started_at' | 'ended_at' | 'bottle_ml' | 'paused_at' | 'paused_s'>): number | null {
   const min = bottleMinutes(e);
