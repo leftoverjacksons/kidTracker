@@ -1,6 +1,6 @@
 import { IonChip, IonItem, IonLabel, IonList, IonNote } from '@ionic/react';
 import { useMemo, useState } from 'react';
-import { byBrand, timedBottles } from '../lib/bottle';
+import { byBrand, MAX_FLOW_ML_PER_MIN, minPerOz, timedBottles } from '../lib/bottle';
 import { useData } from '../lib/data';
 import { formatDuration, formatFlow, formatVolume, formatWhen } from '../lib/format';
 import { useHousehold } from '../lib/household';
@@ -48,7 +48,7 @@ export default function BottleReport({ days }: { days: number }) {
     const tip = (f: (typeof feeds)[number]) => [
       `${f.brand} · ${formatWhen(new Date(f.e.started_at))}`,
       `Drank ${formatVolume(f.ml, settings)}${f.e.bottle_start_ml ? ` of ${formatVolume(f.e.bottle_start_ml, settings)}` : ''}`,
-      `${formatDuration(f.minutes * 60_000)} · ${formatFlow(f.rate, settings)}`,
+      `${formatDuration(f.minutes * 60_000)} · ${formatFlow(f.rate, settings)} · ${minPerOz(f.rate).toFixed(1)} min/oz`,
     ];
     const flow: StripPoint[] = feeds.map((f) => ({ cat: cats.indexOf(f.brand), y: toRate(f.rate), group: groupOf(f.e), tip: tip(f) }));
     const length: StripPoint[] = feeds.map((f) => ({ cat: cats.indexOf(f.brand), y: f.minutes, group: groupOf(f.e), tip: tip(f) }));
@@ -63,10 +63,11 @@ export default function BottleReport({ days }: { days: number }) {
   const fmtRate = useMemo(() => (v: number) => (oz ? v.toFixed(2) : v.toFixed(1)), [oz]);
   const fmtMin = useMemo(() => (v: number) => `${Math.round(v)}m`, []);
   const band = useMemo(() => ({ from: 10, to: 20, label: '10–20 min: often suggested for a paced feed' }), []);
-  // The family's chosen target flow, 3–6 ml/min (design doc §8a L).
-  const flowBand = useMemo(() => (oz
-    ? { from: mlToOz(3), to: mlToOz(6), label: '0.10–0.20 oz/min (3–6 ml/min): our target' }
-    : { from: 3, to: 6, label: '3–6 ml/min: our target' }), [oz]);
+  // The consultant's pace: no faster than 5 minutes per ounce (design doc §8a L). No lower limit.
+  const flowBand = useMemo(() => ({
+    from: 0, to: oz ? mlToOz(MAX_FLOW_ML_PER_MIN) : MAX_FLOW_ML_PER_MIN,
+    label: `Her pace: 5 min per oz or slower (up to ${oz ? `${mlToOz(MAX_FLOW_ML_PER_MIN).toFixed(2)} oz/min` : `${MAX_FLOW_ML_PER_MIN.toFixed(1)} ml/min`})`,
+  }), [oz]);
   const list = brand && view.cats.includes(brand) ? view.feeds.filter((f) => f.brand === brand) : view.feeds;
 
   if (!view.all.length) {
@@ -107,18 +108,19 @@ export default function BottleReport({ days }: { days: number }) {
       <h2 className="section-title">By bottle <span className="subtle">(last {days} days, timed feeds)</span></h2>
       <div className="table-wrap">
         <table className="brand-table">
-          <thead><tr><th>Bottle</th><th>Feeds</th><th>Flow</th><th>Length</th><th>Drank</th></tr></thead>
+          <thead><tr><th>Bottle</th><th>Feeds</th><th>Flow</th><th>min/oz</th><th>Length</th><th>Drank</th></tr></thead>
           <tbody>
             {view.brands.map((b) => (
               <tr key={b.brand}>
                 <td>{b.brand}</td><td>{b.feeds}</td><td>{formatFlow(b.rate, settings)}</td>
+                <td className={b.rate > MAX_FLOW_ML_PER_MIN ? 'too-fast' : undefined}>{minPerOz(b.rate).toFixed(1)}</td>
                 <td>{formatDuration(b.minutes * 60_000)}</td><td>{formatVolume(b.ml, settings)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="hint">Middle (median) values per bottle.</p>
+      <p className="hint">Middle (median) values per bottle. min/oz is the pace: minutes per ounce over the whole feed, pauses included; her guidance is 5 or more (slower is fine early on). Faster than that is shown in red.</p>
 
       <StripChart title={`Flow per feed (${unit}/min)`} categories={view.cats} points={view.flow} groups={view.groups}
         format={fmtRate} medians={view.flowMedians} band={flowBand} />

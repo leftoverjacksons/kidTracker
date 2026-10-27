@@ -16,12 +16,22 @@ export function activeMs(e: Pick<EventRow, 'started_at' | 'ended_at' | 'paused_a
   return Math.max(0, end - Date.parse(e.started_at) - (e.paused_s ?? 0) * 1000);
 }
 
-/** Minutes a finished bottle took (not counting pauses), or null if it wasn't timed. */
+/**
+ * Minutes a finished bottle took, start to finish including pauses, or null if it wasn't
+ * timed. Pauses count because paced feeding builds them in and the consultant's pace,
+ * "no faster than five minutes per ounce", is for the whole feed (design doc §8a K3).
+ */
 export function bottleMinutes(e: Pick<EventRow, 'type' | 'started_at' | 'ended_at' | 'paused_at' | 'paused_s'>): number | null {
   if (e.type !== 'bottle' || !e.ended_at) return null;
-  const min = activeMs(e) / 60_000;
+  const min = (Date.parse(e.ended_at) - Date.parse(e.started_at)) / 60_000;
   return min >= MIN_TIMED_MIN ? min : null;
 }
+
+/** The consultant's pace limit: no faster than 5 minutes per ounce, i.e. at most ~5.9 ml/min. */
+export const ML_PER_OZ_PACE = 29.5735;
+export const MAX_FLOW_ML_PER_MIN = ML_PER_OZ_PACE / 5;
+/** Minutes per ounce for a flow in ml/min (her unit). */
+export const minPerOz = (mlPerMin: number) => ML_PER_OZ_PACE / mlPerMin;
 
 /** Millilitres per minute for a finished, timed bottle with an amount; else null. */
 export function flowRate(e: Pick<EventRow, 'type' | 'started_at' | 'ended_at' | 'bottle_ml' | 'paused_at' | 'paused_s'>): number | null {
