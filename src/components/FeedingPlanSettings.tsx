@@ -1,7 +1,7 @@
 import { IonButton, IonItem, IonLabel, IonList, IonListHeader, IonNote, IonSelect, IonSelectOption, useIonToast } from '@ionic/react';
 import { useEffect, useState } from 'react';
-import { dayOfLife, readPlan, targetAt, type FeedingPlan } from '../lib/feeding';
-import { formatVolume } from '../lib/format';
+import { dayOfLife, feedEveryMin, readPlan, targetAt, type FeedingPlan } from '../lib/feeding';
+import { formatDuration, formatVolume } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import { supabase } from '../lib/supabase';
 import { mlToOz, ozToMl } from '../lib/units';
@@ -35,6 +35,7 @@ export default function FeedingPlanSettings() {
   const now = new Date();
   const today = targetAt(plan, baby?.birth_date ?? null, now);
   const day = baby?.birth_date ? Math.floor(dayOfLife(baby.birth_date, now)) : null;
+  const every = feedEveryMin(plan, baby?.birth_date ?? null, now);
   const range = (t: { min: number; max: number }) => `${formatVolume(t.min, settings)}–${formatVolume(t.max, settings)}`;
 
   return (
@@ -67,13 +68,15 @@ export default function FeedingPlanSettings() {
       </IonItem>
       <IonItem>
         <IonSelect label="Feed every" value={plan.every_min} interface="action-sheet" disabled={!editable}
-          onIonChange={(e) => void save({ every_min: Number(e.detail.value) })}>
+          onIonChange={(e) => void save({ every_min: e.detail.value === 'age' ? 'age' : Number(e.detail.value) })}>
+          <IonSelectOption value="age">By age (daily amount ÷ per feed)</IonSelectOption>
           {[120, 150, 180, 210, 240].map((m) => <IonSelectOption key={m} value={m}>{m % 60 ? `${Math.floor(m / 60)}½ hours` : `${m / 60} hours`}</IonSelectOption>)}
         </IonSelect>
       </IonItem>
       <IonItem lines="none">
         <IonNote className="hint">
-          {today ? <>Now: {range(today)} per feed{day != null && plan.target === 'age' ? ` (day ${day})` : ''}. </> : 'Set the birth date to use the by-age target. '}
+          {today ? <>Now: {range(today)} per feed, every {formatDuration(every * 60_000)}{day != null ? ` (day ${day})` : ''}. </> : 'Set the birth date to use the by-age target. '}
+          {plan.every_min === 'age' && 'By age, the gap is the handout\'s daily amount spread over feeds of the per-feed size, so it lengthens as he grows (3 h in the first two weeks, about 3½ h from week 4), kept within 2–4 h. '}
           A feed is the bottles and nursing less than 20 minutes apart; its estimated amount is the bottles plus nursing minutes × the rate above.
           A feed at the middle of the target sets the next one a whole interval later; less brings it closer in proportion, more pushes it later, up to what the top of the target allows.
           {!editable && ' To change these, run supabase/migrations/0011_feeding_plan.sql (see docs/SUPABASE_TODO.md).'}

@@ -62,21 +62,21 @@ export function pumpDue(events: Ev[], now: Date, everyMin: number | null) {
 
 // ───────────── Feeds and lining pumping up with them (mirrors src/lib/feeding.ts) ─────────────
 
-export interface Plan { target: 'age' | { min_ml: number; max_ml: number }; nursing_ml_per_min: number; every_min: number }
+export interface Plan { target: 'age' | { min_ml: number; max_ml: number }; nursing_ml_per_min: number; every_min: number | 'age' }
 export interface Ctx { plan: Plan; birthDate: string | null }
-export const DEFAULT_CTX: Ctx = { plan: { target: 'age', nursing_ml_per_min: 2.1, every_min: 180 }, birthDate: null };
+export const DEFAULT_CTX: Ctx = { plan: { target: 'age', nursing_ml_per_min: 2.1, every_min: 'age' }, birthDate: null };
 const FEED_GAP_MIN = 20, ALIGN_WINDOW_MIN = 30, PUMP_MIN_GAP_MIN = 120;
 const AGE_CURVE = [{ day: 5.5, min: 45, max: 60 }, { day: 11, min: 75, max: 90 }, { day: 18, min: 105, max: 120 }, { day: 25, min: 120, max: 150 }];
+const DAILY_CURVE = [{ day: 5.5, min: 355, max: 475 }, { day: 11, min: 590, max: 710 }, { day: 18, min: 770, max: 830 }, { day: 25, min: 830, max: 945 }];
 
 export function readPlan(raw: unknown): Plan {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Plan>;
   const t = r.target;
   const target = t && typeof t === 'object' && t.min_ml > 0 && t.max_ml >= t.min_ml ? { min_ml: t.min_ml, max_ml: t.max_ml } : 'age';
   const rate = Number(r.nursing_ml_per_min), every = Number(r.every_min);
-  return { target, nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : 2.1, every_min: every >= 60 && every <= 360 ? every : 180 };
+  return { target, nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : 2.1, every_min: r.every_min !== 'age' && every >= 60 && every <= 360 ? every : 'age' };
 }
-function ageTarget(day: number) {
-  const c = AGE_CURVE;
+function curveAt(c: typeof AGE_CURVE, day: number) {
   if (day <= c[0].day) return { min: c[0].min, max: c[0].max };
   for (let i = 1; i < c.length; i++) {
     if (day <= c[i].day) {
@@ -87,11 +87,21 @@ function ageTarget(day: number) {
   }
   return { min: c[c.length - 1].min, max: c[c.length - 1].max };
 }
+function dayOfLife(birthDate: string, t: Date) {
+  const [y, m, d] = birthDate.split('-').map(Number);
+  return (t.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000;
+}
 function targetAt(ctx: Ctx, t: Date) {
   if (ctx.plan.target !== 'age') return { min: ctx.plan.target.min_ml, max: ctx.plan.target.max_ml };
-  if (!ctx.birthDate) return null;
-  const [y, m, d] = ctx.birthDate.split('-').map(Number);
-  return ageTarget((t.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000);
+  return ctx.birthDate ? curveAt(AGE_CURVE, dayOfLife(ctx.birthDate, t)) : null;
+}
+/** Minutes between feeds: the plan's number, or by age 24 h × per-feed middle ÷ daily middle, within 2–4 h. */
+function feedEveryMin(ctx: Ctx, t: Date): number {
+  if (ctx.plan.every_min !== 'age') return ctx.plan.every_min;
+  const per = targetAt(ctx, t);
+  if (!per || !ctx.birthDate) return 180;
+  const daily = curveAt(DAILY_CURVE, dayOfLife(ctx.birthDate, t));
+  return Math.min(240, Math.max(120, Math.round((24 * 60 * (per.min + per.max)) / (daily.min + daily.max))));
 }
 interface Feed { start: number; end: number; estMl: number }
 export function feeds(events: Ev[], plan: Plan): Feed[] {
@@ -115,9 +125,9 @@ export function feeds(events: Ev[], plan: Plan): Feed[] {
 /** Next feed: the middle of the target buys the interval, less or more in proportion (capped at the top). */
 export function nextFeed(all: Feed[], ctx: Ctx, now: Date): number | null {
   const recent = all.filter((f) => f.start > now.getTime() - 2 * 86_400_000 && f.start <= now.getTime());
-  const interval = ctx.plan.every_min * 60_000;
   let due: number | null = null;
   for (const f of recent) {
+    const interval = feedEveryMin(ctx, new Date(f.start)) * 60_000;
     const t = targetAt(ctx, new Date(f.start));
     const mid = t ? (t.min + t.max) / 2 : 0;
     const share = mid > 0 ? f.estMl / mid : 1, maxShare = mid > 0 ? t!.max / mid : 1;

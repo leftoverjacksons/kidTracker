@@ -6,6 +6,12 @@ Run them **in order**. Every script is safe to run twice.
 
 ## Waiting
 
+### Update the `push-tick` function (feed spacing by age, 2026-10-28)
+
+Needed so pumping notifications line up with the new feed times. About 2 minutes. Until then the app is right and only the notification times can be a little off.
+
+- [ ] In Supabase, open **Edge Functions → push-tick → Code**. Select all the code and delete it. Paste the whole of `supabase/functions/push-tick/index.ts` (open it on GitHub → **copy raw file**). Click **Deploy**.
+
 ### Phone notifications (pumping reminders + "still running?" checks)
 
 Steps 1–5 are done (the push-tick function exists and was updated 2026-10-24). Step 6 is per phone; tick it once both phones show notifications as on.

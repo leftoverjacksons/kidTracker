@@ -104,6 +104,8 @@ describe('lines pumping up with feeds exactly like the app', () => {
     { feeding_plan: null, birth: '2026-10-14' },
     { feeding_plan: { target: { min_ml: 75, max_ml: 90 }, nursing_ml_per_min: 3, every_min: 180 }, birth: null },
     { feeding_plan: { target: 'age', nursing_ml_per_min: 2, every_min: 150 }, birth: '2026-10-10' },
+    { feeding_plan: { target: 'age', nursing_ml_per_min: 2.1, every_min: 'age' }, birth: '2026-09-28' },
+    { feeding_plan: { target: { min_ml: 75, max_ml: 90 }, nursing_ml_per_min: 2.1, every_min: 'age' }, birth: '2026-10-14' },
   ];
   it('same due times at every 7 minutes through the day', () => {
     let lined = 0;

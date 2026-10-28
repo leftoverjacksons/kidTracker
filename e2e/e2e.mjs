@@ -482,7 +482,8 @@ await A.locator('ion-action-sheet button', { hasText: 'Female' }).click(); await
 await A.locator('ion-select', { hasText: 'Count nursing as' }).click(); await wait(A, 600);
 await A.locator('ion-action-sheet button', { hasText: '2 ml per minute' }).click(); await wait(A, 1200);
 const savedPlan = psql(`select feeding_plan->>'nursing_ml_per_min' || ' ' || (feeding_plan->>'every_min') || ' ' || (feeding_plan->>'target') from household_settings`);
-if (savedPlan !== '2 180 age') problems.push(`feeding plan not saved: ${savedPlan}`);
+if (savedPlan !== '2 age age') problems.push(`feeding plan not saved: ${savedPlan}`);
+await expectText(A, 'By age, the gap'); // spacing follows the handout by default
 await A.locator('ion-select', { hasText: 'Count nursing as' }).click(); await wait(A, 600);
 await A.locator('ion-action-sheet button', { hasText: '3 ml per minute' }).click(); await wait(A, 1200);
 await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 800);

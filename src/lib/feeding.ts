@@ -13,10 +13,11 @@ export interface FeedingPlan {
   /** 'age' = the lactation handout's curve; otherwise the family's own range. */
   target: 'age' | { min_ml: number; max_ml: number };
   nursing_ml_per_min: number;
-  every_min: number;
+  /** Minutes between feeds, or 'age' = the handout's daily intake ÷ its per-feed amount (feedEveryMin). */
+  every_min: number | 'age';
 }
 
-export const DEFAULT_PLAN: FeedingPlan = { target: 'age', nursing_ml_per_min: 2.1, every_min: 180 };
+export const DEFAULT_PLAN: FeedingPlan = { target: 'age', nursing_ml_per_min: 2.1, every_min: 'age' };
 
 /** Accepts whatever is stored (or nothing) and returns a usable plan. */
 export function readPlan(raw: unknown): FeedingPlan {
@@ -28,7 +29,7 @@ export function readPlan(raw: unknown): FeedingPlan {
   return {
     target,
     nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : DEFAULT_PLAN.nursing_ml_per_min,
-    every_min: every >= 60 && every <= 360 ? every : DEFAULT_PLAN.every_min,
+    every_min: r.every_min !== 'age' && every >= 60 && every <= 360 ? every : 'age',
   };
 }
 
@@ -123,9 +124,9 @@ export function feeds(events: FeedEvent[], plan: FeedingPlan): Feed[] {
 export function nextFeed(all: Feed[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
   const recent = all.filter((f) => f.start.getTime() > now.getTime() - 2 * 86_400_000 && f.start <= now);
   if (!recent.length) return null;
-  const interval = plan.every_min * 60_000;
   let due: number | null = null;
   for (const f of recent) {
+    const interval = feedEveryMin(plan, birthDate, f.start) * 60_000;
     const target = targetAt(plan, birthDate, f.start);
     const mid = target ? (target.min + target.max) / 2 : 0;
     const share = mid > 0 ? f.estMl / mid : 1;
@@ -236,8 +237,12 @@ export const DAILY_CURVE: { day: number; min: number; max: number }[] = [
 /** Daily intake target: the handout's daily curve by age, or 8 feeds × the family's own range. */
 export function dailyTargetAt(plan: FeedingPlan, birthDate: string | null, t: Date): { min: number; max: number } | null {
   if (plan.target !== 'age') return { min: plan.target.min_ml * 8, max: plan.target.max_ml * 8 };
-  if (!birthDate) return null;
-  const d = dayOfLife(birthDate, t), c = DAILY_CURVE;
+  return birthDate ? dailyAgeTarget(dayOfLife(birthDate, t)) : null;
+}
+
+/** The handout's daily intake at an age (days of life), from DAILY_CURVE. */
+export function dailyAgeTarget(d: number): { min: number; max: number } {
+  const c = DAILY_CURVE;
   if (d <= c[0].day) return { min: c[0].min, max: c[0].max };
   for (let i = 1; i < c.length; i++) {
     if (d <= c[i].day) {
@@ -246,4 +251,23 @@ export function dailyTargetAt(plan: FeedingPlan, birthDate: string | null, t: Da
     }
   }
   return { min: c[c.length - 1].min, max: c[c.length - 1].max };
+}
+
+/** Shortest and longest gap the by-age spacing will give (minutes). */
+export const EVERY_MIN_RANGE = { min: 120, max: 240 };
+
+/**
+ * Minutes between feeds at time `t`. A number in the plan is used as is. 'age' spreads the
+ * handout's daily intake over feeds of its per-feed size: 24 h × middle per-feed target ÷
+ * middle daily target (day 11: 82.5 of 650 ml → 3 h 3 m; day 18: 112.5 of 800 → 3 h 23 m;
+ * day 25 on: 135 of 887.5 → 3 h 39 m), kept within 2–4 h. With the family's own per-feed
+ * numbers it is their middle ÷ the handout's daily middle. 3 h without a birth date.
+ */
+export function feedEveryMin(plan: FeedingPlan, birthDate: string | null, t: Date): number {
+  if (plan.every_min !== 'age') return plan.every_min;
+  const per = targetAt(plan, birthDate, t);
+  if (!per || !birthDate) return 180;
+  const daily = dailyAgeTarget(dayOfLife(birthDate, t));
+  const min = Math.round((24 * 60 * (per.min + per.max)) / (daily.min + daily.max));
+  return Math.min(EVERY_MIN_RANGE.max, Math.max(EVERY_MIN_RANGE.min, min));
 }

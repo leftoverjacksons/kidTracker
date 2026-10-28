@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -125,6 +125,20 @@ describe('open feed and top-up', () => {
   it('more than 20 min after it ended, nothing is open; a full feed needs no top-up', () => {
     expect(openFeed([nurse('10:00', '10:15')], plan, new Date(at('10:40')))).toBeNull();
     expect(topUp(95, { min: 75, max: 90 })).toEqual({ min: 0, max: 0 });
+  });
+  it('spacing by age: daily amount ÷ per-feed amount, within 2–4 h', () => {
+    const day = (d: number) => new Date(2026, 9, 14 + d);
+    expect(feedEveryMin(DEFAULT_PLAN, '2026-10-14', day(11))).toBe(183); // 82.5 of 650 ml
+    expect(feedEveryMin(DEFAULT_PLAN, '2026-10-14', day(18))).toBe(203); // 112.5 of 800 ml
+    expect(feedEveryMin(DEFAULT_PLAN, '2026-10-14', day(40))).toBe(219); // 135 of 887.5 ml
+    expect(feedEveryMin(DEFAULT_PLAN, null, day(11))).toBe(180);
+    expect(feedEveryMin(fixed, '2026-10-14', day(11))).toBe(180); // a number is used as is
+    expect(readPlan({ every_min: 'age' }).every_min).toBe('age');
+  });
+  it('by-age spacing moves the next feed', () => {
+    const p = readPlan(null), birth = '2026-09-30'; // day 24.5 at noon: 133.5 of 881.5 ml → 3 h 38 m
+    const f = feeds([bottle('12:00', 133.5)], p);
+    expect(nextFeed(f, p, birth, new Date(at('13:00')))!.due).toEqual(new Date(at('15:38')));
   });
   it('daily target: the handout curve by age, or 8 × the family range', () => {
     expect(dailyTargetAt(DEFAULT_PLAN, '2026-10-14', new Date(2026, 9, 25))).toEqual({ min: 590, max: 710 }); // day 11
