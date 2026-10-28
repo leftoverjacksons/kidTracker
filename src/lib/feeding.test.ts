@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, aimAt, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -139,6 +139,14 @@ describe('open feed and top-up', () => {
     const p = readPlan(null), birth = '2026-09-30'; // day 24.5 at noon: 133.5 of 881.5 ml → 3 h 38 m
     const f = feeds([bottle('12:00', 133.5)], p);
     expect(nextFeed(f, p, birth, new Date(at('13:00')))!.due).toEqual(new Date(at('15:38')));
+  });
+  it('catch-up: a third of the 24 h shortfall raises the bottom of the aim, never past the top', () => {
+    const p = readPlan({ target: { min_ml: 75, max_ml: 90 }, nursing_ml_per_min: 3, every_min: 180 }); // daily 600–720
+    const now = new Date(at('23:00'));
+    const day = (ml: number) => feeds(['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => bottle(t, ml)), p);
+    expect(aimAt(day(80), p, null, now)).toEqual({ min: 75, max: 90, catchUp: false }); // 640 ml: on track
+    expect(aimAt(day(72), p, null, now)).toEqual({ min: 83, max: 90, catchUp: true }); // 576: 24 short → +8
+    expect(aimAt(day(50), p, null, now)).toEqual({ min: 90, max: 90, catchUp: true }); // 400: capped at the top
   });
   it('daily target: the handout curve by age, or 8 × the family range', () => {
     expect(dailyTargetAt(DEFAULT_PLAN, '2026-10-14', new Date(2026, 9, 25))).toEqual({ min: 590, max: 710 }); // day 11

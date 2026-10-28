@@ -271,3 +271,20 @@ export function feedEveryMin(plan: FeedingPlan, birthDate: string | null, t: Dat
   const min = Math.round((24 * 60 * (per.min + per.max)) / (daily.min + daily.max));
   return Math.min(EVERY_MIN_RANGE.max, Math.max(EVERY_MIN_RANGE.min, min));
 }
+
+/**
+ * What to aim for at the next feed (design doc §8a Q, catch-up). Normally the target per feed.
+ * If the last 24 hours' estimated intake is below the bottom of the daily target, a third of
+ * the shortfall is added to the bottom of the range (spread over about three feeds), never
+ * above the top of the range. Timing is unchanged: small feeds already bring the next one sooner.
+ */
+export function aimAt(all: Feed[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
+  const per = targetAt(plan, birthDate, now);
+  if (!per) return null;
+  const daily = dailyTargetAt(plan, birthDate, now);
+  const since = now.getTime() - 86_400_000;
+  const intake = all.filter((f) => f.start.getTime() > since && f.start <= now).reduce((a, f) => a + f.estMl, 0);
+  const behind = daily ? Math.max(0, daily.min - intake) : 0;
+  const min = Math.min(per.max, Math.round(per.min + behind / 3));
+  return { min, max: per.max, catchUp: min > per.min };
+}
