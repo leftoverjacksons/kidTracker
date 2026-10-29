@@ -19,7 +19,7 @@ import StillRunning from '../components/StillRunning';
 import PumpReminder from '../components/PumpReminder';
 import { pumpCounts } from '../lib/pump';
 import { useSchedule } from '../lib/useSchedule';
-import { aimAt, feeds, openFeed, topUp } from '../lib/feeding';
+import { aimAt, openFeed, topUp } from '../lib/feeding';
 import TypeIcon from '../components/TypeIcon';
 
 const PRIMARY: EventType[] = ['sleep', 'nursing', 'bottle', 'diaper', 'pump', 'growth'];
@@ -95,7 +95,7 @@ export default function Home() {
         const n = (ml: number) => (settings.volume_unit === 'oz' ? Math.round(mlToOz(ml) * 10) / 10 : Math.round(ml));
         const open = openFeed(data.events, sched.plan, now);
         // Aim: the target per feed, raised toward its top when the last 24 h are behind (catch-up).
-        const tgt = aimAt(feeds(data.events, sched.plan), sched.plan, baby?.birth_date ?? null, now);
+        const tgt = aimAt(data.events, sched.plan, baby?.birth_date ?? null, now);
         const cu = tgt?.catchUp ? ' (catch-up)' : '';
         if (open && tgt) {
           const sup = topUp(open.estMl, tgt);

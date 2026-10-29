@@ -8,7 +8,7 @@ import { useHousehold } from '../../lib/household';
 import type { EventRow } from '../../lib/types';
 import NotesField from '../NotesField';
 import NumberField from '../NumberField';
-import { aimAt, feeds, openFeed, readPlan, topUp } from '../../lib/feeding';
+import { aimAt, openFeed, readPlan, topUp } from '../../lib/feeding';
 import TimeField from '../TimeField';
 import TypeIcon from '../TypeIcon';
 import { useBottleAmounts } from './BottleAmounts';
@@ -85,7 +85,7 @@ function SupplementHint() {
   const now = new Date();
   const plan = readPlan(settings.feeding_plan);
   const open = openFeed(data.events, plan, now);
-  const tgt = aimAt(feeds(data.events, plan), plan, baby?.birth_date ?? null, now);
+  const tgt = aimAt(data.events, plan, baby?.birth_date ?? null, now);
   if (!open || !tgt) return null;
   const sup = topUp(open.estMl, tgt);
   const nursed = open.nursingMin > 0 && plan.nursing_ml_per_min > 0;

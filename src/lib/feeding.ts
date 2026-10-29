@@ -278,13 +278,28 @@ export function feedEveryMin(plan: FeedingPlan, birthDate: string | null, t: Dat
  * the shortfall is added to the bottom of the range (spread over about three feeds), never
  * above the top of the range. Timing is unchanged: small feeds already bring the next one sooner.
  */
-export function aimAt(all: Feed[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
+export function aimAt(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
   const per = targetAt(plan, birthDate, now);
   if (!per) return null;
   const daily = dailyTargetAt(plan, birthDate, now);
-  const since = now.getTime() - 86_400_000;
-  const intake = all.filter((f) => f.start.getTime() > since && f.start <= now).reduce((a, f) => a + f.estMl, 0);
+  const intake = intakeLast24(events, plan, now);
   const behind = daily ? Math.max(0, daily.min - intake) : 0;
   const min = Math.min(per.max, Math.round(per.min + behind / 3));
   return { min, max: per.max, catchUp: min > per.min };
+}
+
+/**
+ * Estimated intake in the 24 hours ending at `now`: finished bottles and nursing (a running
+ * session counts up to now) that started in the window. Reports → Daily shows the same number.
+ */
+export function intakeLast24(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, now: Date = new Date()): number {
+  const t = now.getTime(), from = t - 86_400_000;
+  let ml = 0;
+  for (const e of events) {
+    const s = Date.parse(e.started_at);
+    if (e.deleted_at || s < from || s > t) continue;
+    if (e.type === 'bottle' && e.ended_at) ml += Number(e.bottle_ml ?? 0);
+    if (e.type === 'nursing') ml += nursingMinutes(e.ended_at ? e : { ...e, ended_at: now.toISOString() }) * plan.nursing_ml_per_min;
+  }
+  return ml;
 }

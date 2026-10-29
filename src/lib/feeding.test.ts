@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, aimAt, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, aimAt, intakeLast24, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -143,10 +143,22 @@ describe('open feed and top-up', () => {
   it('catch-up: a third of the 24 h shortfall raises the bottom of the aim, never past the top', () => {
     const p = readPlan({ target: { min_ml: 75, max_ml: 90 }, nursing_ml_per_min: 3, every_min: 180 }); // daily 600–720
     const now = new Date(at('23:00'));
-    const day = (ml: number) => feeds(['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => bottle(t, ml)), p);
+    const day = (ml: number) => ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'].map((t) => bottle(t, ml));
     expect(aimAt(day(80), p, null, now)).toEqual({ min: 75, max: 90, catchUp: false }); // 640 ml: on track
     expect(aimAt(day(72), p, null, now)).toEqual({ min: 83, max: 90, catchUp: true }); // 576: 24 short → +8
     expect(aimAt(day(50), p, null, now)).toEqual({ min: 90, max: 90, catchUp: true }); // 400: capped at the top
+  });
+  it('catch-up counts the same 24 h as Reports → Daily, even when a feed straddles the start', () => {
+    // Nursing 22:50 the day before (outside), then a 90 ml bottle at 23:05 (inside, same feed).
+    const p = readPlan({ target: { min_ml: 75, max_ml: 90 }, nursing_ml_per_min: 3, every_min: 180 });
+    const now = new Date(at('23:00'));
+    const evs = [
+      { type: 'nursing', started_at: '2026-10-23T22:50:00', ended_at: '2026-10-23T23:00:00', bottle_ml: null },
+      { type: 'bottle', started_at: '2026-10-23T23:05:00', ended_at: '2026-10-23T23:05:00', bottle_ml: 90 },
+      ...['02:00', '05:00', '08:00', '11:00', '14:00', '17:00', '20:00'].map((t) => bottle(t, 80)),
+    ];
+    expect(intakeLast24(evs, p, now)).toBe(650);
+    expect(aimAt(evs, p, null, now)?.catchUp).toBe(false); // 650 ≥ 600: on track
   });
   it('daily target: the handout curve by age, or 8 × the family range', () => {
     expect(dailyTargetAt(DEFAULT_PLAN, '2026-10-14', new Date(2026, 9, 25))).toEqual({ min: 590, max: 710 }); // day 11

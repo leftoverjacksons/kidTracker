@@ -1,4 +1,4 @@
-import { nursingMinutes, type FeedingPlan } from './feeding';
+import { intakeLast24, nursingMinutes, type FeedingPlan } from './feeding';
 import { countFeeds } from './nursing';
 import type { EventRow } from './types';
 
@@ -28,7 +28,7 @@ export function last24(events: Ev[], plan: FeedingPlan, now: Date = new Date()) 
   }
   return {
     sleepMin: sleepMs / 60_000, feeds: countFeeds(events.filter((e) => !e.deleted_at), new Date(from)),
-    bottleMl, wet, dirty, pumpMl, nursingMin, intakeMl: bottleMl + nursingMin * plan.nursing_ml_per_min,
+    bottleMl, wet, dirty, pumpMl, nursingMin, intakeMl: intakeLast24(events, plan, now), // same number catch-up uses
   };
 }
 
