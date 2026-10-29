@@ -47,6 +47,16 @@ export function dayColumns(now: Date, cutoffHour: number, count = 7, page = 0): 
   });
 }
 
+/**
+ * Drawn as a mark rather than a span: diapers, and bottles that weren't timed (no length).
+ * A timed bottle, or one running now, is a span like sleep and nursing.
+ */
+export function isInstant(e: Pick<EventRow, 'type' | 'started_at' | 'ended_at'>): boolean {
+  if (e.type === 'diaper') return true;
+  if (e.type !== 'bottle' || !e.ended_at) return false;
+  return Date.parse(e.ended_at) - Date.parse(e.started_at) < 60_000;
+}
+
 function kindOf(e: EventRow): BlockKind | null {
   switch (e.type) {
     case 'sleep': return 'sleep';
@@ -69,7 +79,7 @@ export function columnBlocks(events: EventRow[], col: Column, now: Date, minFrac
     const kind = kindOf(e);
     if (!kind) continue;
     const s = new Date(e.started_at).getTime();
-    const instant = kind === 'bottle' || kind === 'diaper';
+    const instant = isInstant(e);
     const running = !instant && !e.ended_at;
     const en = instant ? s : running ? now.getTime() : new Date(e.ended_at!).getTime();
     if (instant ? s < col.start.getTime() || s >= col.end.getTime()
@@ -83,7 +93,7 @@ export function columnBlocks(events: EventRow[], col: Column, now: Date, minFrac
     });
   }
   // Duration blocks that overlap an earlier one are drawn narrower so both stay visible.
-  const timed = blocks.filter((b) => b.kind === 'sleep' || b.kind === 'nursing').sort((x, y) => x.top - y.top);
+  const timed = blocks.filter((b) => !isInstant(b.event)).sort((x, y) => x.top - y.top);
   let reach = -1;
   for (const b of timed) {
     if (b.top < reach - 1e-9) b.narrow = true;

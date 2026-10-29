@@ -51,11 +51,23 @@ describe('timeline blocks', () => {
     expect(columnBlocks([a, b], col, L(16, 18)).filter((x) => x.narrow)).toHaveLength(0);
     expect(columnBlocks([a, b], col, L(16, 18), 3 / 600).filter((x) => x.narrow)).toHaveLength(1);
   });
-  it('includes bottles and diapers as instants, excludes other types and other days', () => {
-    const items = [ev('bottle', L(16, 2), null), ev('diaper', L(16, 3), null), ev('bath', L(16, 4), null), ev('bottle', L(14, 2), null)];
+  it('includes untimed bottles and diapers as instants, excludes other types and other days', () => {
+    const items = [ev('bottle', L(16, 2), L(16, 2)), ev('diaper', L(16, 3), null), ev('bath', L(16, 4), null), ev('bottle', L(14, 2), L(14, 2))];
     const b = columnBlocks(items, col, L(16, 18));
     expect(b.map((x) => x.kind).sort()).toEqual(['bottle', 'diaper']);
     expect(b[0].top).toBe(b[0].bottom);
+  });
+});
+
+describe('timed bottles', () => {
+  it('a timed bottle is a span; a running one reaches now', () => {
+    const col = { start: L(15, 19), end: L(16, 19) };
+    const t = ev('bottle', L(16, 2), L(16, 2, 20)), r = ev('bottle', L(16, 17, 40), null);
+    const b = columnBlocks([t, r], col, L(16, 18));
+    const bt = b.find((x) => x.event === t)!, br = b.find((x) => x.event === r)!;
+    expect(bt.bottom - bt.top).toBeCloseTo(20 / 1440);
+    expect(br.running).toBe(true);
+    expect(br.bottom - br.top).toBeCloseTo(20 / 1440);
   });
 });
 

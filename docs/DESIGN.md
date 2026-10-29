@@ -852,6 +852,8 @@ Goals from the handout, for reference:
 - Bottle (no amount yet) and diaper (wet) open the edit sheet straight away to fill in, with the same Undo toast.
 - Pressing on an existing block still selects it; scrolling, a second finger (pinch) or lifting early cancels the long-press.
 
+- **Timed bottles as spans (2026-10-29, owner request):** a bottle with a length (timed with Start/Stop, or a length typed in) is drawn as an amber block from start to end, like sleep and nursing; a bottle running now reaches the now line. Untimed bottles (saved with end = start) stay dots. Spans can be adjusted like other blocks (drag, handles, ±5 on start and end) and are narrowed when they overlap another block. The span is wall time, pauses included; the flow figures still leave pauses out (K3).
+
 ### U. Reports → Overview in collapsible groups — built 2026-10-25 (app-only)
 
 - The Overview charts are grouped into sections with a header that shows a one-line summary from the daily averages, and opens or closes on tap:

@@ -382,6 +382,7 @@ const tl = A.locator('.ion-page:not(.ion-page-hidden)').last();
 const blocks = await tl.locator('.tl-block').count();
 if (blocks < 3) problems.push(`timeline shows ${blocks} blocks (expected sleeps + feeds)`);
 if (!(await tl.locator('.tl-now').count())) problems.push('timeline has no now line');
+if (!(await tl.locator('.tl-block[aria-label^="Bottle"]').count())) problems.push('timed bottles are not drawn as spans on the timeline');
 // The 15-minute manual feed is the tallest nursing block; tap its left edge (bottle dots sit centred).
 const nurseBlocks = tl.locator('.tl-block[aria-label^="Nurse"]');
 let nurseBlock = nurseBlocks.first(), tallest = -1;

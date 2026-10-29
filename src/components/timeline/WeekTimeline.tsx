@@ -6,7 +6,7 @@ import { META } from '../../lib/describe';
 import { formatDuration, formatTime, formatVolume } from '../../lib/format';
 import { useHousehold } from '../../lib/household';
 import { sideTotals } from '../../lib/nursing';
-import { columnBlocks, dayColumns, hourTicks, snap, type Block } from '../../lib/timeline';
+import { columnBlocks, dayColumns, hourTicks, isInstant, snap, type Block } from '../../lib/timeline';
 import type { EventRow, EventType } from '../../lib/types';
 import { useChartTheme } from '../charts/theme';
 import TypeIcon from '../TypeIcon';
@@ -54,7 +54,7 @@ interface Drag {
 /**
  * Week timeline: 7 day columns (newest right), time running downward from the
  * per-phone day cutoff. Sleep and feeds are blocks at their real duration;
- * bottles are dots; diapers are ticks on the column edge. Tap a block to select
+ * timed bottles are blocks too, untimed ones dots; diapers are ticks on the column edge. Tap a block to select
  * it, then drag its handles (or use ±5 min) to adjust; changes save with Undo.
  */
 export default function WeekTimeline({ onEdit, readOnly = false }: { onEdit: (e: EventRow) => void; /** Guests: tap for details only, no moving or editing. */ readOnly?: boolean }) {
@@ -125,7 +125,7 @@ export default function WeekTimeline({ onEdit, readOnly = false }: { onEdit: (e:
   function clamp(e: EventRow, mode: Drag['mode'], s: number, en: number | null): [number, number | null] {
     const nowMs = Date.now();
     const segs = [...(e.nursing_segments ?? [])].sort((a, b) => a.started_at.localeCompare(b.started_at));
-    const instant = e.type === 'bottle' || e.type === 'diaper';
+    const instant = isInstant(e);
     if (instant || mode === 'move') {
       const dur = en != null ? en - s : 0;
       const latest = (en != null ? nowMs - dur : nowMs);
@@ -188,7 +188,7 @@ export default function WeekTimeline({ onEdit, readOnly = false }: { onEdit: (e:
 
   function nudge(e: EventRow, which: 'start' | 'end', minutes: number) {
     const s = new Date(e.started_at).getTime(), en = e.ended_at ? new Date(e.ended_at).getTime() : null;
-    const instant = e.type === 'bottle' || e.type === 'diaper';
+    const instant = isInstant(e);
     const mode = instant ? 'move' : which;
     const [s2, e2] = clamp(e, mode, which === 'start' ? s + minutes * MIN : s, which === 'end' && en != null ? en + minutes * MIN : en);
     void commit(e, s2, e2);
@@ -434,7 +434,7 @@ function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, 
   onSelect: () => void; onDrag: (ev: React.PointerEvent, mode: Drag['mode']) => void; readOnly: boolean;
 }) {
   const top = b.top * colH;
-  const instant = b.kind === 'bottle' || b.kind === 'diaper';
+  const instant = isInstant(b.event);
   const h = instant ? 0 : Math.max(3, (b.bottom - b.top) * colH);
   const segs = b.event.nursing_segments ?? [];
   const t = b.kind === 'nursing' ? sideTotals(segs) : null;
@@ -464,7 +464,7 @@ function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, 
       </div>
     );
   }
-  if (b.kind === 'bottle') {
+  if (b.kind === 'bottle' && instant) {
     return (
       <div className="tl-bottle" style={{ top: top - 12 }} onPointerDown={select}
         role="button" aria-label={`Bottle ${formatTime(new Date(b.event.started_at))}`}>
@@ -472,7 +472,7 @@ function BlockView({ b, colH, color, theme, wide, selected, dragging, onSelect, 
       </div>
     );
   }
-  const bg = b.kind === 'sleep' ? color.sleep : color.feed;
+  const bg = b.kind === 'sleep' ? color.sleep : b.kind === 'bottle' ? color.bottle : color.feed;
   return (
     <div className={`tl-block ${b.narrow ? 'narrow' : ''} ${dragging ? 'dragging' : ''}`}
       style={{
@@ -499,7 +499,7 @@ function DetailCard({ e, names, settings, onClose, onNudge, onEdit, readOnly }: 
   onClose: () => void; onNudge: (which: 'start' | 'end', minutes: number) => void; onEdit: () => void; readOnly: boolean;
 }) {
   const s = new Date(e.started_at), en = e.ended_at ? new Date(e.ended_at) : null;
-  const instant = e.type === 'bottle' || e.type === 'diaper';
+  const instant = isInstant(e);
   const t = e.type === 'nursing' ? sideTotals(e.nursing_segments ?? []) : null;
   const detail = [
     instant ? formatTime(s) : `${formatTime(s)} – ${en ? formatTime(en) : 'now'}${en ? ` (${formatDuration(en.getTime() - s.getTime())})` : ''}`,
