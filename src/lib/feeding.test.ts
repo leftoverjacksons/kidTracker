@@ -148,6 +148,14 @@ describe('open feed and top-up', () => {
     expect(aimAt(day(72), p, null, now)).toEqual({ min: 83, max: 90, catchUp: true }); // 576: 24 short → +8
     expect(aimAt(day(50), p, null, now)).toEqual({ min: 90, max: 90, catchUp: true }); // 400: capped at the top
   });
+  it('catch-up judges the last 24 h against the target at the middle of the window', () => {
+    const now = new Date(2026, 9, 29, 22, 0); // day 15.92 for a 2026-10-14 birth
+    const mid = dailyTargetAt(DEFAULT_PLAN, '2026-10-14', new Date(2026, 9, 29, 10, 0))!;
+    const end = dailyTargetAt(DEFAULT_PLAN, '2026-10-14', now)!;
+    expect(end.min).toBeGreaterThan(mid.min);
+    const evs = [{ type: 'bottle', started_at: new Date(2026, 9, 29, 12, 0).toISOString(), ended_at: new Date(2026, 9, 29, 12, 0).toISOString(), bottle_ml: mid.min }];
+    expect(aimAt(evs, DEFAULT_PLAN, '2026-10-14', now)?.catchUp).toBe(false);
+  });
   it('catch-up counts the same 24 h as Reports → Daily, even when a feed straddles the start', () => {
     // Nursing 22:50 the day before (outside), then a 90 ml bottle at 23:05 (inside, same feed).
     const p = readPlan({ target: { min_ml: 75, max_ml: 90 }, nursing_ml_per_min: 3, every_min: 180 });

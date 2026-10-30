@@ -31,7 +31,8 @@ export default function DailyReport({ avg, avgDays }: { avg: Averages | null; av
     const t = last24(data.events, plan, now);
     const c = cumulativeIntake(data.events, plan, marks);
     const p = cumulativePumped(data.events, marks);
-    const daily = dailyTargetAt(plan, baby?.birth_date ?? null, now);
+    // Judged at the middle of the window (12 h ago), not its end, so a growing target isn't overstated.
+    const daily = dailyTargetAt(plan, baby?.birth_date ?? null, new Date(now.getTime() - 12 * 3_600_000));
     const intake = [
       { label: 'Breast milk (bottle)', short: 'BM', data: c.bm.map(toVol), hue: 'blue' as const },
       { label: 'Formula', short: 'F', data: c.formula.map(toVol), hue: 'coral' as const },

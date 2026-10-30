@@ -281,7 +281,7 @@ export function feedEveryMin(plan: FeedingPlan, birthDate: string | null, t: Dat
 export function aimAt(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
   const per = targetAt(plan, birthDate, now);
   if (!per) return null;
-  const daily = dailyTargetAt(plan, birthDate, now);
+  const daily = dailyTargetAt(plan, birthDate, new Date(now.getTime() - 12 * 3_600_000)); // middle of the window, as on Reports → Daily
   const intake = intakeLast24(events, plan, now);
   const behind = daily ? Math.max(0, daily.min - intake) : 0;
   const min = Math.min(per.max, Math.round(per.min + behind / 3));
