@@ -103,6 +103,10 @@ export default function Reports() {
         const other = rows.map((r, k) => Math.max(0, r.bottle_ml - b.breastMilk[k] - b.formula[k]));
         const nursed = rows.map((r) => (r.nursing_left_min + r.nursing_right_min) * plan.nursing_ml_per_min);
         const daily = days.map((d) => dailyTargetAt(plan, baby?.birth_date ?? null, new Date(`${d}T12:00`)));
+        // Today's range and how much he's had so far, in the legend, so the gap reads at a glance.
+        const k = days.length - 1, tgt = daily[k];
+        const soFar = b.breastMilk[k] + b.formula[k] + other[k] + nursed[k];
+        const today = view?.partial && tgt ? ` · today ${toVol(tgt.min)}–${toVol(tgt.max)} ${volUnit}, so far ${nursed[k] > 0 ? '~' : ''}${toVol(soFar)} ${volUnit}` : '';
         const series = [
           { label: 'Breast milk (bottle)', short: 'BM', data: b.breastMilk.map(toVol), hue: 'blue' as const },
           { label: 'Formula', short: 'F', data: b.formula.map(toVol), hue: 'coral' as const },
@@ -113,11 +117,11 @@ export default function Reports() {
           has: series.some((x) => x.data.some((v) => v > 0)),
           series, hues: series.map((x) => x.hue),
           band: { from: daily.map((x) => (x ? toVol(x.min) : null)), to: daily.map((x) => (x ? toVol(x.max) : null)),
-            label: plan.target === 'age' ? 'Daily target by age (lactation handout)' : '8 feeds × our target' },
+            label: (plan.target === 'age' ? 'Daily target by age (lactation handout)' : '8 feeds × our target') + today },
         };
       })(),
     };
-  }, [rows, data.events, plan, baby?.birth_date, toVol, bottles]);
+  }, [rows, data.events, plan, baby?.birth_date, toVol, bottles, view?.partial, volUnit]);
 
   return (
     <IonPage>

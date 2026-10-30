@@ -609,6 +609,10 @@ for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Tim
   await card.scrollIntoViewIfNeeded(); await wait(A, 300);
   await card.screenshot({ path: `${OUT}/line-${t.replace(/[^a-z]+/gi, '-').toLowerCase()}.png` });
 }
+{ // Today's target range and the amount so far sit in the Total intake legend.
+  const txt = await A.locator('.chart-card', { hasText: 'Total intake per day' }).innerText();
+  if (!/today [\d.]+–[\d.]+ oz, so far ~?[\d.]+/.test(txt)) problems.push(`Total intake chart has no "today … so far" line: ${txt.slice(0, 160)}`);
+}
 
 // Reports → Bottles: compare bottle brands (seed a few more timed feeds)
 psql(`insert into events (baby_id, type, started_at, ended_at, bottle_ml, bottle_start_ml, bottle_contents, bottle_brand)
