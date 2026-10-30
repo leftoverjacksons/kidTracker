@@ -91,11 +91,14 @@ export default function Reports() {
     const avg = medianFeedByDay(fd, days, isoDay);
     const t = days.map((d) => targetAt(plan, baby?.birth_date ?? null, new Date(`${d}T12:00`)));
     const from = new Date(`${days[0]}T00:00`);
+    // Today's per-feed range and today's middle-sized feed so far, in the legend (like Total intake).
+    const tk = t[t.length - 1], mk = avg[avg.length - 1];
+    const todayFeed = view?.partial && tk ? ` · today ${toVol(tk.min)}–${toVol(tk.max)} ${volUnit}${mk != null ? `, median so far ${toVol(mk)} ${volUnit}` : ''}` : '';
     return {
       has: avg.some((v) => v != null),
       series: [{ label: 'Typical feed', data: avg.map((v) => (v == null ? null : toVol(v))) }],
       band: { from: t.map((x) => (x ? toVol(x.min) : null)), to: t.map((x) => (x ? toVol(x.max) : null)),
-        label: plan.target === 'age' ? 'Target by age (lactation handout)' : 'Our target' },
+        label: (plan.target === 'age' ? 'Target by age (lactation handout)' : 'Our target') + todayFeed },
       pumps: pumpsWithFeeds(data.events, fd, from),
       intake: (() => {
         // Everything he took each day: bottles by contents plus nursing minutes × the credit.

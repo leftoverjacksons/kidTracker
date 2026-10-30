@@ -611,6 +611,8 @@ for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Tim
 }
 { // Today's target range and the amount so far sit in the Total intake legend.
   const txt = await A.locator('.chart-card', { hasText: 'Total intake per day' }).innerText();
+  const typ = await A.locator('.chart-card', { hasText: 'Typical feed' }).innerText();
+  if (!/today [\d.]+–[\d.]+ oz, median so far [\d.]+ oz/.test(typ)) problems.push(`Typical feed chart has no "today … median so far" line: ${typ.slice(0, 160)}`);
   if (!/today [\d.]+–[\d.]+ oz, so far ~?[\d.]+/.test(txt)) problems.push(`Total intake chart has no "today … so far" line: ${txt.slice(0, 160)}`);
 }
 
