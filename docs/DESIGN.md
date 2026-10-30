@@ -909,6 +909,8 @@ Things discussed with the owner that were not built, or built differently, with 
 - "Forgot password?" on the login screen (needs a Supabase redirect setting). Offered; for now a password is reset with the SQL in SETUP.md.
 - Partial feeds in the statistics now: every feed counts as 1 in feeds per day and time between feeds, and in Typical feed through the median (so an odd small one barely moves it). Total intake counts every millilitre.
 
+- **Timing feeds from the rolling 24 h intake (explored 2026-10-30, not adopted):** proposal: a feed is due when the last 24 hours' intake falls so that one typical feed would bring it to 66% of the way through the daily band (e.g. band 706–787 ml → level 759 ml → due at ≤ 658 ml with a 101 ml feed). Steady state matches the current gap (≈ 3 h 10 m). A one-minute-step simulation showed the flaw: the rolling total only falls when an old feed leaves the window, so timing replays the previous day (a 6 h night stretch recurs daily, followed by a 5 h gap), and one 50 ml feed made the next one due a minute later, then left a 5 h gap 24 h on. Kept: the per-feed fuel gauge for timing; the 24 h total drives only the catch-up aim and the report bands. A bounded variant (shorten the gap ≤ 10–15%, never under 2½ h, when below the band) was offered and not taken.
+
 ### C. Report ideas saved for later (2026-10-16)
 
 - **Wake windows:** average awake time between sleeps per day (trend).
