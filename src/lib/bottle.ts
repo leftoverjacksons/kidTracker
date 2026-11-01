@@ -87,3 +87,21 @@ export function byBrand(feeds: TimedBottle[]) {
     return { brand, feeds: f.length, rate: median(f.map((x) => x.rate))!, minutes: median(f.map((x) => x.minutes))!, ml: median(f.map((x) => x.ml))! };
   });
 }
+
+/** Half-life of the trend line on the bottle charts over time. */
+export const TREND_HALF_LIFE_MS = 24 * 3_600_000;
+
+/**
+ * Exponential moving average for points at uneven times, oldest first: each new point pulls the
+ * average toward it by 1 − 0.5^(gap / half-life), so a point a day after the last counts half,
+ * one an hour later only ~3%. Starts at the first point.
+ */
+export function timeEma(points: { t: number; y: number }[], halfLifeMs = TREND_HALF_LIFE_MS): { t: number; y: number }[] {
+  const out: { t: number; y: number }[] = [];
+  for (const p of [...points].sort((a, b) => a.t - b.t)) {
+    const prev = out[out.length - 1];
+    const w = prev ? 1 - 0.5 ** ((p.t - prev.t) / halfLifeMs) : 1;
+    out.push({ t: p.t, y: prev ? prev.y + w * (p.y - prev.y) : p.y });
+  }
+  return out;
+}

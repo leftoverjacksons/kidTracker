@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activeMs, bottleMinutes, byBrand, flowByDay, flowRate, median, timedBottles } from './bottle';
+import { timeEma } from './bottle';
 import type { EventRow } from './types';
 
 const b = (start: string, min: number | null, ml: number | null) => ({
@@ -47,5 +48,15 @@ describe('pauses', () => {
     const now = new Date('2026-10-20T10:10:00Z');
     expect(activeMs({ started_at: '2026-10-20T10:00:00Z', ended_at: null, paused_at: null, paused_s: 60 }, now)).toBe(9 * 60_000);
     expect(activeMs({ started_at: '2026-10-20T10:00:00Z', ended_at: null, paused_at: '2026-10-20T10:05:00Z', paused_s: 60 }, now)).toBe(4 * 60_000);
+  });
+});
+
+describe('trend line', () => {
+  it('pulls toward each new point by 1 − 0.5^(gap / half-life)', () => {
+    const H = 3_600_000;
+    const e = timeEma([{ t: 24 * H, y: 6 }, { t: 0, y: 2 }, { t: 25 * H, y: 6 }]);
+    expect(e[0]).toEqual({ t: 0, y: 2 });
+    expect(e[1].y).toBeCloseTo(4); // a day later: halfway from 2 to 6
+    expect(e[2].y).toBeCloseTo(4 + 2 * (1 - 0.5 ** (1 / 24))); // an hour later: ~3% of the way
   });
 });
