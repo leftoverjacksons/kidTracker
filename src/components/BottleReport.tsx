@@ -1,11 +1,12 @@
 import { IonChip, IonItem, IonLabel, IonList, IonNote } from '@ionic/react';
 import { useMemo, useState } from 'react';
-import { byBrand, timedBottles } from '../lib/bottle';
+import { bottleAmounts, byBrand, sortBrands, timedBottles } from '../lib/bottle';
 import { useData } from '../lib/data';
 import { formatDuration, formatFlow, formatVolume, formatWhen } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import type { EventRow } from '../lib/types';
 import { mlToOz } from '../lib/units';
+import BrandTimeChart, { type TimePoint } from './charts/BrandTimeChart';
 import StripChart, { type StripPoint } from './charts/StripChart';
 import Chips from './Chips';
 import EditSheet from './EditSheet';
@@ -41,7 +42,8 @@ export default function BottleReport({ days }: { days: number }) {
   const view = useMemo(() => {
     const since = new Date(Date.now() - days * 86_400_000);
     const all = timedBottles(data.events, since);
-    const allBrands = byBrand(all).map((b) => b.brand); // every bottle in the range, for the selector
+    const amounts = bottleAmounts(data.events, since); // timed or not, for amount per feed over time
+    const allBrands = sortBrands([...all, ...amounts].map((b) => b.brand)); // every bottle in the range, for the selector
     const feeds = all.filter((f) => !hidden.includes(f.brand));
     const brands = byBrand(feeds);
     const cats = brands.map((b) => b.brand);
@@ -54,14 +56,23 @@ export default function BottleReport({ days }: { days: number }) {
     const length: StripPoint[] = feeds.map((f) => ({ cat: cats.indexOf(f.brand), y: f.minutes, group: groupOf(f.e), tip: tip(f) }));
     const usedGroups = GROUPS.filter((_, gi) => feeds.some((f) => groupOf(f.e) === gi));
     const remap = (pts: StripPoint[]) => pts.map((p) => ({ ...p, group: usedGroups.indexOf(GROUPS[p.group]) }));
+    // Over time, one series per bottle (design doc §8a L).
+    const perBrand = <T extends { brand: string }>(xs: T[], pt: (x: T) => TimePoint) =>
+      sortBrands(xs.map((x) => x.brand)).map((b) => ({ label: b, points: xs.filter((x) => x.brand === b).map(pt) }));
+    const flowTime = perBrand(feeds, (f) => ({ t: Date.parse(f.e.started_at), y: toRate(f.rate), tip: tip(f) }));
+    const amountTime = perBrand(amounts.filter((a) => !hidden.includes(a.brand)), (a) => ({
+      t: Date.parse(a.e.started_at), y: oz ? mlToOz(a.ml) : a.ml,
+      tip: [`${a.brand} · ${formatWhen(new Date(a.e.started_at))}`, `Drank ${formatVolume(a.ml, settings)}${a.e.bottle_start_ml ? ` of ${formatVolume(a.e.bottle_start_ml, settings)}` : ''}`],
+    }));
     return {
-      all, allBrands, feeds, brands, cats, groups: usedGroups, flow: remap(flow), length: remap(length),
+      all, allBrands, feeds, brands, cats, groups: usedGroups, flow: remap(flow), length: remap(length), flowTime, amountTime,
       flowMedians: brands.map((b) => toRate(b.rate)), lengthMedians: brands.map((b) => b.minutes),
     };
   }, [data.events, days, settings, hidden]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fmtRate = useMemo(() => (v: number) => (oz ? v.toFixed(2) : v.toFixed(1)), [oz]);
   const fmtMin = useMemo(() => (v: number) => `${Math.round(v)}m`, []);
+  const fmtAmt = useMemo(() => (v: number) => (oz ? v.toFixed(1) : String(Math.round(v))), [oz]);
   const band = useMemo(() => ({ from: 10, to: 20, label: '10–20 min: often suggested for a paced feed' }), []);
   // The family's chosen target flow, 3–6 ml/min (design doc §8a L).
   const flowBand = useMemo(() => (oz
@@ -124,6 +135,11 @@ export default function BottleReport({ days }: { days: number }) {
         format={fmtRate} medians={view.flowMedians} band={flowBand} />
       <StripChart title="Feed length (minutes)" categories={view.cats} points={view.length} groups={view.groups}
         format={fmtMin} medians={view.lengthMedians} band={band} />
+      <BrandTimeChart title={`Flow over time (${unit}/min)`} series={view.flowTime} format={fmtRate} band={flowBand} />
+      {view.amountTime.some((s) => s.points.length) && (
+        <BrandTimeChart title={`Amount per bottle over time (${unit})`} series={view.amountTime} format={fmtAmt}
+          note="Every bottle with an amount, timed or not." />
+      )}
 
       <h2 className="section-title">Feeds</h2>
       <Chips options={view.cats.map((c) => ({ value: c, label: c }))} value={brand} onChange={setBrand} clearable />

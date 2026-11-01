@@ -551,7 +551,7 @@ if (!/,bottle,,,4,breast milk,/.test(feeds)) problems.push(`feeds CSV missing 4 
 
 // Pediatrician summary: earlier weights and a few past days, so page 1 has a weight chart and lines
 psql(`insert into events (baby_id, type, started_at, weight_g)
-  select b.id, 'growth', now() - (d || ' days')::interval, w from babies b, (values (12, 3500), (9, 3250), (5, 3330)) v(d, w)`);
+  select b.id, 'growth', now() - (d || ' days')::interval, w from babies b, (values (12, 3500), (9, 3250), (5, 3330), (4, 3520), (2, 3580)) v(d, w)`);
 psql(`insert into events (baby_id, type, started_at, ended_at, diaper_wet, diaper_dirty)
   select b.id, 'diaper', now() - (d || ' days')::interval - (k || ' hours')::interval, now() - (d || ' days')::interval - (k || ' hours')::interval,
          true, k % 3 = 0 from babies b, generate_series(1, 6) d, generate_series(1, 5 + d % 3) k`);
@@ -569,6 +569,12 @@ await A.pdf({ path: `${OUT}/pediatrician-summary.pdf`, format: 'Letter', printBa
 await A.getByRole('button', { name: /back/i }).click(); await wait(A, 1000);
 await openReportSections(A);
 await expectText(A, 'Sleep per day');
+{ // Weight trend: a best-fit line through the weights back above the first one, in g/day
+  const wcard = A.locator('.chart-card', { hasText: 'Weight vs.' });
+  const wt = await wcard.innerText();
+  if (!/trend since then [+−]\d+ g\/day/.test(wt)) problems.push(`weight chart has no g/day trend: ${wt.slice(-200)}`);
+  await wcard.scrollIntoViewIfNeeded(); await wcard.screenshot({ path: `${OUT}/weight-trend.png` });
+}
 
 // Milk pumped per breast: add five earlier days of pumping, then look at the line chart
 psql(`insert into events (baby_id, type, started_at, ended_at, pump_side, pump_left_ml, pump_right_ml)
@@ -637,6 +643,11 @@ const bottlesPage = A.locator('.ion-page:not(.ion-page-hidden)').last();
 await shot(A, 'reports-bottles');
 const flowCard = bottlesPage.locator('.chart-card', { hasText: 'Flow per feed' });
 if (!(await flowCard.count())) problems.push('no flow-per-feed chart'); else { await flowCard.scrollIntoViewIfNeeded(); await flowCard.screenshot({ path: `${OUT}/bottles-flow.png` }); }
+for (const [t, f] of [['Flow over time', 'bottles-flow-time'], ['Amount per bottle over time', 'bottles-amount-time']]) {
+  const card = bottlesPage.locator('.chart-card', { hasText: t });
+  if (!(await card.count())) { problems.push(`no "${t}" chart`); continue; }
+  await card.scrollIntoViewIfNeeded(); await wait(A, 300); await card.screenshot({ path: `${OUT}/${f}.png` });
+}
 // History: every feed is bracketed, including a single bottle; those below the target are dashed
 await A.locator('ion-tab-button[tab="history"]').click(); await wait(A, 800);
 await A.locator('.filter-row ion-chip', { hasText: 'Bottle' }).click(); await wait(A, 800);

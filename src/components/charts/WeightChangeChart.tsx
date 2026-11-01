@@ -4,7 +4,7 @@ import {
 } from 'chart.js';
 import { useEffect, useRef } from 'react';
 import type { WeightChange } from '../../lib/weight';
-import { formatPct } from '../../lib/weight';
+import { formatPct, gainTrend } from '../../lib/weight';
 import { useChartTheme } from './theme';
 
 Chart.register(BarController, BarElement, LineController, LineElement, PointElement, LinearScale, Tooltip);
@@ -35,6 +35,7 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
     const base = toDisplay(data.base.grams);
     const day = (t: number) => (t - dayZero) / DAY;
     const pts = data.points.map((p) => ({ x: day(p.t), y: toDisplay(p.grams), p }));
+    const trend = gainTrend(data);
     const showRef = data.lowest.pct < -5; // −10% checkpoint line only once a real loss shows up
     const ys = pts.map((q) => q.y).concat(base, showRef ? base * 0.9 : base);
     const pad = base * 0.015;
@@ -94,6 +95,12 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
             borderColor: theme.text, backgroundColor: theme.text, borderWidth: 2, tension: 0.25,
             pointRadius: 4, pointHoverRadius: 6, pointBorderColor: theme.surface, pointBorderWidth: 2, order: 0,
           },
+          // Best-fit line through the weights back at or above the first one (dashed).
+          ...(trend ? [{
+            type: 'line' as const, label: 'Trend', parsing: false as const, order: 0,
+            data: [trend.from.t, trend.to.t].map((t) => ({ x: day(t), y: toDisplay(trend.at(t)) })),
+            borderColor: theme.gain, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, pointHoverRadius: 0,
+          }] : []),
           {
             type: 'bar', label: 'Change', order: 1,
             // Floating bars [first weight, this weight]; Chart.js parses {x, y: [from, to]} itself.
@@ -163,6 +170,9 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
   }, [data, toDisplay, unit, formatWeight, dayZero, baseLabel, theme]);
 
   const r = data.regainedAt;
+  const trend = gainTrend(data);
+  const perDay = trend && `${trend.gPerDay >= 0 ? '+' : '−'}${Math.round(Math.abs(trend.gPerDay))} g/day` +
+    (unit === 'lb' ? ` (${(Math.abs(trend.gPerDay) / 28.3495).toFixed(1)} oz/day)` : '');
   return (
     <figure className="chart-card">
       <figcaption className="chart-title">Weight vs. {baseLabel.toLowerCase()}</figcaption>
@@ -170,6 +180,7 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
         <span><i style={{ background: theme.text }} />Weight</span>
         <span><i style={{ background: alpha(theme.gain, 0.5) }} />Above</span>
         <span><i style={{ background: alpha(theme.loss, 0.5) }} />Below</span>
+        {trend && <span><i className="dash" style={{ borderColor: theme.gain }} />Trend</span>}
       </div>
       <div className="chart-box chart-box-tall"><canvas ref={canvas} role="img" aria-label="Weight over time and percent change from the first weight" /></div>
       <div className="chart-note">
@@ -177,7 +188,8 @@ export default function WeightChangeChart({ data, toDisplay, unit, formatWeight,
           ? 'Log another weight to see the change.'
           : `Now ${formatWeight(data.latest.grams)} (${formatPct(data.latest.pct)})` +
             (data.lowest.pct < 0 ? ` · lowest ${formatPct(data.lowest.pct)}` : '') +
-            (r ? ` · back above ${baseLabel.toLowerCase()} at ${Math.floor((r - dayZero) / DAY)} days old` : '')}
+            (r ? ` · back above ${baseLabel.toLowerCase()} at ${Math.floor((r - dayZero) / DAY)} days old` : '') +
+            (trend ? ` · trend since then ${perDay} (best-fit line through the ${trend.n} weights from then on)` : '')}
       </div>
     </figure>
   );

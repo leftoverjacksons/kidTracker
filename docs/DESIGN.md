@@ -748,6 +748,7 @@ This is Phase 2 of E5 and I.
   - **Target flow band (2026-10-21):** the flow chart shades **3–6 ml/min** (0.10–0.20 oz/min), the family's chosen target. It is a family choice, not an official figure (see below). It is consistent with the length band: 60 ml over 10–20 min is 3–6 ml/min.
   - **Consultant's pace: explored, reverted (2026-10-27).** Her care plan says "no faster than five minutes per ounce; slower can be appropriate early on" (≤ 5.9 ml/min); her handout says "about 4–5 minutes per ounce" (5.9–7.4 ml/min). Neither gives an age schedule; at a fixed pace, feeds just get longer as volume grows (90 ml ≥ 15 min, 150 ml ≥ 25 min at 5 min/oz). A version shading ≤ 5.9 ml/min with a min/oz table column (red if faster) was pushed, along with counting Pause-button time in flow (to match her whole-feed measure, reversing K3). Both were reverted the same day at the owner's request: the 3–6 ml/min band and K3 stand, and the owner reads the numbers by hand, treating up to ~7 ml/min as acceptable at times. Note: because pauses are not counted, a paused feed's flow reads faster than her whole-feed min/oz would.
   3. **Feed length:** the same strip chart, with a shaded 10–20 min band labelled "often suggested for a paced feed".
+  - **Over time (built 2026-11-01, owner request):** two more charts, one series per bottle with a dot per feed joined in time order: **Flow over time** (timed bottles, with the 3–6 ml/min band) and **Amount per bottle over time** (every finished bottle with an amount, timed or not). The selector at the top hides bottles for the whole tab; tapping a bottle in a chart's legend hides it in that chart only. Bottles get blue, coral, teal and amber with different point shapes (shape keeps coral and amber apart for colour-blind viewers); "Not set" is always gray.
   4. **Feeds** list (filter chips by brand; tap to edit).
 - No official flow target exists. Feeding guidance is about feed length: paced bottle feeds of roughly 10–20 min (some guidance says at least 20), with pauses. Lab tests of nipples (Pados et al. 2016) found flow varies widely, even within one "slow" label (1.7 to over 15 ml/min). Comparing brands on this family's own feeds, plus asking their lactation consultant, is the approach.
 - Tests: unit (timedBottles, median, byBrand); DB (0008, feature detection after re-running 0007); e2e (pick Comotomo, the saved brand, the Bottles tab table and charts, the old chart gone).
@@ -856,6 +857,12 @@ Goals from the handout, for reference:
 - Pressing on an existing block still selects it; scrolling, a second finger (pinch) or lifting early cancels the long-press.
 
 - **Timed bottles as spans (2026-10-29, owner request):** a bottle with a length (timed with Start/Stop, or a length typed in) is drawn as an amber block from start to end, like sleep and nursing; a bottle running now reaches the now line. Untimed bottles (saved with end = start) stay dots. Spans can be adjusted like other blocks (drag, handles, ±5 on start and end) and are narrowed when they overlap another block. The span is wall time, pauses included; the flow figures still leave pauses out (K3).
+
+### W. Weight trend in g/day — built 2026-11-01 (app-only)
+
+- On **Weight vs. first weight**, once he's back to his first (birth) weight, a dashed best-fit line (least squares) runs through every weight from that point on, and the note adds "trend since then +31 g/day (1.1 oz/day) (best-fit line through the 4 weights from then on)". Needs two weights after the regain (`gainTrend` in `src/lib/weight.ts`).
+- Owner asked for a fit "through the points above his birth weight". A first version fitted only weights at or above it; it was changed before release to include every weight after the regain, because dropping a later dip below birth weight would show a gain while he was losing.
+- For context (not in the app): a commonly cited gain in the first months is about 20–30 g a day (5–7 oz a week); his consultant or pediatrician sets his own target.
 
 ### U. Reports → Overview in collapsible groups — built 2026-10-25 (app-only)
 

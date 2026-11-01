@@ -65,10 +65,23 @@ export function median(xs: number[]): number | null {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
+/** Brand names in list order, "Not set" last, anything unknown after that. */
+export function sortBrands(names: Iterable<string>): string[] {
+  const order = [...BOTTLE_BRANDS, 'Not set'] as string[];
+  return [...new Set(names)].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+}
+
+/** Finished bottles with an amount (timed or not), newest first: for amount per feed over time. */
+export function bottleAmounts(events: EventRow[], since: Date): { e: EventRow; brand: string; ml: number }[] {
+  return events
+    .filter((e) => e.type === 'bottle' && !e.deleted_at && e.ended_at && Number(e.bottle_ml) > 0 && Date.parse(e.started_at) >= since.getTime())
+    .map((e) => ({ e, brand: e.bottle_brand || 'Not set', ml: Number(e.bottle_ml) }))
+    .sort((a, b) => b.e.started_at.localeCompare(a.e.started_at));
+}
+
 /** Per brand: feeds, median flow (ml/min), median minutes, median ml. Brands in list order, "Not set" last. */
 export function byBrand(feeds: TimedBottle[]) {
-  const order = [...BOTTLE_BRANDS, 'Not set'] as string[];
-  const names = [...new Set(feeds.map((f) => f.brand))].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+  const names = sortBrands(feeds.map((f) => f.brand));
   return names.map((brand) => {
     const f = feeds.filter((x) => x.brand === brand);
     return { brand, feeds: f.length, rate: median(f.map((x) => x.rate))!, minutes: median(f.map((x) => x.minutes))!, ml: median(f.map((x) => x.ml))! };
