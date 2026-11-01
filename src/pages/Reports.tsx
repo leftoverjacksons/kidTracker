@@ -8,7 +8,7 @@ import LineChart from '../components/charts/LineChart';
 import GrowthChart from '../components/charts/GrowthChart';
 import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
-import { dailyTargetAt, medianFeedByDay, feeds, pumpsWithFeeds, readPlan, targetAt } from '../lib/feeding';
+import { dailyTargetAt, feedsPerDay, feedTarget, medianFeedByDay, feeds, pumpsWithFeeds, readPlan } from '../lib/feeding';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
@@ -89,7 +89,7 @@ export default function Reports() {
     const fd = feeds(data.events, plan);
     const days = rows.map((r) => r.day);
     const avg = medianFeedByDay(fd, days, isoDay);
-    const t = days.map((d) => targetAt(plan, baby?.birth_date ?? null, new Date(`${d}T12:00`)));
+    const t = days.map((d) => feedTarget(plan, baby?.birth_date ?? null, new Date(`${d}T12:00`)));
     const from = new Date(`${days[0]}T00:00`);
     // Today's per-feed range and today's middle-sized feed so far, in the legend (like Total intake).
     const tk = t[t.length - 1], mk = avg[avg.length - 1];
@@ -98,7 +98,7 @@ export default function Reports() {
       has: avg.some((v) => v != null),
       series: [{ label: 'Typical feed', data: avg.map((v) => (v == null ? null : toVol(v))) }],
       band: { from: t.map((x) => (x ? toVol(x.min) : null)), to: t.map((x) => (x ? toVol(x.max) : null)),
-        label: (plan.target === 'age' ? 'Target by age (lactation handout)' : 'Our target') + todayFeed },
+        label: (plan.anchor ? `Our plan (daily target ÷ ${feedsPerDay(plan, baby?.birth_date ?? null, new Date())} feeds)` : plan.target === 'age' ? 'Target by age (lactation handout)' : 'Our target') + todayFeed },
       pumps: pumpsWithFeeds(data.events, fd, from),
       intake: (() => {
         // Everything he took each day: bottles by contents plus nursing minutes × the credit.

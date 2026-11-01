@@ -15,9 +15,22 @@ export interface FeedingPlan {
   nursing_ml_per_min: number;
   /** Minutes between feeds, or 'age' = the handout's daily intake ÷ its per-feed amount (feedEveryMin). */
   every_min: number | 'age';
+  /** Anchored schedule (design doc §8a X): a fixed bedtime feed, then a night stretch; null = flexible. */
+  anchor: Anchor | null;
+  /** Fewest feeds a day the anchored schedule plans (8 until his consultant says fewer). */
+  min_feeds: number;
 }
 
-export const DEFAULT_PLAN: FeedingPlan = { target: 'age', nursing_ml_per_min: 2.1, every_min: 'age' };
+export interface Anchor {
+  /** Bedtime feed, minutes after local midnight (1380 = 11 PM). */
+  bedtime_min: number;
+  /** Planned gap after the bedtime feed, minutes. */
+  night_min: number;
+  /** Time zone the bedtime is in (the phone's, when it was set), so every phone and the server agree. */
+  tz: string;
+}
+
+export const DEFAULT_PLAN: FeedingPlan = { target: 'age', nursing_ml_per_min: 2.1, every_min: 'age', anchor: null, min_feeds: 8 };
 
 /** Accepts whatever is stored (or nothing) and returns a usable plan. */
 export function readPlan(raw: unknown): FeedingPlan {
@@ -26,10 +39,14 @@ export function readPlan(raw: unknown): FeedingPlan {
   const target = t && typeof t === 'object' && t.min_ml > 0 && t.max_ml >= t.min_ml ? { min_ml: t.min_ml, max_ml: t.max_ml } : 'age';
   const rate = Number(r.nursing_ml_per_min);
   const every = Number(r.every_min);
+  const a = r.anchor, feeds = Number(r.min_feeds);
   return {
     target,
     nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : DEFAULT_PLAN.nursing_ml_per_min,
     every_min: r.every_min !== 'age' && every >= 60 && every <= 360 ? every : 'age',
+    anchor: a && typeof a === 'object' && a.bedtime_min >= 0 && a.bedtime_min < 1440 && a.night_min >= 120 && a.night_min <= 360 && typeof a.tz === 'string' && a.tz
+      ? { bedtime_min: a.bedtime_min, night_min: a.night_min, tz: a.tz } : null,
+    min_feeds: feeds >= 6 && feeds <= 12 ? Math.round(feeds) : DEFAULT_PLAN.min_feeds,
   };
 }
 
@@ -126,6 +143,17 @@ export function nextFeed(all: Feed[], plan: FeedingPlan, birthDate: string | nul
   if (!recent.length) return null;
   let due: number | null = null;
   for (const f of recent) {
+    if (plan.anchor) {
+      // Anchored: the planned gap for a feed at this time; a full planned feed buys all of it, a
+      // smaller one its share, a bigger one no more (so the day still lands on the bedtime feed).
+      const gap = anchoredGapMin(f.start.getTime(), plan.anchor, feedsPerDay(plan, birthDate, f.start)) * 60_000;
+      const aim = planAim(plan, birthDate, f.start);
+      const mid = aim ? (aim.min + aim.max) / 2 : 0;
+      const share = mid > 0 ? Math.min(1, f.estMl / mid) : 1;
+      const from: number = due == null ? f.start.getTime() : Math.max(due, f.start.getTime());
+      due = Math.min(from + gap * share, f.start.getTime() + gap);
+      continue;
+    }
     const interval = feedEveryMin(plan, birthDate, f.start) * 60_000;
     const target = targetAt(plan, birthDate, f.start);
     const mid = target ? (target.min + target.max) / 2 : 0;
@@ -135,7 +163,7 @@ export function nextFeed(all: Feed[], plan: FeedingPlan, birthDate: string | nul
     due = Math.min(from + interval * share, f.start.getTime() + interval * maxShare);
   }
   const last = recent[recent.length - 1];
-  return { due: new Date(due!), last, target: targetAt(plan, birthDate, now) };
+  return { due: new Date(due!), last, target: feedTarget(plan, birthDate, now) };
 }
 
 /**
@@ -279,13 +307,14 @@ export function feedEveryMin(plan: FeedingPlan, birthDate: string | null, t: Dat
  * above the top of the range. Timing is unchanged: small feeds already bring the next one sooner.
  */
 export function aimAt(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
-  const per = targetAt(plan, birthDate, now);
+  const per = feedTarget(plan, birthDate, now);
   if (!per) return null;
+  const top = targetAt(plan, birthDate, now)?.max ?? per.max; // never above her top value
   const daily = dailyTargetAt(plan, birthDate, new Date(now.getTime() - 12 * 3_600_000)); // middle of the window, as on Reports → Daily
   const intake = intakeLast24(events, plan, now);
   const behind = daily ? Math.max(0, daily.min - intake) : 0;
-  const min = Math.min(per.max, Math.round(per.min + behind / 3));
-  return { min, max: per.max, catchUp: min > per.min };
+  const min = Math.min(top, Math.round(per.min + behind / 3));
+  return { min, max: Math.max(per.max, min), catchUp: min > per.min };
 }
 
 /**
@@ -302,4 +331,86 @@ export function intakeLast24(events: (FeedEvent & { deleted_at?: string | null }
     if (e.type === 'nursing') ml += nursingMinutes(e.ended_at ? e : { ...e, ended_at: now.toISOString() }) * plan.nursing_ml_per_min;
   }
   return ml;
+}
+
+// ───────────── Anchored schedule (design doc §8a X) ─────────────
+
+const DAY_MS = 86_400_000;
+
+/** Minutes `tz` is ahead of UTC at time `t` (falls back to this device's zone). */
+export function tzOffsetMin(t: number, tz: string): number {
+  try {
+    const p: Record<string, number> = {};
+    for (const x of new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(t))) p[x.type] = Number(x.value);
+    return Math.round((Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second) - Math.floor(t / 1000) * 1000) / 60_000);
+  } catch {
+    return -new Date(t).getTimezoneOffset();
+  }
+}
+
+/** The bedtime-feed moments either side of `t`: the last at or before it and the next after it. */
+export function anchorsAround(t: number, a: Anchor): { prev: number; next: number } {
+  const off = tzOffsetMin(t, a.tz) * 60_000;
+  const day0 = Math.floor((t + off) / DAY_MS) * DAY_MS; // local midnight of t's day, as local ms
+  const at = (k: number) => {
+    const local = day0 + k * DAY_MS + a.bedtime_min * 60_000;
+    return local - tzOffsetMin(local - off, a.tz) * 60_000; // each day's own offset, so DST days still land on the hour
+  };
+  for (let k = 0; ; k++) if (at(k) > t) return { prev: at(k - 1), next: at(k) };
+}
+
+/** A feed this close to a bedtime moment is the bedtime feed (and buys the night stretch). */
+export const BEDTIME_WINDOW_MIN = 90;
+
+/**
+ * Planned gap (minutes) after a feed starting at `start`. The bedtime feed (within 90 min of
+ * the anchor) buys the night stretch. Any other feed splits the time left until the next
+ * bedtime feed into equal gaps, as many as fit at the day's spacing: with 8 feeds and a 4 h
+ * night, (24 h − 4 h) ÷ 7 = 2 h 51 m, so 3 AM → 5:51 → 8:43 → … → 11 PM. A late or early feed
+ * just changes how the remaining time is divided, so the day still ends on the bedtime feed.
+ */
+export function anchoredGapMin(start: number, a: Anchor, feedsADay: number): number {
+  const { prev, next } = anchorsAround(start, a);
+  if (Math.min(start - prev, next - start) <= BEDTIME_WINDOW_MIN * 60_000) return a.night_min;
+  const spacing = (1440 - a.night_min) / Math.max(1, feedsADay - 1);
+  const left = (next - start) / 60_000;
+  return left / Math.max(1, Math.round(left / spacing));
+}
+
+/**
+ * Feeds a day the anchored schedule plans: the handout's daily amount ÷ its per-feed amount
+ * (fewer as he grows), but never fewer than the plan's minimum (8 to start).
+ */
+export function feedsPerDay(plan: FeedingPlan, birthDate: string | null, t: Date): number {
+  const per = targetAt(plan, birthDate, t), daily = dailyTargetAt(plan, birthDate, t);
+  const byAge = per && daily ? Math.round((daily.min + daily.max) / (per.min + per.max)) : 0;
+  return Math.max(plan.min_feeds, byAge);
+}
+
+/**
+ * Amount to aim for per feed on the anchored schedule: the daily target ÷ planned feeds, ±5%,
+ * never above the top of the handout's per-feed range. With 8 feeds the feeds are a little
+ * smaller than the handout's per-feed column, which assumes fewer feeds as he grows.
+ */
+export function planAim(plan: FeedingPlan, birthDate: string | null, t: Date): { min: number; max: number } | null {
+  const daily = dailyTargetAt(plan, birthDate, t);
+  if (!daily) return targetAt(plan, birthDate, t);
+  const each = (daily.min + daily.max) / 2 / feedsPerDay(plan, birthDate, t);
+  const top = targetAt(plan, birthDate, t)?.max ?? Infinity;
+  const max = Math.min(top, Math.round(each * 1.05));
+  return { min: Math.min(max, Math.round(each * 0.95)), max };
+}
+
+/** Target per feed for this plan: the anchored schedule's aim, or the per-feed target. */
+export function feedTarget(plan: FeedingPlan, birthDate: string | null, t: Date): { min: number; max: number } | null {
+  return plan.anchor ? planAim(plan, birthDate, t) : targetAt(plan, birthDate, t);
+}
+
+/** Planned feed times from the bedtime feed at or before `t` up to the next one (for Settings). */
+export function planSlots(plan: FeedingPlan, birthDate: string | null, t: Date): Date[] {
+  if (!plan.anchor) return [];
+  const { prev, next } = anchorsAround(t.getTime(), plan.anchor);
+  const n = feedsPerDay(plan, birthDate, t), first = prev + plan.anchor.night_min * 60_000;
+  const step = (next - first) / Math.max(1, n - 1);
+  return [prev, ...Array.from({ length: n - 1 }, (_, k) => first + k * step)].map((x) => new Date(x));
 }

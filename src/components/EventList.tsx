@@ -2,7 +2,7 @@ import { IonItem, IonLabel, IonList, IonListHeader, IonNote } from '@ionic/react
 import { useMemo, type ReactNode } from 'react';
 import { useData, useNow } from '../lib/data';
 import { META, summarize } from '../lib/describe';
-import { feeds, nursingMinutes, readPlan, targetAt } from '../lib/feeding';
+import { feedTarget, feeds, nursingMinutes, readPlan } from '../lib/feeding';
 import { formatDayHeading, formatTime, formatVolume, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import type { EventRow } from '../lib/types';
@@ -27,8 +27,8 @@ export default function EventList({ events, onOpen, groupByDay = true }: {
     const m = new Map<string, { key: string; estMl: number; nursed: boolean; under: boolean }>();
     for (const f of feeds(data.events, plan)) {
       if (!f.ids.length) continue;
-      // Below the target range for his age at the time: drawn dashed.
-      const t = targetAt(plan, baby?.birth_date ?? null, f.start);
+      // Below the target for a feed at the time (his age, or the anchored plan's amount): drawn dashed.
+      const t = feedTarget(plan, baby?.birth_date ?? null, f.start);
       const info = { key: f.ids[0], estMl: f.estMl, nursed: f.nursingMin > 0 && plan.nursing_ml_per_min > 0, under: !!t && f.estMl < t.min };
       for (const id of f.ids) m.set(id, info);
     }

@@ -62,9 +62,10 @@ export function pumpDue(events: Ev[], now: Date, everyMin: number | null) {
 
 // ───────────── Feeds and lining pumping up with them (mirrors src/lib/feeding.ts) ─────────────
 
-export interface Plan { target: 'age' | { min_ml: number; max_ml: number }; nursing_ml_per_min: number; every_min: number | 'age' }
+export interface Anchor { bedtime_min: number; night_min: number; tz: string }
+export interface Plan { target: 'age' | { min_ml: number; max_ml: number }; nursing_ml_per_min: number; every_min: number | 'age'; anchor: Anchor | null; min_feeds: number }
 export interface Ctx { plan: Plan; birthDate: string | null }
-export const DEFAULT_CTX: Ctx = { plan: { target: 'age', nursing_ml_per_min: 2.1, every_min: 'age' }, birthDate: null };
+export const DEFAULT_CTX: Ctx = { plan: { target: 'age', nursing_ml_per_min: 2.1, every_min: 'age', anchor: null, min_feeds: 8 }, birthDate: null };
 const FEED_GAP_MIN = 20, ALIGN_WINDOW_MIN = 30, PUMP_MIN_GAP_MIN = 120;
 const AGE_CURVE = [{ day: 5.5, min: 45, max: 60 }, { day: 11, min: 75, max: 90 }, { day: 18, min: 105, max: 120 }, { day: 25, min: 120, max: 150 }];
 const DAILY_CURVE = [{ day: 5.5, min: 355, max: 475 }, { day: 11, min: 590, max: 710 }, { day: 18, min: 770, max: 830 }, { day: 25, min: 830, max: 945 }];
@@ -73,8 +74,13 @@ export function readPlan(raw: unknown): Plan {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Plan>;
   const t = r.target;
   const target = t && typeof t === 'object' && t.min_ml > 0 && t.max_ml >= t.min_ml ? { min_ml: t.min_ml, max_ml: t.max_ml } : 'age';
-  const rate = Number(r.nursing_ml_per_min), every = Number(r.every_min);
-  return { target, nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : 2.1, every_min: r.every_min !== 'age' && every >= 60 && every <= 360 ? every : 'age' };
+  const rate = Number(r.nursing_ml_per_min), every = Number(r.every_min), a = r.anchor, n = Number(r.min_feeds);
+  return {
+    target, nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : 2.1, every_min: r.every_min !== 'age' && every >= 60 && every <= 360 ? every : 'age',
+    anchor: a && typeof a === 'object' && a.bedtime_min >= 0 && a.bedtime_min < 1440 && a.night_min >= 120 && a.night_min <= 360 && typeof a.tz === 'string' && a.tz
+      ? { bedtime_min: a.bedtime_min, night_min: a.night_min, tz: a.tz } : null,
+    min_feeds: n >= 6 && n <= 12 ? Math.round(n) : 8,
+  };
 }
 function curveAt(c: typeof AGE_CURVE, day: number) {
   if (day <= c[0].day) return { min: c[0].min, max: c[0].max };
@@ -103,6 +109,39 @@ function feedEveryMin(ctx: Ctx, t: Date): number {
   const daily = curveAt(DAILY_CURVE, dayOfLife(ctx.birthDate, t));
   return Math.min(240, Math.max(120, Math.round((24 * 60 * (per.min + per.max)) / (daily.min + daily.max))));
 }
+function dailyTargetAt(ctx: Ctx, t: Date) {
+  if (ctx.plan.target !== 'age') return { min: ctx.plan.target.min_ml * 8, max: ctx.plan.target.max_ml * 8 };
+  return ctx.birthDate ? curveAt(DAILY_CURVE, dayOfLife(ctx.birthDate, t)) : null;
+}
+// Anchored schedule: bedtime feed, night stretch, then equal gaps that end on the next bedtime feed.
+function tzOffsetMin(t: number, tz: string): number {
+  try {
+    const p: Record<string, number> = {};
+    for (const x of new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(t))) p[x.type] = Number(x.value);
+    return Math.round((Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second) - Math.floor(t / 1000) * 1000) / 60_000);
+  } catch { return -new Date(t).getTimezoneOffset(); }
+}
+function anchorsAround(t: number, a: Anchor): { prev: number; next: number } {
+  const DAY = 86_400_000, off = tzOffsetMin(t, a.tz) * 60_000, day0 = Math.floor((t + off) / DAY) * DAY;
+  const at = (k: number) => { const local = day0 + k * DAY + a.bedtime_min * 60_000; return local - tzOffsetMin(local - off, a.tz) * 60_000; };
+  for (let k = 0; ; k++) if (at(k) > t) return { prev: at(k - 1), next: at(k) };
+}
+function anchoredGapMin(start: number, a: Anchor, feedsADay: number): number {
+  const { prev, next } = anchorsAround(start, a);
+  if (Math.min(start - prev, next - start) <= 90 * 60_000) return a.night_min;
+  const spacing = (1440 - a.night_min) / Math.max(1, feedsADay - 1), left = (next - start) / 60_000;
+  return left / Math.max(1, Math.round(left / spacing));
+}
+function feedsPerDay(ctx: Ctx, t: Date): number {
+  const per = targetAt(ctx, t), daily = dailyTargetAt(ctx, t);
+  return Math.max(ctx.plan.min_feeds, per && daily ? Math.round((daily.min + daily.max) / (per.min + per.max)) : 0);
+}
+function planAim(ctx: Ctx, t: Date) {
+  const daily = dailyTargetAt(ctx, t);
+  if (!daily) return targetAt(ctx, t);
+  const each = (daily.min + daily.max) / 2 / feedsPerDay(ctx, t), max = Math.min(targetAt(ctx, t)?.max ?? Infinity, Math.round(each * 1.05));
+  return { min: Math.min(max, Math.round(each * 0.95)), max };
+}
 interface Feed { start: number; end: number; estMl: number }
 export function feeds(events: Ev[], plan: Plan): Feed[] {
   const items = events.filter((e) => (e.type === 'nursing' || e.type === 'bottle') && e.ended_at).map((e) => {
@@ -127,6 +166,14 @@ export function nextFeed(all: Feed[], ctx: Ctx, now: Date): number | null {
   const recent = all.filter((f) => f.start > now.getTime() - 2 * 86_400_000 && f.start <= now.getTime());
   let due: number | null = null;
   for (const f of recent) {
+    const a = ctx.plan.anchor;
+    if (a) { // anchored: a full planned feed buys the planned gap, a smaller one its share, a bigger one no more
+      const gap = anchoredGapMin(f.start, a, feedsPerDay(ctx, new Date(f.start))) * 60_000;
+      const aim = planAim(ctx, new Date(f.start)), mid = aim ? (aim.min + aim.max) / 2 : 0;
+      const from: number = due == null ? f.start : Math.max(due, f.start);
+      due = Math.min(from + gap * (mid > 0 ? Math.min(1, f.estMl / mid) : 1), f.start + gap);
+      continue;
+    }
     const interval = feedEveryMin(ctx, new Date(f.start)) * 60_000;
     const t = targetAt(ctx, new Date(f.start));
     const mid = t ? (t.min + t.max) / 2 : 0;

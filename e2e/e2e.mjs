@@ -485,6 +485,16 @@ await A.locator('ion-action-sheet button', { hasText: '2 ml per minute' }).click
 const savedPlan = psql(`select feeding_plan->>'nursing_ml_per_min' || ' ' || (feeding_plan->>'every_min') || ' ' || (feeding_plan->>'target') from household_settings`);
 if (savedPlan !== '2 age age') problems.push(`feeding plan not saved: ${savedPlan}`);
 await expectText(A, 'By age, the gap'); // spacing follows the handout by default
+// Anchored schedule: bedtime feed at 11 PM, 4 h night, at least 8 feeds; then back to flexible for the rest of the run.
+await A.locator('ion-select', { hasText: 'Schedule' }).click(); await wait(A, 600);
+await A.locator('ion-action-sheet button', { hasText: 'Anchored to a bedtime feed' }).click(); await wait(A, 1200);
+const anchored = psql(`select (feeding_plan->'anchor'->>'bedtime_min') || ' ' || (feeding_plan->'anchor'->>'night_min') || ' ' || (feeding_plan->>'min_feeds') from household_settings`);
+if (anchored !== '1380 240 8') problems.push(`anchored schedule not saved: ${anchored}`);
+await expectText(A, 'Plan: 11:00 PM, '); // the next slot is 4 h later (on a DST night the clock reads 2 or 4 AM)
+await expectText(A, '(8 feeds)');
+await shot(A, 'settings-anchored');
+await A.locator('ion-select', { hasText: 'Schedule' }).click(); await wait(A, 600);
+await A.locator('ion-action-sheet button', { hasText: 'Flexible' }).click(); await wait(A, 1200);
 await A.locator('ion-select', { hasText: 'Count nursing as' }).click(); await wait(A, 600);
 await A.locator('ion-action-sheet button', { hasText: '3 ml per minute' }).click(); await wait(A, 1200);
 await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 800);

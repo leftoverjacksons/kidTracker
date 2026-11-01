@@ -860,6 +860,25 @@ Goals from the handout, for reference:
 
 - **Timed bottles as spans (2026-10-29, owner request):** a bottle with a length (timed with Start/Stop, or a length typed in) is drawn as an amber block from start to end, like sleep and nursing; a bottle running now reaches the now line. Untimed bottles (saved with end = start) stay dots. Spans can be adjusted like other blocks (drag, handles, ±5 on start and end) and are narrowed when they overlap another block. The span is wall time, pauses included; the flow figures still leave pauses out (K3).
 
+### X. Anchored schedule: bedtime feed, night stretch, at least 8 feeds — built 2026-11-01 (app-only; push-tick needs re-pasting)
+
+Why: the owner returns to work in a week and wants a predictable night so the parents can take turns ("last feeding at 11 PM, then a 4 hour sleep, then a feed, etc."), with pumping lined up. Turn-taking itself is left to the family for now.
+
+Research (2026-11-01) behind "at least 8": CDC — breastfed babies feed about 8–12 times in 24 h, every 2–4 h, with gaps lengthening over the first weeks and months; children's hospital pages (KidsHealth; UF Health citing AAP) — 8–12 a day for about the first month and no more than about 4 h without a feed, overnight included; the care plan — 8 feeds a day, one stretch of up to 4 h at night once back to birth weight. A first draft that planned 7 feeds a day was below this and was dropped. The worry that his stomach would shrink with fewer feeds is not supported by the sources found (capacity grows over the first weeks and is poorly measured); the real reasons to keep feeds frequent are total intake and the mother's milk supply (pumping guidance for the early weeks: about 8–10 sessions a day, longest night gap about 4–5 h, no more than about 6).
+
+- **Settings → Feeding plan → Schedule:** "Flexible (each feed sets the next)" (the earlier logic, unchanged) or **"Anchored to a bedtime feed"**, with **Bedtime feed** (default 11 PM), **Then sleep** (night stretch, default 4 h, 3–5 h) and **Feeds a day, at least** (default 8; 7–10). Stored in `household_settings.feeding_plan` (`anchor: {bedtime_min, night_min, tz}`, `min_feeds`); no migration. The time zone is the phone's when the bedtime was set, so both phones and push-tick agree.
+- **Feeds a day** = the handout's daily amount ÷ its per-feed amount (fewer as he grows), never below the minimum. At two weeks that's 8.
+- **The day's plan:** the bedtime feed, the night stretch, then the remaining feeds split the time to the next bedtime feed into equal gaps. With 8 feeds and 4 h: (24 h − 4 h) ÷ 7 = 2 h 51 m, so 11 PM, 3:00, 5:51, 8:43, 11:34 AM, 2:26, 5:17, 8:09 PM, 11 PM. The plan is listed under the settings.
+- **Real feeds against the plan (`anchoredGapMin`):** a feed within 90 min of the bedtime moment is the bedtime feed and buys the night stretch. Any other feed re-divides the time left until the next bedtime feed into equal gaps of about the day's spacing, so a late or early feed shifts the rest of the day and bedtime stays put.
+- **Amount (`planAim`):** daily target ÷ planned feeds, ±5%, never above the top of the handout's per-feed range (at two weeks: about 750 ml ÷ 8 ≈ 94 ml, aim ~89–98 ml). The handout's per-feed column assumes fewer feeds as he grows; with 8 feeds each is a little smaller, and the daily total is what's kept.
+- **Time credit:** a full planned feed buys the planned gap, a smaller one its share (sooner), a bigger one no more. This also fixes the flaw found on 2026-11-01 in the flexible logic: there, a bigger feed bought proportionally more time, so catch-up (bigger feeds) couldn't raise the daily intake. On the anchored schedule a catch-up feed doesn't push the next one later, so it does.
+- **Catch-up** still works the same (a third of the 24 h shortfall on the bottom of the aim), capped at the top of the handout's per-feed range.
+- **Pumping** lines up with the planned feeds through the existing rules (meet halfway within 30 min; never under 2 h after the last pump), so it lands on the bedtime feed when it's due near it.
+- **Everywhere a feed is judged** (Bottle tile aim and supplement, History brackets, Typical feed band, which is labelled "Our plan (daily target ÷ 8 feeds)") uses this aim when the schedule is anchored.
+- **DST:** the night stretch is real time; on the fall-back night 11 PM + 4 h shows as 2 AM on the clock.
+- **Not done (owner: later, worked out by the family):** assigning night feeds to a person, feed alarms to that person's phone.
+- **Open, for the consultant:** when he can drop below 8 feeds a day; whether mom can skip pumping at the 3 AM feed (11 PM to ~5:50 AM is about 7 h without pumping).
+
 ### W. Weight trend in g/day — built 2026-11-01 (app-only)
 
 - On **Weight vs. first weight**, once he's back to his first (birth) weight, a dashed best-fit line (least squares) runs through every weight from that point on, and the note adds "trend since then +31 g/day (1.1 oz/day) (best-fit line through the 4 weights from then on)". Needs two weights after the regain (`gainTrend` in `src/lib/weight.ts`).

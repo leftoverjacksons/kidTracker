@@ -6,9 +6,9 @@ Run them **in order**. Every script is safe to run twice.
 
 ## Waiting
 
-### Update the `push-tick` function (feed spacing by age, 2026-10-28)
+### Update the `push-tick` function (feed spacing by age 2026-10-28; anchored schedule 2026-11-01)
 
-Needed so pumping notifications line up with the new feed times. About 2 minutes. Until then the app is right and only the notification times can be a little off.
+Needed so pumping notifications line up with the new feed times, including the anchored (bedtime) schedule. About 2 minutes. If you already did this after 2026-10-28, do it once more for the anchored schedule. Until then the app is right and only the notification times can be a little off.
 
 - [ ] In Supabase, open **Edge Functions → push-tick → Code**. Select all the code and delete it. Paste the whole of `supabase/functions/push-tick/index.ts` (open it on GitHub → **copy raw file**). Click **Deploy**.
 

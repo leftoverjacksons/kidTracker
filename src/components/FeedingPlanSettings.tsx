@@ -1,7 +1,7 @@
 import { IonButton, IonItem, IonLabel, IonList, IonListHeader, IonNote, IonSelect, IonSelectOption, useIonToast } from '@ionic/react';
 import { useEffect, useState } from 'react';
-import { dayOfLife, feedEveryMin, readPlan, targetAt, type FeedingPlan } from '../lib/feeding';
-import { formatDuration, formatVolume } from '../lib/format';
+import { dayOfLife, feedEveryMin, feedsPerDay, planAim, planSlots, readPlan, targetAt, type FeedingPlan } from '../lib/feeding';
+import { formatDuration, formatTime, formatVolume } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import { supabase } from '../lib/supabase';
 import { mlToOz, ozToMl } from '../lib/units';
@@ -37,6 +37,11 @@ export default function FeedingPlanSettings() {
   const day = baby?.birth_date ? Math.floor(dayOfLife(baby.birth_date, now)) : null;
   const every = feedEveryMin(plan, baby?.birth_date ?? null, now);
   const range = (t: { min: number; max: number }) => `${formatVolume(t.min, settings)}–${formatVolume(t.max, settings)}`;
+  const anchor = plan.anchor;
+  const slots = planSlots(plan, baby?.birth_date ?? null, now);
+  const aim = planAim(plan, baby?.birth_date ?? null, now);
+  const hhmm = (m: number) => formatTime(new Date(2026, 0, 1, Math.floor(m / 60), m % 60));
+  const hours = (m: number) => (m % 60 ? `${Math.floor(m / 60)}½ hours` : `${m / 60} hours`);
 
   return (
     <IonList inset>
@@ -67,18 +72,51 @@ export default function FeedingPlanSettings() {
         </IonSelect>
       </IonItem>
       <IonItem>
+        <IonSelect label="Schedule" value={anchor ? 'anchored' : 'flexible'} interface="action-sheet" disabled={!editable}
+          onIonChange={(e) => void save({ anchor: e.detail.value === 'anchored'
+            ? { bedtime_min: 23 * 60, night_min: 240, tz: Intl.DateTimeFormat().resolvedOptions().timeZone } : null })}>
+          <IonSelectOption value="flexible">Flexible (each feed sets the next)</IonSelectOption>
+          <IonSelectOption value="anchored">Anchored to a bedtime feed</IonSelectOption>
+        </IonSelect>
+      </IonItem>
+      {anchor && (
+        <>
+          <IonItem>
+            <IonSelect label="Bedtime feed" value={anchor.bedtime_min} interface="action-sheet" disabled={!editable}
+              onIonChange={(e) => void save({ anchor: { ...anchor, bedtime_min: Number(e.detail.value), tz: Intl.DateTimeFormat().resolvedOptions().timeZone } })}>
+              {[1260, 1290, 1320, 1350, 1380, 1410, 0, 30, 60].map((m) => <IonSelectOption key={m} value={m}>{hhmm(m)}</IonSelectOption>)}
+            </IonSelect>
+          </IonItem>
+          <IonItem>
+            <IonSelect label="Then sleep" value={anchor.night_min} interface="action-sheet" disabled={!editable}
+              onIonChange={(e) => void save({ anchor: { ...anchor, night_min: Number(e.detail.value) } })}>
+              {[180, 210, 240, 270, 300].map((m) => <IonSelectOption key={m} value={m}>{hours(m)}</IonSelectOption>)}
+            </IonSelect>
+          </IonItem>
+          <IonItem>
+            <IonSelect label="Feeds a day, at least" value={plan.min_feeds} interface="action-sheet" disabled={!editable}
+              onIonChange={(e) => void save({ min_feeds: Number(e.detail.value) })}>
+              {[7, 8, 9, 10].map((n) => <IonSelectOption key={n} value={n}>{n}{n === 8 ? ' (newborn guidance)' : ''}</IonSelectOption>)}
+            </IonSelect>
+          </IonItem>
+        </>
+      )}
+      {!anchor && <IonItem>
         <IonSelect label="Feed every" value={plan.every_min} interface="action-sheet" disabled={!editable}
           onIonChange={(e) => void save({ every_min: e.detail.value === 'age' ? 'age' : Number(e.detail.value) })}>
           <IonSelectOption value="age">By age (daily amount ÷ per feed)</IonSelectOption>
           {[120, 150, 180, 210, 240].map((m) => <IonSelectOption key={m} value={m}>{m % 60 ? `${Math.floor(m / 60)}½ hours` : `${m / 60} hours`}</IonSelectOption>)}
         </IonSelect>
-      </IonItem>
+      </IonItem>}
       <IonItem lines="none">
         <IonNote className="hint">
-          {today ? <>Now: {range(today)} per feed, every {formatDuration(every * 60_000)}{day != null ? ` (day ${day})` : ''}. </> : 'Set the birth date to use the by-age target. '}
-          {plan.every_min === 'age' && 'By age, the gap is the handout\'s daily amount spread over feeds of the per-feed size, so it lengthens as he grows (3 h in the first two weeks, about 3½ h from week 4), kept within 2–4 h. '}
+          {anchor ? <>
+            Plan: {slots.map((d) => formatTime(d)).join(', ')} ({feedsPerDay(plan, baby?.birth_date ?? null, now)} feeds){aim ? `, about ${range(aim)} each (the daily target ÷ the feeds)` : ''}.
+            {' '}A feed near {hhmm(anchor.bedtime_min)} is the bedtime feed and buys the {hours(anchor.night_min)}; the rest of the day splits into equal gaps that end on the bedtime feed. A late or early feed re-divides the time left, so bedtime stays put; a smaller feed brings the next one sooner, a bigger one doesn't push it later.{' '}
+          </> : today ? <>Now: {range(today)} per feed, every {formatDuration(every * 60_000)}{day != null ? ` (day ${day})` : ''}. </> : 'Set the birth date to use the by-age target. '}
+          {!anchor && plan.every_min === 'age' && 'By age, the gap is the handout\'s daily amount spread over feeds of the per-feed size, so it lengthens as he grows (3 h in the first two weeks, about 3½ h from week 4), kept within 2–4 h. '}
           A feed is the bottles and nursing less than 20 minutes apart; its estimated amount is the bottles plus nursing minutes × the rate above.
-          A feed at the middle of the target sets the next one a whole interval later; less brings it closer in proportion, more pushes it later, up to what the top of the target allows.
+          {!anchor && <>A feed at the middle of the target sets the next one a whole interval later; less brings it closer in proportion, more pushes it later, up to what the top of the target allows.</>}
           {!editable && ' To change these, run supabase/migrations/0011_feeding_plan.sql (see docs/SUPABASE_TODO.md).'}
         </IonNote>
       </IonItem>

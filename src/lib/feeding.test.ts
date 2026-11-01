@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, aimAt, intakeLast24, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, aimAt, anchoredGapMin, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -171,5 +171,44 @@ describe('open feed and top-up', () => {
   it('daily target: the handout curve by age, or 8 × the family range', () => {
     expect(dailyTargetAt(DEFAULT_PLAN, '2026-10-14', new Date(2026, 9, 25))).toEqual({ min: 590, max: 710 }); // day 11
     expect(dailyTargetAt(plan, null, new Date())).toEqual({ min: 600, max: 720 });
+  });
+});
+
+describe('anchored schedule', () => {
+  const anchor = { bedtime_min: 23 * 60, night_min: 240, tz: 'America/New_York' };
+  const plan = readPlan({ target: { min_ml: 90, max_ml: 110 }, nursing_ml_per_min: 3, every_min: 180, anchor, min_feeds: 8 });
+  const Z = (iso: string) => new Date(iso);
+  const bottleAt = (iso: string, ml: number) => ({ type: 'bottle', started_at: iso, ended_at: iso, bottle_ml: ml });
+  const gapH = (iso: string) => anchoredGapMin(Date.parse(iso), anchor, 8) / 60;
+
+  it('finds the bedtime feed in the household time zone, including across a DST change', () => {
+    const { prev, next } = anchorsAround(Date.parse('2026-11-03T12:00:00Z'), anchor); // 7 AM EST
+    expect(new Date(prev).toISOString()).toBe('2026-11-03T04:00:00.000Z'); // 11 PM EST the night before
+    expect(new Date(next).toISOString()).toBe('2026-11-04T04:00:00.000Z');
+    // 2026-11-01 is the fall-back day: 11 PM EDT on Oct 31 is 03:00Z, 11 PM EST on Nov 1 is 04:00Z.
+    const dst = anchorsAround(Date.parse('2026-11-01T15:00:00Z'), anchor);
+    expect(new Date(dst.prev).toISOString()).toBe('2026-11-01T03:00:00.000Z');
+    expect(new Date(dst.next).toISOString()).toBe('2026-11-02T04:00:00.000Z');
+  });
+  it('bedtime feed buys the night stretch; the day splits into equal gaps that land on 11 PM', () => {
+    expect(gapH('2026-11-03T04:00:00Z')).toBe(4); // 11 PM → 3 AM
+    expect(gapH('2026-11-03T04:45:00Z')).toBe(4); // a 11:45 PM feed is still the bedtime feed
+    expect(gapH('2026-11-03T08:00:00Z')).toBeCloseTo(20 / 7); // 3 AM: 7 gaps of 2 h 51 m to 11 PM
+    expect(gapH('2026-11-03T10:30:00Z')).toBeCloseTo(17.5 / 6); // a late 5:30 AM feed: the rest re-divided
+  });
+  it('next feed: a full feed buys the planned gap, more buys no more, a half feed half', () => {
+    const now = Z('2026-11-03T08:30:00Z');
+    const aim = planAim(plan, null, now)!; // 8 × 90–110 ml a day ÷ 8 feeds = 100 ml each, ±5%
+    expect(aim).toEqual({ min: 95, max: 105 });
+    const due = (ml: number) => nextFeed(feeds([bottleAt('2026-11-03T08:00:00Z', ml)], plan), plan, null, now)!.due.getTime();
+    const g = (20 / 7) * 3_600_000, t0 = Date.parse('2026-11-03T08:00:00Z');
+    expect(due(100)).toBeCloseTo(t0 + g, -3);
+    expect(due(140)).toBeCloseTo(t0 + g, -3);
+    expect(due(50)).toBeCloseTo(t0 + g / 2, -3);
+  });
+  it('plans at least the minimum feeds; the slots run from bedtime to bedtime', () => {
+    const slots = planSlots(plan, null, Z('2026-11-03T12:00:00Z')).map((d) => d.toISOString().slice(11, 16));
+    expect(slots).toEqual(['04:00', '08:00', '10:51', '13:42', '16:34', '19:25', '22:17', '01:08']);
+    expect(feedsPerDay(readPlan({ ...plan, min_feeds: 9 }), null, new Date())).toBe(9);
   });
 });
