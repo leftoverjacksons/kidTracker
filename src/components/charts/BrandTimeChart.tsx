@@ -19,8 +19,8 @@ const SHAPES = ['circle', 'triangle', 'rect', 'rectRot'] as const;
  * its dots and line (the selector at the top of the Bottles tab does the same for the whole
  * page). Optional shaded reference band.
  */
-export default function BrandTimeChart({ title, series, format, band, note }: {
-  title: string; series: { label: string; points: TimePoint[] }[];
+export default function BrandTimeChart({ title, series, format, band, note, noun = 'bottle' }: {
+  title: string; series: { label: string; points: TimePoint[] }[]; noun?: string;
   format: (v: number) => string; band?: { from: number; to: number; label: string }; note?: string;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -116,7 +116,7 @@ export default function BrandTimeChart({ title, series, format, band, note }: {
     <figure className="chart-card">
       <figcaption className="chart-title">{title}</figcaption>
       <div className="chart-box chart-box-tall"><canvas ref={canvas} role="img" aria-label={title} /></div>
-      <div className="chart-note">{[`Each dot is one feed; the line is each bottle's trend (a moving average that gives a feed ${TREND_HALF_LIFE_MS / 3_600_000} hours old half the weight of the newest). Tap a bottle in the legend to hide or show it.`, note].filter(Boolean).join(' ')}</div>
+      <div className="chart-note">{[`Each dot is one feed; the line is each ${noun}'s trend (a moving average that gives a feed ${TREND_HALF_LIFE_MS / 3_600_000} hours old half the weight of the newest). Tap a ${noun} in the legend to hide or show it.`, note].filter(Boolean).join(' ')}</div>
     </figure>
   );
 }

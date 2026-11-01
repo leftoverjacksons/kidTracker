@@ -644,7 +644,7 @@ const bottlesPage = A.locator('.ion-page:not(.ion-page-hidden)').last();
 await shot(A, 'reports-bottles');
 const flowCard = bottlesPage.locator('.chart-card', { hasText: 'Flow per feed' });
 if (!(await flowCard.count())) problems.push('no flow-per-feed chart'); else { await flowCard.scrollIntoViewIfNeeded(); await flowCard.screenshot({ path: `${OUT}/bottles-flow.png` }); }
-for (const [t, f] of [['Flow over time', 'bottles-flow-time'], ['Amount per bottle over time', 'bottles-amount-time']]) {
+for (const [t, f] of [['Flow over time', 'bottles-flow-time'], ['Amount per bottle over time', 'bottles-amount-time'], ['Amount per feed over time', 'bottles-feed-time']]) {
   const card = bottlesPage.locator('.chart-card', { hasText: t });
   if (!(await card.count())) { problems.push(`no "${t}" chart`); continue; }
   await card.scrollIntoViewIfNeeded(); await wait(A, 300); await card.screenshot({ path: `${OUT}/${f}.png` });

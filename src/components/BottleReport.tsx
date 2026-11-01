@@ -2,6 +2,7 @@ import { IonChip, IonItem, IonLabel, IonList, IonNote } from '@ionic/react';
 import { useMemo, useState } from 'react';
 import { bottleAmounts, byBrand, sortBrands, timedBottles } from '../lib/bottle';
 import { useData } from '../lib/data';
+import { feeds as feedsOf, readPlan } from '../lib/feeding';
 import { formatDuration, formatFlow, formatVolume, formatWhen } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import type { EventRow } from '../lib/types';
@@ -64,8 +65,21 @@ export default function BottleReport({ days }: { days: number }) {
       t: Date.parse(a.e.started_at), y: oz ? mlToOz(a.ml) : a.ml,
       tip: [`${a.brand} · ${formatWhen(new Date(a.e.started_at))}`, `Drank ${formatVolume(a.ml, settings)}${a.e.bottle_start_ml ? ` of ${formatVolume(a.e.bottle_start_ml, settings)}` : ''}`],
     }));
+    // Whole feeds (nursing and bottles less than 20 min apart, design doc §8a Q), by what they were made of.
+    const plan = readPlan(settings.feeding_plan);
+    const KINDS = ['Bottle only', 'Nursing + bottle', 'Nursing only'];
+    const fd = feedsOf(data.events, plan).filter((f) => f.start >= since && f.estMl > 0);
+    const kindOf = (f: (typeof fd)[number]) => (f.nursingMin > 0 && plan.nursing_ml_per_min > 0 ? (f.bottleMl > 0 ? 1 : 2) : 0);
+    const feedTime = KINDS.map((label, k) => ({
+      label,
+      points: fd.filter((f) => kindOf(f) === k).map((f) => ({
+        t: f.start.getTime(), y: oz ? mlToOz(f.estMl) : f.estMl,
+        tip: [formatWhen(f.start), `${f.nursingMin > 0 ? '~' : ''}${formatVolume(f.estMl, settings)}`,
+          [f.nursingMin > 0 && `nursed ${Math.round(f.nursingMin)} min`, f.bottleMl > 0 && `bottle ${formatVolume(f.bottleMl, settings)}`].filter(Boolean).join(' + ')],
+      })),
+    })).filter((x) => x.points.length);
     return {
-      all, allBrands, feeds, brands, cats, groups: usedGroups, flow: remap(flow), length: remap(length), flowTime, amountTime,
+      all, allBrands, feeds, brands, cats, groups: usedGroups, flow: remap(flow), length: remap(length), flowTime, amountTime, feedTime,
       flowMedians: brands.map((b) => toRate(b.rate)), lengthMedians: brands.map((b) => b.minutes),
     };
   }, [data.events, days, settings, hidden]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -139,6 +153,10 @@ export default function BottleReport({ days }: { days: number }) {
       {view.amountTime.some((s) => s.points.length) && (
         <BrandTimeChart title={`Amount per bottle over time (${unit})`} series={view.amountTime} format={fmtAmt}
           note="Every bottle with an amount, timed or not." />
+      )}
+      {view.feedTime.length > 0 && (
+        <BrandTimeChart title={`Amount per feed over time (${unit}, estimated)`} series={view.feedTime} format={fmtAmt} noun="feed type"
+          note={`A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${readPlan(settings.feeding_plan).nursing_ml_per_min} ml per minute. All feeds, whichever bottle.`} />
       )}
 
       <h2 className="section-title">Feeds</h2>
