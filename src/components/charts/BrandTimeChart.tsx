@@ -77,7 +77,8 @@ export default function BrandTimeChart({ title, series, format, band, note, noun
             type: 'linear', min: day0.getTime(), max: dayN.getTime(), grid: { color: theme.grid }, border: { color: theme.grid },
             afterBuildTicks: (axis) => {
               axis.ticks = [];
-              for (let d = 0; d <= days; d += step) axis.ticks.push({ value: day0.getTime() + d * DAY });
+              // Calendar days (not 24 h steps), so a 23 or 25 hour DST day doesn't shift the labels.
+              for (let d = 0; d <= days; d += step) axis.ticks.push({ value: new Date(day0.getFullYear(), day0.getMonth(), day0.getDate() + d).getTime() });
             },
             ticks: {
               color: theme.muted, font: { size: 11 }, autoSkip: false, maxRotation: 0,
