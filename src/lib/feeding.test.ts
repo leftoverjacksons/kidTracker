@@ -194,7 +194,13 @@ describe('anchored schedule', () => {
     expect(gapH('2026-11-03T04:00:00Z')).toBe(4); // 11 PM → 3 AM
     expect(gapH('2026-11-03T04:45:00Z')).toBe(4); // a 11:45 PM feed is still the bedtime feed
     expect(gapH('2026-11-03T08:00:00Z')).toBeCloseTo(20 / 7); // 3 AM: 7 gaps of 2 h 51 m to 11 PM
-    expect(gapH('2026-11-03T10:30:00Z')).toBeCloseTo(17.5 / 6); // a late 5:30 AM feed: the rest re-divided
+    expect(gapH('2026-11-03T10:30:00Z')).toBeCloseTo(17.5 / 7); // a late 5:30 AM feed: the rest re-divided, never longer than 2 h 51 m
+  });
+  it('the evening never gets one long gap, and only a feed from 10 PM is the bedtime feed', () => {
+    expect(gapH('2026-11-03T23:45:00Z')).toBeCloseTo(4.25 / 2); // 6:45 PM, 4¼ h left: two gaps, not one of 4¼ h
+    expect(gapH('2026-11-04T02:35:00Z')).toBeCloseTo(85 / 60); // 9:35 PM: next at 11 PM, not a night stretch
+    expect(gapH('2026-11-04T03:00:00Z')).toBe(4); // 10:00 PM is the bedtime feed
+    expect(gapH('2026-11-04T05:20:00Z')).toBeCloseTo(4); // 12:20 AM still is (up to 1½ h after)
   });
   it('next feed: a full feed buys the planned gap, more buys no more, a half feed half', () => {
     const now = Z('2026-11-03T08:30:00Z');

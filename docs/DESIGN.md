@@ -877,6 +877,7 @@ Research (2026-11-01) behind "at least 8": CDC — breastfed babies feed about 8
 - **Pumping** lines up with the planned feeds through the existing rules (meet halfway within 30 min; never under 2 h after the last pump), so it lands on the bedtime feed when it's due near it.
 - **Everywhere a feed is judged** (Bottle tile aim and supplement, History brackets, Typical feed band, which is labelled "Our plan (daily target ÷ 8 feeds)") uses this aim when the schedule is anchored.
 - **DST:** the night stretch is real time; on the fall-back night 11 PM + 4 h shows as 2 AM on the clock.
+- **Revised 2026-11-03 (owner):** (1) the number of gaps left before the bedtime feed is now rounded **up**, so no daytime gap is longer than the planned spacing. Rounding to the nearest could plan one gap of up to 1.5× the spacing before bedtime (e.g. a 6:45 PM feed → one 4 h 15 m gap to 11 PM); now that's two gaps of 2 h 8 m. The cost is occasionally short evening gaps (just over 2 h 51 m left → two of ~1½ h), which fits the care plan's "at least every 2 to 2.5 hours" and normal evening cluster feeding. (2) The bedtime feed is now one from **1 h before** the anchor to 1½ h after (was ±90 min), so a 9:35 PM feed no longer starts the night early; it's followed by the 11 PM feed.
 - **Not done (owner: later, worked out by the family):** assigning night feeds to a person, feed alarms to that person's phone.
 - **Open, for the consultant:** when he can drop below 8 feeds a day; whether mom can skip pumping at the 3 AM feed (11 PM to ~5:50 AM is about 7 h without pumping).
 

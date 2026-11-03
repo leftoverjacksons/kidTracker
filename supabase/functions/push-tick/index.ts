@@ -128,9 +128,9 @@ function anchorsAround(t: number, a: Anchor): { prev: number; next: number } {
 }
 function anchoredGapMin(start: number, a: Anchor, feedsADay: number): number {
   const { prev, next } = anchorsAround(start, a);
-  if (Math.min(start - prev, next - start) <= 90 * 60_000) return a.night_min;
+  if (next - start <= 60 * 60_000 || start - prev <= 90 * 60_000) return a.night_min; // bedtime feed: 1 h before to 1½ h after
   const spacing = (1440 - a.night_min) / Math.max(1, feedsADay - 1), left = (next - start) / 60_000;
-  return left / Math.max(1, Math.round(left / spacing));
+  return left / Math.max(1, Math.ceil(left / spacing - 1e-9)); // round up: no gap longer than the spacing
 }
 function feedsPerDay(ctx: Ctx, t: Date): number {
   const per = targetAt(ctx, t), daily = dailyTargetAt(ctx, t);

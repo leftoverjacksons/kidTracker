@@ -359,22 +359,24 @@ export function anchorsAround(t: number, a: Anchor): { prev: number; next: numbe
   for (let k = 0; ; k++) if (at(k) > t) return { prev: at(k - 1), next: at(k) };
 }
 
-/** A feed this close to a bedtime moment is the bedtime feed (and buys the night stretch). */
-export const BEDTIME_WINDOW_MIN = 90;
+/** A feed from this long before a bedtime moment to BEDTIME_AFTER_MIN after it is the bedtime feed (and buys the night stretch). */
+export const BEDTIME_BEFORE_MIN = 60;
+export const BEDTIME_AFTER_MIN = 90;
 
 /**
- * Planned gap (minutes) after a feed starting at `start`. The bedtime feed (within 90 min of
- * the anchor) buys the night stretch. Any other feed splits the time left until the next
- * bedtime feed into equal gaps, as many as fit at the day's spacing: with 8 feeds and a 4 h
- * night, (24 h − 4 h) ÷ 7 = 2 h 51 m, so 3 AM → 5:51 → 8:43 → … → 11 PM. A late or early feed
- * just changes how the remaining time is divided, so the day still ends on the bedtime feed.
+ * Planned gap (minutes) after a feed starting at `start`. The bedtime feed (from 1 h before the
+ * anchor to 1½ h after) buys the night stretch. Any other feed splits the time left until the
+ * next bedtime feed into equal gaps no longer than the day's spacing (rounding the number of
+ * gaps up, so the evening never gets one long gap): with 8 feeds and a 4 h night, (24 h − 4 h)
+ * ÷ 7 = 2 h 51 m, so 3 AM → 5:51 → 8:43 → … → 11 PM. A late or early feed just changes how the
+ * remaining time is divided, so the day still ends on the bedtime feed.
  */
 export function anchoredGapMin(start: number, a: Anchor, feedsADay: number): number {
   const { prev, next } = anchorsAround(start, a);
-  if (Math.min(start - prev, next - start) <= BEDTIME_WINDOW_MIN * 60_000) return a.night_min;
+  if (next - start <= BEDTIME_BEFORE_MIN * 60_000 || start - prev <= BEDTIME_AFTER_MIN * 60_000) return a.night_min;
   const spacing = (1440 - a.night_min) / Math.max(1, feedsADay - 1);
   const left = (next - start) / 60_000;
-  return left / Math.max(1, Math.round(left / spacing));
+  return left / Math.max(1, Math.ceil(left / spacing - 1e-9));
 }
 
 /**
