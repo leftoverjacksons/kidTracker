@@ -472,6 +472,7 @@ The baby's name and birth date are entered in the app at first run.
 
 | Risk | Mitigation |
 |---|---|
+| GitHub Pages publish times out (seen 2026-11-05: `deploy-pages` stuck at "updating_pages" for 10 min, then cancelled) | Tests are unaffected. Re-running the job doesn't help: the deployment is keyed by the commit, which is now marked cancelled. Push the next commit (any change) and it publishes normally. |
 | Supabase free project pauses after 7 days idle | Daily use prevents it; the nightly Drive backup signs in every day as a backstop. |
 | Vendor dependency | Plain Postgres schema; `pg_dump` migrates to any Postgres or self-host. |
 | Phone clock skew | Android NTP sync keeps it to well under a second; acceptable for this domain. |
