@@ -310,7 +310,7 @@ export function feedEveryMin(plan: FeedingPlan, birthDate: string | null, t: Dat
  * above the top of the range. Timing is unchanged: small feeds already bring the next one sooner.
  */
 export function aimAt(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
-  if (plan.anchor) return budgetAim(events, plan, birthDate, now);
+  if (plan.anchor) return anchoredAim(events, plan, birthDate, now);
   const per = feedTarget(plan, birthDate, now);
   if (!per) return null;
   const top = targetAt(plan, birthDate, now)?.max ?? per.max; // never above her top value
@@ -435,49 +435,36 @@ export function feedSize(plan: FeedingPlan, birthDate: string | null, t: Date): 
   return a ? (a.min + a.max) / 2 : 0;
 }
 
-/** Budget aims never ask for more than this times the feed planned for that gap. */
-export const BUDGET_MAX_RAISE = 1.25;
+/** Catch-up never asks for more than this times the feed planned for that gap. */
+export const CATCHUP_MAX_RAISE = 1.25;
 
 /**
- * What to aim for at the next feed on the anchored schedule (design doc §8a X): what's left of
- * the day's target (bedtime feed to bedtime feed) shared over the feeds left, each weighted by
- * its gap (a full gap 1, a 1½ h gap about ½; the bedtime feed 1). A feed still open (topping up)
- * is the one aimed for. Never above the top of the handout's per-feed range or 1¼ × the feed
- * planned for that gap, never below half of it: he can't be made to drink more, and being ahead
- * shouldn't ask for tiny bottles. A shortfall isn't carried past the bedtime feed.
+ * What to aim for at the next feed on the anchored schedule (design doc §8a X): the feed planned
+ * for its gap, so intake stays even (a full feed, daily target ÷ planned feeds, for a full gap or
+ * the bedtime feed; proportionally less after a shorter gap). Only if the last 24 hours are below
+ * the daily band (judged at the window's middle, as on Reports → Daily) is a third of the shortfall
+ * added, at most up to 1¼ × the planned feed and never above the handout's top. Never lowered when
+ * he's ahead: he sets how much he takes. A feed still open (topping up) is the one aimed for.
  */
-export function budgetAim(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
+export function anchoredAim(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
   const a = plan.anchor!;
-  const all = feeds(events.filter((e) => !e.deleted_at), plan);
-  const open = openFeed(events.filter((e) => !e.deleted_at), plan, now);
-  const done = all.filter((f) => f.start <= now && (!open || f.start < open.start));
+  const live = events.filter((e) => !e.deleted_at);
+  const open = openFeed(live, plan, now);
+  const done = feeds(live, plan).filter((f) => f.start <= now && (!open || f.start < open.start));
   const last = done[done.length - 1];
   const next = nextFeed(done, plan, birthDate, now);
   const at = open ? open.start.getTime() : Math.max(next ? next.due.getTime() : now.getTime(), now.getTime());
   const t = new Date(at);
   const each = feedSize(plan, birthDate, t), top = targetAt(plan, birthDate, t)?.max ?? Infinity;
-  const daily = dailyTargetAt(plan, birthDate, t);
-  if (!each || !daily) return feedTarget(plan, birthDate, now) && { ...feedTarget(plan, birthDate, now)!, catchUp: false };
+  if (!each) { const f = feedTarget(plan, birthDate, now); return f && { ...f, catchUp: false }; }
   const n = feedsPerDay(plan, birthDate, t);
   const { prev, next: bed } = anchorsAround(at, a);
   const spacing = (1440 - a.night_min) / Math.max(1, n - 1);
   const isBedtime = bed - at <= BEDTIME_BEFORE_MIN * 60_000 || at - prev <= BEDTIME_AFTER_MIN * 60_000;
-  let center: number, planned: number;
-  if (isBedtime) {
-    // The bedtime feed opens a new day: a full feed.
-    center = planned = each;
-  } else {
-    const dayStart = prev - BEDTIME_BEFORE_MIN * 60_000;
-    const taken = done.filter((f) => f.start.getTime() >= dayStart).reduce((s, f) => s + f.estMl, 0);
-    const left = Math.max(0, (daily.min + daily.max) / 2 - taken);
-    const w0 = last ? Math.min(1, (at - last.start.getTime()) / 60_000 / spacing) : 1;
-    const rest = (bed - at) / 60_000, k = Math.max(1, Math.ceil(rest / (spacing * SPLIT_TOLERANCE) - 1e-9));
-    const w = Math.min(1, rest / k / spacing);
-    planned = each * w0;
-    center = (left * w0) / (w0 + (k - 1) * w);
-  }
-  const hi = Math.min(top, planned * BUDGET_MAX_RAISE), lo = Math.min(hi, planned * 0.5);
-  const c = Math.min(hi, Math.max(lo, center));
-  const max = Math.round(Math.min(hi, c * 1.05));
-  return { min: Math.min(max, Math.round(c * 0.95)), max, catchUp: c > planned * 1.05 };
+  const planned = isBedtime || !last ? each : each * Math.min(1, (at - last.start.getTime()) / 60_000 / spacing);
+  const daily = dailyTargetAt(plan, birthDate, new Date(now.getTime() - 12 * 3_600_000));
+  const behind = daily ? Math.max(0, daily.min - intakeLast24(live, plan, now)) : 0;
+  const c = Math.min(Math.min(top, planned * CATCHUP_MAX_RAISE), planned + behind / 3);
+  const max = Math.round(Math.min(top, c * 1.05));
+  return { min: Math.min(max, Math.round(c * 0.95)), max, catchUp: c > planned * 1.02 };
 }

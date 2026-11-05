@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, aimAt, anchoredGapMin, budgetAim, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, aimAt, anchoredGapMin, anchoredAim, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -220,37 +220,45 @@ describe('anchored schedule', () => {
   });
 });
 
-describe('anchored day budget', () => {
+describe('anchored aim: even feeds, catch-up from the last 24 hours', () => {
   const anchor = { bedtime_min: 23 * 60, night_min: 240, tz: 'America/New_York' };
-  const plan = readPlan({ target: { min_ml: 90, max_ml: 110 }, nursing_ml_per_min: 3, every_min: 180, anchor, min_feeds: 8 }); // 800 ml a day, 100 ml a feed
+  const plan = readPlan({ target: { min_ml: 90, max_ml: 110 }, nursing_ml_per_min: 3, every_min: 180, anchor, min_feeds: 8 }); // band 720–880 ml a day, 100 ml a feed
   const b = (iso: string, ml: number) => ({ type: 'bottle', started_at: iso, ended_at: iso, bottle_ml: ml });
-  const day = ['2026-11-04T04:00:00Z', '2026-11-04T08:00:00Z', '2026-11-04T10:51:00Z', '2026-11-04T13:43:00Z'];
+  // A full planned day: 11 PM, 3:00, 5:51, 8:43, 11:34 AM, 2:26, 5:17, 8:09 PM (EST = UTC−5)
+  const slots = ['2026-11-04T04:00:00Z', '2026-11-04T08:00:00Z', '2026-11-04T10:51:00Z', '2026-11-04T13:43:00Z', '2026-11-04T16:34:00Z', '2026-11-04T19:26:00Z', '2026-11-04T22:17:00Z', '2026-11-05T01:09:00Z'];
+  const at = (iso: string) => new Date(iso);
 
-  it('shares what is left of the day over the feeds left', () => {
-    const on = budgetAim(day.map((t) => b(t, 100)), plan, null, new Date('2026-11-04T14:00:00Z'))!;
-    expect(on).toEqual({ min: 95, max: 105, catchUp: false }); // 400 left over 4 full feeds
-    const behind = budgetAim(day.map((t) => b(t, 80)), plan, null, new Date('2026-11-04T14:00:00Z'))!;
-    expect(behind.catchUp).toBe(true); // 480 left over 4 feeds → 120
-    expect(behind.max).toBeLessThanOrEqual(110); // never above the top of the range
+  it('on track or ahead over 24 h: the planned feed, never lowered', () => {
+    const now = at('2026-11-04T20:00:00Z'); // 3 PM, after the 2:26 feed
+    expect(anchoredAim(slots.slice(0, 6).map((t) => b(t, 100)).concat(b('2026-11-03T22:17:00Z', 100), b('2026-11-04T01:09:00Z', 100)), plan, null, now))
+      .toEqual({ min: 95, max: 105, catchUp: false });
+    expect(anchoredAim(slots.slice(0, 6).map((t) => b(t, 150)), plan, null, now)!.min).toBe(95); // ahead: still a normal feed
   });
-  it("can't ask for more than a little over a feed, or less than half", () => {
-    const far = budgetAim(day.map((t) => b(t, 30)), plan, null, new Date('2026-11-04T14:00:00Z'))!;
-    expect(far.max).toBe(110); // capped at the top value, not 170
-    const ahead = budgetAim(day.map((t) => b(t, 180)), plan, null, new Date('2026-11-04T14:00:00Z'))!;
-    expect(ahead.min).toBeGreaterThanOrEqual(47); // half a feed at least, though 80 ml would "finish" the day
+  it('behind over 24 h: a third of the shortfall, capped at 1¼ of a feed and the top value', () => {
+    const now = at('2026-11-04T20:00:00Z');
+    const a = anchoredAim(slots.slice(0, 6).map((t) => b(t, 100)), plan, null, now)!; // 600 in 24 h: 120 short → +40, capped at 110
+    expect(a.catchUp).toBe(true);
+    expect(a.max).toBe(110);
+    const small = anchoredAim(slots.slice(0, 6).map((t) => b(t, 100)).concat(b('2026-11-03T22:17:00Z', 100)), plan, null, now)!; // 700: 20 short → +7
+    expect(small).toEqual({ min: 101, max: 110, catchUp: true });
   });
-  it('a shorter gap caps the ask below a full feed (amount follows time)', () => {
-    // Last feed 6:45 PM, so 8:53 PM follows a ~2 h 8 m gap (0.74 of a feed). The day is 100 ml short,
-    // but that feed may ask at most 1¼ × 74 ≈ 93 ml, not the 100 left.
-    const evs = [...day.map((t) => b(t, 100)), b('2026-11-04T16:34:00Z', 100), b('2026-11-04T19:25:00Z', 100), b('2026-11-04T23:45:00Z', 100)];
-    const aim = budgetAim(evs, plan, null, new Date('2026-11-05T00:30:00Z'))!; // past the 20 min top-up window
-    expect(aim.max).toBe(93);
-    expect(aim.catchUp).toBe(true);
+  it('a shorter gap gets a proportionally smaller planned feed', () => {
+    // On track, last feed 6:45 PM: 4¼ h to bedtime is split in two, so 8:53 PM follows ~2 h 8 m (0.74 of a feed).
+    const evs = [...slots.slice(0, 6).map((t) => b(t, 100)), b('2026-11-04T23:45:00Z', 100), b('2026-11-04T01:09:00Z', 100)];
+    const aim = anchoredAim(evs, plan, null, at('2026-11-05T00:30:00Z'))!;
+    expect(aim).toEqual({ min: 71, max: 78, catchUp: false });
   });
   it('8:04 PM, 82 ml: no full feed asked 70 minutes later; the next one is the bedtime feed', () => {
-    const evs = [...day.map((t) => b(t, 100)), b('2026-11-04T16:34:00Z', 100), b('2026-11-04T19:25:00Z', 100), b('2026-11-04T22:17:00Z', 100), b('2026-11-05T01:04:00Z', 82)];
-    const due = nextFeed(feeds(evs, plan), plan, null, new Date('2026-11-05T01:10:00Z'))!.due;
+    const evs = [...slots.slice(0, 7).map((t) => b(t, 100)), b('2026-11-04T01:09:00Z', 100), b('2026-11-05T01:04:00Z', 82)];
+    const due = nextFeed(feeds(evs, plan), plan, null, at('2026-11-05T01:10:00Z'))!.due;
     expect(due.getTime() - Date.parse('2026-11-05T01:04:00Z')).toBeGreaterThan(2 * 3_600_000); // not ~1 h
-    expect(budgetAim(evs, plan, null, new Date('2026-11-05T01:30:00Z'))).toEqual({ min: 95, max: 105, catchUp: false }); // bedtime feed: a full feed
+    expect(anchoredAim(evs, plan, null, at('2026-11-05T01:30:00Z'))).toEqual({ min: 95, max: 105, catchUp: false }); // bedtime feed: a full feed
+  });
+  it("yesterday evening's big feeds count: no catch-up when the last 24 h are over the band", () => {
+    // The case from 2026-11-05: on the bedtime-to-bedtime budget this asked ~130 ml.
+    const evs = [b('2026-11-04T00:00:00Z', 160), b('2026-11-04T01:30:00Z', 150), ...slots.slice(0, 6).map((t) => b(t, 98))];
+    const aim = anchoredAim(evs, plan, null, at('2026-11-04T20:00:00Z'))!;
+    expect(aim.catchUp).toBe(false); // ~a normal feed (98 ml after a slightly short gap), not ~130
+    expect(aim.max).toBeLessThanOrEqual(105);
   });
 });
