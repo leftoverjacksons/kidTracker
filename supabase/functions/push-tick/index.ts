@@ -114,6 +114,7 @@ function dailyTargetAt(ctx: Ctx, t: Date) {
   return ctx.birthDate ? curveAt(DAILY_CURVE, dayOfLife(ctx.birthDate, t)) : null;
 }
 // Anchored schedule: bedtime feed, night stretch, then equal gaps that end on the next bedtime feed.
+// (Amounts to aim for are the app's job; here only the timing matters, for lining pumping up.)
 function tzOffsetMin(t: number, tz: string): number {
   try {
     const p: Record<string, number> = {};
@@ -126,11 +127,12 @@ function anchorsAround(t: number, a: Anchor): { prev: number; next: number } {
   const at = (k: number) => { const local = day0 + k * DAY + a.bedtime_min * 60_000; return local - tzOffsetMin(local - off, a.tz) * 60_000; };
   for (let k = 0; ; k++) if (at(k) > t) return { prev: at(k - 1), next: at(k) };
 }
-function anchoredGapMin(start: number, a: Anchor, feedsADay: number): number {
+function anchoredGap(start: number, a: Anchor, feedsADay: number): { min: number; spacing: number; bedtime: boolean } {
   const { prev, next } = anchorsAround(start, a);
-  if (next - start <= 60 * 60_000 || start - prev <= 90 * 60_000) return a.night_min; // bedtime feed: 1 h before to 1½ h after
-  const spacing = (1440 - a.night_min) / Math.max(1, feedsADay - 1), left = (next - start) / 60_000;
-  return left / Math.max(1, Math.ceil(left / spacing - 1e-9)); // round up: no gap longer than the spacing
+  const spacing = (1440 - a.night_min) / Math.max(1, feedsADay - 1);
+  if (next - start <= 60 * 60_000 || start - prev <= 90 * 60_000) return { min: a.night_min, spacing, bedtime: true }; // bedtime feed: 1 h before to 1½ h after
+  const left = (next - start) / 60_000;
+  return { min: left / Math.max(1, Math.ceil(left / (spacing * 1.15) - 1e-9)), spacing, bedtime: false }; // split only once a gap runs 15% over
 }
 function feedsPerDay(ctx: Ctx, t: Date): number {
   const per = targetAt(ctx, t), daily = dailyTargetAt(ctx, t);
@@ -168,10 +170,11 @@ export function nextFeed(all: Feed[], ctx: Ctx, now: Date): number | null {
   for (const f of recent) {
     const a = ctx.plan.anchor;
     if (a) { // anchored: a full planned feed buys the planned gap, a smaller one its share, a bigger one no more
-      const gap = anchoredGapMin(f.start, a, feedsPerDay(ctx, new Date(f.start))) * 60_000;
-      const aim = planAim(ctx, new Date(f.start)), mid = aim ? (aim.min + aim.max) / 2 : 0;
+      const g = anchoredGap(f.start, a, feedsPerDay(ctx, new Date(f.start))), gap = g.min * 60_000;
+      const aim = planAim(ctx, new Date(f.start)), each = aim ? (aim.min + aim.max) / 2 : 0;
+      const planned = each * (g.bedtime ? 1 : Math.min(1, g.min / g.spacing)); // the feed planned for this gap
       const from: number = due == null ? f.start : Math.max(due, f.start);
-      due = Math.min(from + gap * (mid > 0 ? Math.min(1, f.estMl / mid) : 1), f.start + gap);
+      due = Math.min(from + gap * (planned > 0 ? Math.min(1, f.estMl / planned) : 1), f.start + gap);
       continue;
     }
     const interval = feedEveryMin(ctx, new Date(f.start)) * 60_000;
