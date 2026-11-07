@@ -10,7 +10,7 @@ Run them **in order**. Every script is safe to run twice.
 
 - [ ] **Run `supabase/migrations/0012_pigeon_ss.sql`** (copy raw file → SQL Editor → New query → Run). It changes every bottle logged as "Lansinoh SS" to "Pigeon SS". Until then those older entries keep the old name in the Bottles tab.
 
-### Update the `push-tick` function (feed spacing by age 2026-10-28; anchored schedule 2026-11-01)
+### Update the `push-tick` function (feed spacing by age 2026-10-28; anchored schedule 2026-11-01; two night gaps 2026-11-07)
 
 Needed so pumping notifications line up with the new feed times, including the anchored (bedtime) schedule. About 2 minutes. If you already did this after 2026-10-28, do it once more for the anchored schedule. Until then the app is right and only the notification times can be a little off.
 

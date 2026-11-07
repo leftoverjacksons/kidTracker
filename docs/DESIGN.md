@@ -889,6 +889,16 @@ Research (2026-11-01) behind "at least 8": CDC — breastfed babies feed about 8
 - **Not done (owner: later, worked out by the family):** assigning night feeds to a person, feed alarms to that person's phone.
 - **Open, for the consultant:** when he can drop below 8 feeds a day; whether mom can skip pumping at the 3 AM feed (11 PM to ~5:50 AM is about 7 h without pumping).
 
+### Y. Two night gaps from week 3 — built 2026-11-07 (app and push-tick; push-tick needs re-pasting)
+
+The consultant (meeting, 2026-11-07): the only change is to start aiming for **two 5-hour sleeps at night**, with feeds **every 2½–3 hours** the rest of the time. Owner: keep the logic as is until week 3; after that, a second night gap setting; stop working to a feed count and fill the time to the next anchor in 2½–3 h gaps.
+
+- **Settings → Feeding plan (anchored):** from day 21 of life, "Then sleep" becomes **Night gap 1** and **Night gap 2** appears (Off, 3–6 h). Night gap 1's choices now go to 6 h. With night gap 2 set, **Daytime gaps** (2–2½, **2½–3**, 3–3½ h) replaces "Feeds a day, at least". Stored in `feeding_plan.anchor` (`night2_min`, `day_gap_min`, `day_gap_max`); no migration. Before day 21 the second gap is ignored even if set.
+- **The day (`anchorShape`, `slotKind`, `anchoredGap`):** bedtime feed (1 h before to 1½ h after the anchor) → night gap 1 → the **night feed** (any feed after the bedtime feed up to night gap 1's end + 1½ h, so an early waking still counts) → night gap 2 → the day. Each day feed splits the time left to the next bedtime feed into equal gaps as close as possible to the daytime range (`pickGaps`; on a tie the shorter gaps, since feeding more often is the safer side; awkward stretches like 4 h become two of 2 h rather than one of 4 h). The number of feeds is whatever the gaps give: 11 PM + 5 h + 5 h leaves 14 h → 5 gaps of 2 h 48 m → 7 feeds; with 4 h + 5 h → 6 gaps of 2½ h → 8 feeds.
+- **Amounts:** unchanged rules (§X, even feeds): daily target ÷ planned feeds per full feed, never above the handout's per-feed top; both night feeds are full feeds; a shorter daytime gap gets proportionally less; catch-up only from a rolling-24 h shortfall. Fewer feeds a day means bigger feeds, up to the top value.
+- **Timing credit, pumping alignment, the 15% split rule (one-night plan only)** unchanged. push-tick mirrors it; its parity test includes a two-night plan.
+- **Note for the family:** the October care plan said not to go more than 4 h between milk removals; a 5 h night gap goes past that unless mom pumps during it. The consultant set the new gaps, so this is hers to confirm.
+
 ### W. Weight trend in g/day — built 2026-11-01 (app-only)
 
 - On **Weight vs. first weight**, once he's back to his first (birth) weight, a dashed best-fit line (least squares) runs through every weight from that point on, and the note adds "trend since then +31 g/day (1.1 oz/day) (best-fit line through the 4 weights from then on)". Needs two weights after the regain (`gainTrend` in `src/lib/weight.ts`).

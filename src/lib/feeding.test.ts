@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, aimAt, anchoredGapMin, anchoredAim, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, aimAt, anchoredGap, anchorShape, pickGaps, anchoredGapMin, anchoredAim, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -175,7 +175,7 @@ describe('open feed and top-up', () => {
 });
 
 describe('anchored schedule', () => {
-  const anchor = { bedtime_min: 23 * 60, night_min: 240, tz: 'America/New_York' };
+  const anchor = { bedtime_min: 23 * 60, night_min: 240, tz: 'America/New_York', night2_min: null, day_gap_min: 150, day_gap_max: 180 };
   const plan = readPlan({ target: { min_ml: 90, max_ml: 110 }, nursing_ml_per_min: 3, every_min: 180, anchor, min_feeds: 8 });
   const Z = (iso: string) => new Date(iso);
   const bottleAt = (iso: string, ml: number) => ({ type: 'bottle', started_at: iso, ended_at: iso, bottle_ml: ml });
@@ -221,7 +221,7 @@ describe('anchored schedule', () => {
 });
 
 describe('anchored aim: even feeds, catch-up from the last 24 hours', () => {
-  const anchor = { bedtime_min: 23 * 60, night_min: 240, tz: 'America/New_York' };
+  const anchor = { bedtime_min: 23 * 60, night_min: 240, tz: 'America/New_York', night2_min: null, day_gap_min: 150, day_gap_max: 180 };
   const plan = readPlan({ target: { min_ml: 90, max_ml: 110 }, nursing_ml_per_min: 3, every_min: 180, anchor, min_feeds: 8 }); // band 720–880 ml a day, 100 ml a feed
   const b = (iso: string, ml: number) => ({ type: 'bottle', started_at: iso, ended_at: iso, bottle_ml: ml });
   // A full planned day: 11 PM, 3:00, 5:51, 8:43, 11:34 AM, 2:26, 5:17, 8:09 PM (EST = UTC−5)
@@ -260,5 +260,38 @@ describe('anchored aim: even feeds, catch-up from the last 24 hours', () => {
     const aim = anchoredAim(evs, plan, null, at('2026-11-04T20:00:00Z'))!;
     expect(aim.catchUp).toBe(false); // ~a normal feed (98 ml after a slightly short gap), not ~130
     expect(aim.max).toBeLessThanOrEqual(105);
+  });
+});
+
+describe('two night gaps (from day 21)', () => {
+  const anchor = { bedtime_min: 23 * 60, night_min: 300, tz: 'America/New_York', night2_min: 300, day_gap_min: 150, day_gap_max: 180 };
+  const plan = readPlan({ target: { min_ml: 90, max_ml: 110 }, nursing_ml_per_min: 3, every_min: 180, anchor, min_feeds: 8 });
+  const t = new Date('2026-11-08T17:00:00Z'); // noon EST
+  const gapH = (iso: string) => anchoredGap(Date.parse(iso), plan.anchor!, anchorShape(plan, null, new Date(iso))).min / 60;
+
+  it('11 PM, 5 h, a night feed, 5 h, then the day in 2½–3 h gaps: no feed count to meet', () => {
+    expect(anchorShape(plan, null, t)).toMatchObject({ two: true, feeds: 7, daySpacing: 168 }); // 14 h ÷ 5 gaps = 2 h 48 m
+    expect(planSlots(plan, null, t).map((d) => d.toISOString().slice(11, 16)))
+      .toEqual(['04:00', '09:00', '14:00', '16:48', '19:36', '22:24', '01:12']); // 11 PM, 4 AM, 9 AM, 11:48, 2:36, 5:24, 8:12 PM
+  });
+  it('the bedtime feed and the night feed each buy a night gap; day feeds re-divide the time to bedtime', () => {
+    expect(gapH('2026-11-08T04:00:00Z')).toBe(5); // 11 PM
+    expect(gapH('2026-11-08T09:00:00Z')).toBe(5); // 4 AM night feed
+    expect(gapH('2026-11-08T07:30:00Z')).toBe(5); // woke early at 2:30 AM: still the night feed
+    expect(gapH('2026-11-08T14:00:00Z')).toBeCloseTo(2.8); // 9 AM: 14 h ÷ 5
+    expect(gapH('2026-11-08T15:00:00Z')).toBeCloseTo(13 / 5); // a late 10 AM: 13 h ÷ 5 = 2 h 36 m
+  });
+  it('splits awkward stretches toward the range, shorter on a tie', () => {
+    expect(pickGaps(840, 150, 180)).toBe(5);
+    expect(pickGaps(240, 150, 180)).toBe(2); // two of 2 h beat one of 4 h
+    expect(pickGaps(170, 150, 180)).toBe(1);
+  });
+  it('only from day 21: before that the one-night plan applies', () => {
+    expect(anchorShape(plan, '2026-10-25', t).two).toBe(false); // day 14
+    expect(anchorShape(plan, '2026-10-14', t).two).toBe(true); // day 25
+    expect(anchorShape(readPlan({ ...plan, anchor: { ...anchor, night2_min: null } }), null, t).two).toBe(false);
+  });
+  it('the amount per feed follows the planned feeds (daily target ÷ 7), within the top value', () => {
+    expect(planAim(plan, null, t)).toEqual({ min: 109, max: 110 }); // 800 ÷ 7 ≈ 114, capped at 110
   });
 });

@@ -493,6 +493,16 @@ if (anchored !== '1380 240 8') problems.push(`anchored schedule not saved: ${anc
 await expectText(A, 'Plan: 11:00 PM, '); // the next slot is 4 h later (on a DST night the clock reads 2 or 4 AM)
 await expectText(A, '(8 feeds)');
 await shot(A, 'settings-anchored');
+// From day 21: a second night gap; the day then runs in 2½–3 h gaps (no feed count)
+if (await A.locator('ion-select', { hasText: 'Night gap 2' }).count()) {
+  await A.locator('ion-select', { hasText: 'Night gap 2' }).click(); await wait(A, 600);
+  await A.locator('ion-action-sheet button', { hasText: '5 hours' }).click(); await wait(A, 1200);
+  const two = psql(`select (feeding_plan->'anchor'->>'night2_min') || ' ' || (feeding_plan->'anchor'->>'day_gap_min') || '-' || (feeding_plan->'anchor'->>'day_gap_max') from household_settings`);
+  if (two !== '300 150-180') problems.push(`second night gap not saved: ${two}`);
+  await expectText(A, 'Daytime gaps');
+  await expectText(A, 'the next feed buys night gap 2');
+  await shot(A, 'settings-two-nights');
+} else problems.push('no "Night gap 2" setting (the e2e baby is past day 21)');
 await A.locator('ion-select', { hasText: 'Schedule' }).click(); await wait(A, 600);
 await A.locator('ion-action-sheet button', { hasText: 'Flexible' }).click(); await wait(A, 1200);
 await A.locator('ion-select', { hasText: 'Count nursing as' }).click(); await wait(A, 600);

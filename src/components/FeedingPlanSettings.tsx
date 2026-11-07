@@ -1,6 +1,6 @@
 import { IonButton, IonItem, IonLabel, IonList, IonListHeader, IonNote, IonSelect, IonSelectOption, useIonToast } from '@ionic/react';
 import { useEffect, useState } from 'react';
-import { dayOfLife, feedEveryMin, feedsPerDay, planAim, planSlots, readPlan, targetAt, type FeedingPlan } from '../lib/feeding';
+import { dayOfLife, feedEveryMin, feedsPerDay, planAim, planSlots, readPlan, targetAt, TWO_NIGHTS_FROM_DAY, twoNights, type FeedingPlan } from '../lib/feeding';
 import { formatDuration, formatTime, formatVolume } from '../lib/format';
 import { useHousehold } from '../lib/household';
 import { supabase } from '../lib/supabase';
@@ -41,7 +41,12 @@ export default function FeedingPlanSettings() {
   const slots = planSlots(plan, baby?.birth_date ?? null, now);
   const aim = planAim(plan, baby?.birth_date ?? null, now);
   const hhmm = (m: number) => formatTime(new Date(2026, 0, 1, Math.floor(m / 60), m % 60));
-  const hours = (m: number) => (m % 60 ? `${Math.floor(m / 60)}½ hours` : `${m / 60} hours`);
+  const h = (m: number) => (m % 60 ? `${Math.floor(m / 60)}½` : `${m / 60}`);
+  const hours = (m: number) => `${h(m)} hours`;
+  const span = (lo: number, hi: number) => `${h(lo)}–${h(hi)} hours`;
+  // A second night gap is offered from day 21 (the consultant, 2026-11-07).
+  const canTwo = !!anchor && (!baby?.birth_date || dayOfLife(baby.birth_date, now) >= TWO_NIGHTS_FROM_DAY);
+  const two = twoNights(plan, baby?.birth_date ?? null, now);
 
   return (
     <IonList inset>
@@ -74,7 +79,7 @@ export default function FeedingPlanSettings() {
       <IonItem>
         <IonSelect label="Schedule" value={anchor ? 'anchored' : 'flexible'} interface="action-sheet" disabled={!editable}
           onIonChange={(e) => void save({ anchor: e.detail.value === 'anchored'
-            ? { bedtime_min: 23 * 60, night_min: 240, tz: Intl.DateTimeFormat().resolvedOptions().timeZone } : null })}>
+            ? { bedtime_min: 23 * 60, night_min: 240, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, night2_min: null, day_gap_min: 150, day_gap_max: 180 } : null })}>
           <IonSelectOption value="flexible">Flexible (each feed sets the next)</IonSelectOption>
           <IonSelectOption value="anchored">Anchored to a bedtime feed</IonSelectOption>
         </IonSelect>
@@ -88,17 +93,35 @@ export default function FeedingPlanSettings() {
             </IonSelect>
           </IonItem>
           <IonItem>
-            <IonSelect label="Then sleep" value={anchor.night_min} interface="action-sheet" disabled={!editable}
+            <IonSelect label={canTwo ? 'Night gap 1' : 'Then sleep'} value={anchor.night_min} interface="action-sheet" disabled={!editable}
               onIonChange={(e) => void save({ anchor: { ...anchor, night_min: Number(e.detail.value) } })}>
-              {[180, 210, 240, 270, 300].map((m) => <IonSelectOption key={m} value={m}>{hours(m)}</IonSelectOption>)}
+              {[180, 210, 240, 270, 300, 330, 360].map((m) => <IonSelectOption key={m} value={m}>{hours(m)}</IonSelectOption>)}
             </IonSelect>
           </IonItem>
-          <IonItem>
-            <IonSelect label="Feeds a day, at least" value={plan.min_feeds} interface="action-sheet" disabled={!editable}
-              onIonChange={(e) => void save({ min_feeds: Number(e.detail.value) })}>
-              {[7, 8, 9, 10].map((n) => <IonSelectOption key={n} value={n}>{n}{n === 8 ? ' (newborn guidance)' : ''}</IonSelectOption>)}
-            </IonSelect>
-          </IonItem>
+          {canTwo && (
+            <IonItem>
+              <IonSelect label="Night gap 2" value={anchor.night2_min ?? 0} interface="action-sheet" disabled={!editable}
+                onIonChange={(e) => void save({ anchor: { ...anchor, night2_min: Number(e.detail.value) || null } })}>
+                <IonSelectOption value={0}>Off (one night gap)</IonSelectOption>
+                {[180, 210, 240, 270, 300, 330, 360].map((m) => <IonSelectOption key={m} value={m}>{hours(m)}</IonSelectOption>)}
+              </IonSelect>
+            </IonItem>
+          )}
+          {two ? (
+            <IonItem>
+              <IonSelect label="Daytime gaps" value={`${anchor.day_gap_min}-${anchor.day_gap_max}`} interface="action-sheet" disabled={!editable}
+                onIonChange={(e) => { const [lo, hi] = String(e.detail.value).split('-').map(Number); void save({ anchor: { ...anchor, day_gap_min: lo, day_gap_max: hi } }); }}>
+                {[[120, 150], [150, 180], [180, 210]].map(([lo, hi]) => <IonSelectOption key={lo} value={`${lo}-${hi}`}>{span(lo, hi)}</IonSelectOption>)}
+              </IonSelect>
+            </IonItem>
+          ) : (
+            <IonItem>
+              <IonSelect label="Feeds a day, at least" value={plan.min_feeds} interface="action-sheet" disabled={!editable}
+                onIonChange={(e) => void save({ min_feeds: Number(e.detail.value) })}>
+                {[7, 8, 9, 10].map((n) => <IonSelectOption key={n} value={n}>{n}{n === 8 ? ' (newborn guidance)' : ''}</IonSelectOption>)}
+              </IonSelect>
+            </IonItem>
+          )}
         </>
       )}
       {!anchor && <IonItem>
@@ -112,7 +135,9 @@ export default function FeedingPlanSettings() {
         <IonNote className="hint">
           {anchor ? <>
             Plan: {slots.map((d) => formatTime(d)).join(', ')} ({feedsPerDay(plan, baby?.birth_date ?? null, now)} feeds){aim ? `, about ${range(aim)} each (the daily target ÷ the feeds)` : ''}.
-            {' '}A feed from an hour before {hhmm(anchor.bedtime_min)} is the bedtime feed and buys the {hours(anchor.night_min)}; the rest of the day splits into equal gaps that end on the bedtime feed (a gap is split only if it would run over 15% long). A late or early feed re-divides the time left, so bedtime stays put; a smaller feed brings the next one sooner, a bigger one doesn't push it later. Each feed aims for the same planned amount (less after a shorter gap), so intake stays even; only if the last 24 hours are below the daily range is a little added (up to 1¼ of a feed, never above the handout's top). It's never lowered when he's ahead.{' '}
+            {' '}{two
+              ? <>A feed from an hour before {hhmm(anchor.bedtime_min)} is the bedtime feed and buys night gap 1; the next feed buys night gap 2; the rest of the day splits into equal gaps as close to {span(anchor.day_gap_min, anchor.day_gap_max)} as fit before the bedtime feed. The number of feeds follows from the gaps.</>
+              : <>A feed from an hour before {hhmm(anchor.bedtime_min)} is the bedtime feed and buys the {hours(anchor.night_min)}; the rest of the day splits into equal gaps that end on the bedtime feed (a gap is split only if it would run over 15% long).</>} A late or early feed re-divides the time left, so bedtime stays put; a smaller feed brings the next one sooner, a bigger one doesn't push it later. Each feed aims for the same planned amount (less after a shorter gap), so intake stays even; only if the last 24 hours are below the daily range is a little added (up to 1¼ of a feed, never above the handout's top). It's never lowered when he's ahead.{' '}
           </> : today ? <>Now: {range(today)} per feed, every {formatDuration(every * 60_000)}{day != null ? ` (day ${day})` : ''}. </> : 'Set the birth date to use the by-age target. '}
           {!anchor && plan.every_min === 'age' && 'By age, the gap is the handout\'s daily amount spread over feeds of the per-feed size, so it lengthens as he grows (3 h in the first two weeks, about 3½ h from week 4), kept within 2–4 h. '}
           A feed is the bottles and nursing less than 20 minutes apart; its estimated amount is the bottles plus nursing minutes × the rate above.

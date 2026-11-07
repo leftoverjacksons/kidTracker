@@ -62,7 +62,7 @@ export function pumpDue(events: Ev[], now: Date, everyMin: number | null) {
 
 // ───────────── Feeds and lining pumping up with them (mirrors src/lib/feeding.ts) ─────────────
 
-export interface Anchor { bedtime_min: number; night_min: number; tz: string }
+export interface Anchor { bedtime_min: number; night_min: number; tz: string; night2_min: number | null; day_gap_min: number; day_gap_max: number }
 export interface Plan { target: 'age' | { min_ml: number; max_ml: number }; nursing_ml_per_min: number; every_min: number | 'age'; anchor: Anchor | null; min_feeds: number }
 export interface Ctx { plan: Plan; birthDate: string | null }
 export const DEFAULT_CTX: Ctx = { plan: { target: 'age', nursing_ml_per_min: 2.1, every_min: 'age', anchor: null, min_feeds: 8 }, birthDate: null };
@@ -78,7 +78,7 @@ export function readPlan(raw: unknown): Plan {
   return {
     target, nursing_ml_per_min: rate >= 0 && rate <= 20 ? rate : 2.1, every_min: r.every_min !== 'age' && every >= 60 && every <= 360 ? every : 'age',
     anchor: a && typeof a === 'object' && a.bedtime_min >= 0 && a.bedtime_min < 1440 && a.night_min >= 120 && a.night_min <= 360 && typeof a.tz === 'string' && a.tz
-      ? { bedtime_min: a.bedtime_min, night_min: a.night_min, tz: a.tz } : null,
+      ? readAnchor(a) : null,
     min_feeds: n >= 6 && n <= 12 ? Math.round(n) : 8,
   };
 }
@@ -127,16 +127,43 @@ function anchorsAround(t: number, a: Anchor): { prev: number; next: number } {
   const at = (k: number) => { const local = day0 + k * DAY + a.bedtime_min * 60_000; return local - tzOffsetMin(local - off, a.tz) * 60_000; };
   for (let k = 0; ; k++) if (at(k) > t) return { prev: at(k - 1), next: at(k) };
 }
-function anchoredGap(start: number, a: Anchor, feedsADay: number): { min: number; spacing: number; bedtime: boolean } {
+function readAnchor(a: Anchor): Anchor {
+  const n2 = Number(a.night2_min), lo = Number(a.day_gap_min), hi = Number(a.day_gap_max), gaps = lo >= 60 && hi >= lo && hi <= 300;
+  return { bedtime_min: a.bedtime_min, night_min: a.night_min, tz: a.tz, night2_min: a.night2_min != null && n2 >= 120 && n2 <= 360 ? n2 : null,
+    day_gap_min: gaps ? lo : 150, day_gap_max: gaps ? hi : 180 };
+}
+interface Shape { two: boolean; feeds: number; daySpacing: number; lo: number; hi: number }
+/** Equal gaps for `left` minutes, each as close as possible to [lo, hi]; shorter on a tie. */
+function pickGaps(left: number, lo: number, hi: number): number {
+  let best = 1, bestOff = Infinity;
+  for (let k = 1; k <= Math.max(1, Math.ceil(left / lo)) + 1; k++) {
+    const g = left / k, off = g < lo ? lo - g : g > hi ? g - hi : 0;
+    if (off <= bestOff) { best = k; bestOff = off; }
+    if (g < lo) break;
+  }
+  return best;
+}
+/** One night gap: at least min_feeds, equal gaps. Two night gaps (set, from day 21): the day in 2½–3 h gaps. */
+function anchorShape(ctx: Ctx, t: Date): Shape {
+  const a = ctx.plan.anchor!;
+  if (a.night2_min && (!ctx.birthDate || dayOfLife(ctx.birthDate, t) >= 21)) {
+    const day = 1440 - a.night_min - a.night2_min, k = pickGaps(day, a.day_gap_min, a.day_gap_max);
+    return { two: true, feeds: 2 + k, daySpacing: day / k, lo: a.day_gap_min, hi: a.day_gap_max };
+  }
+  const per = targetAt(ctx, t), daily = dailyTargetAt(ctx, t);
+  const feeds = Math.max(ctx.plan.min_feeds, per && daily ? Math.round((daily.min + daily.max) / (per.min + per.max)) : 0);
+  return { two: false, feeds, daySpacing: (1440 - a.night_min) / Math.max(1, feeds - 1), lo: 0, hi: 0 };
+}
+function anchoredGap(start: number, a: Anchor, shape: Shape): { min: number; spacing: number; night: boolean } {
   const { prev, next } = anchorsAround(start, a);
-  const spacing = (1440 - a.night_min) / Math.max(1, feedsADay - 1);
-  if (next - start <= 60 * 60_000 || start - prev <= 90 * 60_000) return { min: a.night_min, spacing, bedtime: true }; // bedtime feed: 1 h before to 1½ h after
+  if (next - start <= 60 * 60_000 || start - prev <= 90 * 60_000) return { min: a.night_min, spacing: shape.daySpacing, night: true }; // bedtime feed: 1 h before to 1½ h after
+  if (shape.two && start - prev <= (a.night_min + 90) * 60_000) return { min: a.night2_min!, spacing: shape.daySpacing, night: true }; // the night feed
   const left = (next - start) / 60_000;
-  return { min: left / Math.max(1, Math.ceil(left / (spacing * 1.15) - 1e-9)), spacing, bedtime: false }; // split only once a gap runs 15% over
+  const k = shape.two ? pickGaps(left, shape.lo, shape.hi) : Math.max(1, Math.ceil(left / (shape.daySpacing * 1.15) - 1e-9)); // split only once a gap runs 15% over
+  return { min: left / k, spacing: shape.daySpacing, night: false };
 }
 function feedsPerDay(ctx: Ctx, t: Date): number {
-  const per = targetAt(ctx, t), daily = dailyTargetAt(ctx, t);
-  return Math.max(ctx.plan.min_feeds, per && daily ? Math.round((daily.min + daily.max) / (per.min + per.max)) : 0);
+  return anchorShape(ctx, t).feeds;
 }
 function planAim(ctx: Ctx, t: Date) {
   const daily = dailyTargetAt(ctx, t);
@@ -170,9 +197,9 @@ export function nextFeed(all: Feed[], ctx: Ctx, now: Date): number | null {
   for (const f of recent) {
     const a = ctx.plan.anchor;
     if (a) { // anchored: a full planned feed buys the planned gap, a smaller one its share, a bigger one no more
-      const g = anchoredGap(f.start, a, feedsPerDay(ctx, new Date(f.start))), gap = g.min * 60_000;
+      const g = anchoredGap(f.start, a, anchorShape(ctx, new Date(f.start))), gap = g.min * 60_000;
       const aim = planAim(ctx, new Date(f.start)), each = aim ? (aim.min + aim.max) / 2 : 0;
-      const planned = each * (g.bedtime ? 1 : Math.min(1, g.min / g.spacing)); // the feed planned for this gap
+      const planned = each * (g.night ? 1 : Math.min(1, g.min / g.spacing)); // the feed planned for this gap
       const from: number = due == null ? f.start : Math.max(due, f.start);
       due = Math.min(from + gap * (planned > 0 ? Math.min(1, f.estMl / planned) : 1), f.start + gap);
       continue;
