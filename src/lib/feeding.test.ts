@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, aimAt, anchoredGap, anchorShape, pickGaps, anchoredGapMin, anchoredAim, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, aimAt, anchoredGap, anchorShape, pickGaps, slotKind, anchoredGapMin, anchoredAim, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -199,7 +199,8 @@ describe('anchored schedule', () => {
   it('the evening never gets one long gap, and only a feed from 10 PM is the bedtime feed', () => {
     expect(gapH('2026-11-03T23:45:00Z')).toBeCloseTo(4.25 / 2); // 6:45 PM, 4¼ h left: two gaps, not one of 4¼ h
     expect(gapH('2026-11-04T01:04:00Z')).toBeCloseTo(176 / 60); // 8:04 PM, 2 h 56 m left: one gap, not two of 1½ h
-    expect(gapH('2026-11-04T02:35:00Z')).toBeCloseTo(85 / 60); // 9:35 PM: next at 11 PM, not a night stretch
+    expect(gapH('2026-11-04T02:35:00Z')).toBe(4); // 9:35 PM: too close to 11 PM for a gap, so it's the bedtime feed (2026-11-07)
+    expect(gapH('2026-11-04T01:30:00Z')).toBeCloseTo(150 / 60); // 8:30 PM, 2½ h left: still a day feed
     expect(gapH('2026-11-04T03:00:00Z')).toBe(4); // 10:00 PM is the bedtime feed
     expect(gapH('2026-11-04T05:20:00Z')).toBeCloseTo(4); // 12:20 AM still is (up to 1½ h after)
   });
@@ -280,6 +281,13 @@ describe('two night gaps (from day 21)', () => {
     expect(gapH('2026-11-08T07:30:00Z')).toBe(5); // woke early at 2:30 AM: still the night feed
     expect(gapH('2026-11-08T14:00:00Z')).toBeCloseTo(2.8); // 9 AM: 14 h ÷ 5
     expect(gapH('2026-11-08T15:00:00Z')).toBeCloseTo(13 / 5); // a late 10 AM: 13 h ÷ 5 = 2 h 36 m
+    expect(gapH('2026-11-09T02:50:00Z')).toBe(5); // 9:50 PM: under 2½ h before 11 PM → the bedtime feed, then 5 h (2026-11-07)
+    expect(gapH('2026-11-09T01:20:00Z')).toBeCloseTo(160 / 60); // 8:20 PM, 2 h 40 m left: one more day gap to 11 PM
+  });
+  it('a feed under 2 h before bedtime is the bedtime feed; the evening is never split so a feed lands in that window', () => {
+    expect(slotKind(Date.parse('2026-11-09T02:05:00Z'), plan.anchor!, anchorShape(plan, null, t))).toBe('bedtime'); // 9:05 PM
+    expect(slotKind(Date.parse('2026-11-09T01:55:00Z'), plan.anchor!, anchorShape(plan, null, t))).toBe('day'); // 8:55 PM, 2 h 5 m left
+    expect(gapH('2026-11-09T00:10:00Z')).toBeCloseTo(230 / 60); // 7:10 PM, 3 h 50 m left: one gap, not two of 1 h 55 m
   });
   it('splits awkward stretches toward the range, shorter on a tie', () => {
     expect(pickGaps(840, 150, 180)).toBe(5);

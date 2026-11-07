@@ -440,12 +440,25 @@ export function pickGaps(left: number, lo: number, hi: number): number {
   return best;
 }
 
-/** What a feed at `at` is on the anchored schedule: the bedtime feed, the night feed (two-night plan) or a day feed. */
+/**
+ * What a feed at `at` is on the anchored schedule: the bedtime feed, the night feed (two-night
+ * plan) or a day feed. The bedtime time is a goal: a feed too close to it for a sensible gap
+ * (closer than BEDTIME_CLOSE of the shortest daytime gap; of a day gap on the one-night plan)
+ * becomes the bedtime feed, and the night starts from it (owner, 2026-11-07).
+ */
 export function slotKind(at: number, a: Anchor, shape: AnchorShape): 'bedtime' | 'night' | 'day' {
   const { prev, next } = anchorsAround(at, a);
-  if (next - at <= BEDTIME_BEFORE_MIN * 60_000 || at - prev <= BEDTIME_AFTER_MIN * 60_000) return 'bedtime';
+  if (next - at < closeToBedtime(shape) || at - prev <= BEDTIME_AFTER_MIN * 60_000) return 'bedtime';
   if (shape.two && at - prev <= (a.night_min + BEDTIME_AFTER_MIN) * 60_000) return 'night';
   return 'day';
+}
+
+/** Fraction of a daytime gap (two-night plan: of its shortest; one-night: of the planned gap) under which a feed is the bedtime feed. */
+export const BEDTIME_CLOSE = { two: 0.8, one: 0.55 };
+
+/** How close to the bedtime moment (ms) a feed has to be to become the bedtime feed: at least 1 h. */
+export function closeToBedtime(shape: AnchorShape): number {
+  return Math.max(BEDTIME_BEFORE_MIN, shape.two ? shape.lo * BEDTIME_CLOSE.two : shape.daySpacing * BEDTIME_CLOSE.one) * 60_000;
 }
 
 /**
@@ -459,7 +472,9 @@ export function anchoredGap(start: number, a: Anchor, shape: AnchorShape): { min
   if (kind === 'bedtime') return { min: a.night_min, spacing: shape.daySpacing, night: true };
   if (kind === 'night') return { min: a.night2_min!, spacing: shape.daySpacing, night: true };
   const left = (anchorsAround(start, a).next - start) / 60_000;
-  const k = shape.two ? pickGaps(left, shape.lo, shape.hi) : Math.max(1, Math.ceil(left / (shape.daySpacing * SPLIT_TOLERANCE) - 1e-9));
+  let k = shape.two ? pickGaps(left, shape.lo, shape.hi) : Math.max(1, Math.ceil(left / (shape.daySpacing * SPLIT_TOLERANCE) - 1e-9));
+  // Never plan a last day feed so close to bedtime that it would count as the bedtime feed itself.
+  while (k > 1 && (left / k) * 60_000 < closeToBedtime(shape)) k--;
   return { min: left / k, spacing: shape.daySpacing, night: false };
 }
 

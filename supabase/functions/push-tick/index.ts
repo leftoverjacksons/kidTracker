@@ -156,10 +156,12 @@ function anchorShape(ctx: Ctx, t: Date): Shape {
 }
 function anchoredGap(start: number, a: Anchor, shape: Shape): { min: number; spacing: number; night: boolean } {
   const { prev, next } = anchorsAround(start, a);
-  if (next - start <= 60 * 60_000 || start - prev <= 90 * 60_000) return { min: a.night_min, spacing: shape.daySpacing, night: true }; // bedtime feed: 1 h before to 1½ h after
+  const closeEnough = Math.max(60, shape.two ? shape.lo * 0.8 : shape.daySpacing * 0.55) * 60_000; // too close to bedtime for a gap: it is the bedtime feed
+  if (next - start < closeEnough || start - prev <= 90 * 60_000) return { min: a.night_min, spacing: shape.daySpacing, night: true };
   if (shape.two && start - prev <= (a.night_min + 90) * 60_000) return { min: a.night2_min!, spacing: shape.daySpacing, night: true }; // the night feed
   const left = (next - start) / 60_000;
-  const k = shape.two ? pickGaps(left, shape.lo, shape.hi) : Math.max(1, Math.ceil(left / (shape.daySpacing * 1.15) - 1e-9)); // split only once a gap runs 15% over
+  let k = shape.two ? pickGaps(left, shape.lo, shape.hi) : Math.max(1, Math.ceil(left / (shape.daySpacing * 1.15) - 1e-9)); // split only once a gap runs 15% over
+  while (k > 1 && (left / k) * 60_000 < closeEnough) k--; // never plan a last day feed inside the bedtime window
   return { min: left / k, spacing: shape.daySpacing, night: false };
 }
 function feedsPerDay(ctx: Ctx, t: Date): number {
