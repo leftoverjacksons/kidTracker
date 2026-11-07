@@ -255,6 +255,15 @@ describe('anchored aim: even feeds, catch-up from the last 24 hours', () => {
     expect(due.getTime() - Date.parse('2026-11-05T01:04:00Z')).toBeGreaterThan(2 * 3_600_000); // not ~1 h
     expect(anchoredAim(evs, plan, null, at('2026-11-05T01:30:00Z'))).toEqual({ min: 95, max: 105, catchUp: false }); // bedtime feed: a full feed
   });
+  it("while a feed is open, the next feed gets its own aim (not the open feed's)", () => {
+    // On track; a feed at 8:43 AM, then an early one at 9:43 AM (1 h gap) still open at 9:50.
+    const evs = [b('2026-11-03T22:17:00Z', 100), b('2026-11-04T01:09:00Z', 100), ...slots.slice(0, 4).map((t) => b(t, 100)), b('2026-11-04T14:43:00Z', 95)];
+    const now = at('2026-11-04T14:50:00Z');
+    const open = anchoredAim(evs, plan, null, now)!; // the early feed: planned ~35 ml for its 1 h gap
+    const next = anchoredAim(evs, plan, null, now, { next: true })!; // the following feed: ~93 ml for its ~2 h 39 m gap
+    expect(open.max).toBeLessThan(50); // ~35 planned, catch-up up to 1¼ (+5% range)
+    expect(next.min).toBeGreaterThan(85);
+  });
   it("yesterday evening's big feeds count: no catch-up when the last 24 h are over the band", () => {
     // The case from 2026-11-05: on the bedtime-to-bedtime budget this asked ~130 ml.
     const evs = [b('2026-11-04T00:00:00Z', 160), b('2026-11-04T01:30:00Z', 150), ...slots.slice(0, 6).map((t) => b(t, 98))];

@@ -323,8 +323,8 @@ export function feedEveryMin(plan: FeedingPlan, birthDate: string | null, t: Dat
  * the shortfall is added to the bottom of the range (spread over about three feeds), never
  * above the top of the range. Timing is unchanged: small feeds already bring the next one sooner.
  */
-export function aimAt(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
-  if (plan.anchor) return anchoredAim(events, plan, birthDate, now);
+export function aimAt(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date(), opts: { next?: boolean } = {}) {
+  if (plan.anchor) return anchoredAim(events, plan, birthDate, now, opts);
   const per = feedTarget(plan, birthDate, now);
   if (!per) return null;
   const top = targetAt(plan, birthDate, now)?.max ?? per.max; // never above her top value
@@ -540,10 +540,11 @@ export const CATCHUP_MAX_RAISE = 1.25;
  * added, at most up to 1¼ × the planned feed and never above the handout's top. Never lowered when
  * he's ahead: he sets how much he takes. A feed still open (topping up) is the one aimed for.
  */
-export function anchoredAim(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date()) {
+export function anchoredAim(events: (FeedEvent & { deleted_at?: string | null })[], plan: FeedingPlan, birthDate: string | null, now: Date = new Date(), opts: { next?: boolean } = {}) {
   const a = plan.anchor!;
   const live = events.filter((e) => !e.deleted_at);
-  const open = openFeed(live, plan, now);
+  // `next`: the feed after one still open (the tile's "or next …" line), not the open one itself.
+  const open = opts.next ? null : openFeed(live, plan, now);
   const done = feeds(live, plan).filter((f) => f.start <= now && (!open || f.start < open.start));
   const last = done[done.length - 1];
   const next = nextFeed(done, plan, birthDate, now);

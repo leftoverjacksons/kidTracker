@@ -102,7 +102,9 @@ export default function Home() {
           const so = `Last ${open.nursingMin > 0 && sched.plan.nursing_ml_per_min > 0 ? '~' : ''}${n(open.estMl)}\u00a0${settings.volume_unit}`;
           // Second line: when the next feed falls if this one isn't topped up (or after a full one).
           const nf = sched.feed;
-          const next = nf ? `\n${sup.max > 0 ? 'or next' : 'next'} ${formatWhen(nf.due, now)}${nf.withPump ? ' + pump' : ''} · aim\u00a0${n(tgt.min)}\u2060–\u2060${n(tgt.max)}\u00a0${settings.volume_unit}${cu}` : '';
+          // The next feed's own aim (its gap differs from the open feed's), not the open feed's.
+          const after = aimAt(data.events, sched.plan, baby?.birth_date ?? null, now, { next: true }) ?? tgt;
+          const next = nf ? `\n${sup.max > 0 ? 'or next' : 'next'} ${formatWhen(nf.due, now)}${nf.withPump ? ' + pump' : ''} · aim\u00a0${n(after.min)}\u2060–\u2060${n(after.max)}\u00a0${settings.volume_unit}${after.catchUp ? ' (catch-up)' : ''}` : '';
           return { text: `${so} · ${sup.max > 0 ? `sup\u00a0${n(sup.min)}\u2060–\u2060${n(sup.max)}\u00a0${settings.volume_unit}` : 'full feed'}${next}`, live: false };
         }
         const nf = sched.feed; // already lined up with pumping when they're close
