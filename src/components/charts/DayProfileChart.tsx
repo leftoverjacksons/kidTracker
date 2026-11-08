@@ -16,9 +16,11 @@ const strength = (k: number, n: number) => (k === 0 ? 1 : 0.75 - (0.55 * (k - 1)
  * dots plus a smoothed line; today in teal, earlier days in blue fading into the past. Tapping a day in the legend
  * hides its dots and line.
  */
-export default function DayProfileChart({ title, days, toDisplay, format, controls, note }: {
+export default function DayProfileChart({ title, days, toDisplay, format, controls, note, smooth = true }: {
   title: string; days: DayProfile[]; toDisplay: (ml: number) => number; format: (v: number) => string;
   controls?: ReactNode; note?: string;
+  /** true: the smoothed line; false: straight lines joining the feeds in order. */
+  smooth?: boolean;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const theme = useChartTheme();
@@ -42,8 +44,8 @@ export default function DayProfileChart({ title, days, toDisplay, format, contro
             pointRadius: k === 0 ? 5.5 : 4, pointHoverRadius: 7, pointBorderWidth: k === 0 ? 1.5 : 0, order: k,
           }, {
             label: `${label(k)} trend`,
-            data: d.smooth.map((p) => ({ x: p.x, y: toDisplay(p.y) })),
-            showLine: true, borderColor: c, borderWidth: k === 0 ? 3 : 2, tension: 0.3,
+            data: (smooth ? d.smooth : d.points).map((p) => ({ x: p.x, y: toDisplay(p.y) })),
+            showLine: true, borderColor: c, borderWidth: k === 0 ? 3 : 2, tension: smooth ? 0.3 : 0,
             pointRadius: 0, pointHoverRadius: 0, pointHitRadius: 0, order: k,
           }];
         }),
@@ -86,7 +88,7 @@ export default function DayProfileChart({ title, days, toDisplay, format, contro
     };
     const chart = new Chart(canvas.current, config);
     return () => chart.destroy();
-  }, [days, toDisplay, format, theme]);
+  }, [days, toDisplay, format, theme, smooth]);
 
   return (
     <figure className="chart-card">

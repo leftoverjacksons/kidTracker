@@ -640,12 +640,17 @@ for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Tim
   if (!(await card.count())) problems.push('no "Feeds across the day" chart');
   else {
     await card.scrollIntoViewIfNeeded();
-    await card.locator('ion-select').click(); await wait(A, 600);
+    await card.locator('ion-select', { hasText: 'Days shown' }).click(); await wait(A, 600);
     await A.locator('ion-popover ion-radio, ion-popover ion-item', { hasText: '7 days' }).first().click(); await wait(A, 800);
     const saved = await A.evaluate(() => localStorage.getItem('kt.profileDays'));
     if (saved !== '7') problems.push(`days picker not saved: ${saved}`);
     await card.scrollIntoViewIfNeeded(); await wait(A, 300);
     await card.screenshot({ path: `${OUT}/feeds-across-day.png` });
+    await card.locator('ion-select', { hasText: 'Line' }).click(); await wait(A, 600);
+    await A.locator('ion-popover ion-radio, ion-popover ion-item', { hasText: 'Dot to dot' }).first().click(); await wait(A, 800);
+    if ((await A.evaluate(() => localStorage.getItem('kt.profileLine'))) !== 'straight') problems.push('line toggle not saved');
+    await card.scrollIntoViewIfNeeded(); await wait(A, 300);
+    await card.screenshot({ path: `${OUT}/feeds-across-day-straight.png` });
   }
 }
 { // Today's target range and the amount so far sit in the Total intake legend.

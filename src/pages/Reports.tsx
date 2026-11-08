@@ -88,6 +88,8 @@ export default function Reports() {
   // Feeds across the day (design doc §8a AA): how many days to overlay, remembered per phone.
   const [profileDays, setProfileDays] = useState<number>(() => { try { return Number(localStorage.getItem('kt.profileDays')) || 3; } catch { return 3; } });
   const pickProfileDays = (n: number) => { setProfileDays(n); try { localStorage.setItem('kt.profileDays', String(n)); } catch { /* private mode */ } };
+  const [profileSmooth, setProfileSmooth] = useState<boolean>(() => { try { return localStorage.getItem('kt.profileLine') !== 'straight'; } catch { return true; } });
+  const pickProfileLine = (smooth: boolean) => { setProfileSmooth(smooth); try { localStorage.setItem('kt.profileLine', smooth ? 'smooth' : 'straight'); } catch { /* private mode */ } };
   const profiles = useMemo(() => dayProfiles(feeds(data.events, plan), plan, profileDays), [data.events, plan, profileDays]);
   const toVolRaw = useCallback((ml: number) => (settings.volume_unit === 'oz' ? mlToOz(ml) : ml), [settings.volume_unit]);
   const feedView = useMemo(() => {
@@ -175,15 +177,21 @@ export default function Reports() {
                   note={`The middle-sized feed of each day (median), so an odd snack doesn't pull it down. A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
               )}
                 {profiles.some((d) => d.points.length) && (
-                <DayProfileChart title={`Feeds across the day (${volUnit}, estimated)`} days={profiles} toDisplay={toVolRaw} format={fmtVolAxis}
-                  controls={
+                <DayProfileChart title={`Feeds across the day (${volUnit}, estimated)`} days={profiles} toDisplay={toVolRaw} format={fmtVolAxis} smooth={profileSmooth}
+                  controls={<>
                     <IonItem lines="none" className="profile-days">
                       <IonSelect label="Days shown" value={profileDays} interface="popover" onIonChange={(e) => pickProfileDays(Number(e.detail.value))}>
                         {[1, 2, 3, 4, 5, 6, 7].map((n) => <IonSelectOption key={n} value={n}>{n === 1 ? 'Today' : `${n} days`}</IonSelectOption>)}
                       </IonSelect>
                     </IonItem>
-                  }
-                  note={`Each dot is a feed at the time it started, from ${plan.anchor ? 'the bedtime feed' : 'midnight'} to the same time the next day; the line is a smoothed amount through the day (a moving average about 1½ h wide). Today is teal; earlier days are blue, fading into the past. Tap a day in the legend to hide it.`} />
+                    <IonItem lines="none" className="profile-days">
+                      <IonSelect label="Line" value={profileSmooth ? 'smooth' : 'straight'} interface="popover" onIonChange={(e) => pickProfileLine(e.detail.value === 'smooth')}>
+                        <IonSelectOption value="smooth">Smoothed</IonSelectOption>
+                        <IonSelectOption value="straight">Dot to dot</IonSelectOption>
+                      </IonSelect>
+                    </IonItem>
+                  </>}
+                  note={`Each dot is a feed at the time it started, from ${plan.anchor ? 'the bedtime feed' : 'midnight'} to the same time the next day; the line is ${profileSmooth ? 'a smoothed amount through the day (a moving average about 1½ h wide)' : 'drawn straight from feed to feed'}. Today is teal; earlier days are blue, fading into the past. Tap a day in the legend to hide it.`} />
                 )}
                 <LineChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} hues={['coral']}
                 note="Entries less than 20 minutes apart count as one feed." />
