@@ -897,7 +897,7 @@ Owner: a chart under feeding showing the distribution of his intake over a day, 
 - **Reports → Overview → Feeding → "Feeds across the day"**, after Typical feed. x: time of day from the day's start (the bedtime-feed moment on the anchored schedule, e.g. 11 PM → 11 PM; midnight on the flexible schedule), labelled every 3 h. y: each feed's estimated amount (bottles plus nursing), at the time it started.
 - **Series:** today (still filling) and the previous days, newest first (`dayProfiles`). **Days shown** picker, 1–7 (default 3), remembered per phone (`kt.profileDays`).
 - **Each day:** dots, plus a smoothed line through them: at each quarter hour, a Gaussian-weighted average of that day's feeds (bandwidth 90 min, `PROFILE_BANDWIDTH_MIN`), drawn only between the day's first and last feed. A kernel average rather than a fitted curve: it can't overshoot the feeds' amounts and shows where in the day he takes more or less.
-- **Colours:** all teal; today at full strength with larger, outlined dots and a thicker line; older days fade from 75% to about 20%. Tapping a day in the legend hides its dots and line; tooltips show the day, time and amount.
+- **Colours (revised 2026-11-08, owner):** today in teal, with larger, outlined dots and a thicker line; earlier days in blue, fading from 75% to about 20% into the past, so today stands apart (first version: all teal). Tapping a day in the legend hides its dots and line; tooltips show the day, time and amount.
 - Day windows follow the anchor through DST (`anchorsAround`). A bedtime feed taken early (e.g. 9:50 PM with an 11 PM anchor) sits at the end of the previous window.
 
 ### Z. Age down to the day — built 2026-11-08 (app-only)

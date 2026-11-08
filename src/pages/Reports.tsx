@@ -183,7 +183,7 @@ export default function Reports() {
                       </IonSelect>
                     </IonItem>
                   }
-                  note={`Each dot is a feed at the time it started, from ${plan.anchor ? 'the bedtime feed' : 'midnight'} to the same time the next day; the line is a smoothed amount through the day (a moving average about 1½ h wide). Today is the brightest; older days fade. Tap a day in the legend to hide it.`} />
+                  note={`Each dot is a feed at the time it started, from ${plan.anchor ? 'the bedtime feed' : 'midnight'} to the same time the next day; the line is a smoothed amount through the day (a moving average about 1½ h wide). Today is teal; earlier days are blue, fading into the past. Tap a day in the legend to hide it.`} />
                 )}
                 <LineChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} hues={['coral']}
                 note="Entries less than 20 minutes apart count as one feed." />

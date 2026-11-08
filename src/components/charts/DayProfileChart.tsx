@@ -13,7 +13,7 @@ const strength = (k: number, n: number) => (k === 0 ? 1 : 0.75 - (0.55 * (k - 1)
 /**
  * Feeds across the day (design doc §8a AA): x is the time of day from the day's start (the
  * bedtime feed on the anchored schedule), y the estimated amount. One series per day, each as
- * dots plus a smoothed line; today in full teal, older days fading. Tapping a day in the legend
+ * dots plus a smoothed line; today in teal, earlier days in blue fading into the past. Tapping a day in the legend
  * hides its dots and line.
  */
 export default function DayProfileChart({ title, days, toDisplay, format, controls, note }: {
@@ -33,7 +33,8 @@ export default function DayProfileChart({ title, days, toDisplay, format, contro
       data: {
         // Two datasets per day, dots then line; the legend shows and toggles them as one.
         datasets: days.flatMap((d, k) => {
-          const c = alpha(theme.hue.teal, strength(k, days.length));
+          // Today in teal; earlier days in blue, fading into the past, so today stands apart.
+          const c = k === 0 ? theme.hue.teal : alpha(theme.hue.blue, strength(k, days.length));
           return [{
             label: label(k),
             data: d.points.map((p) => ({ x: p.x, y: toDisplay(p.y), at: p.at, ml: p.y })),
