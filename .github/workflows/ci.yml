@@ -69,7 +69,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Install PostgREST
         run: |
-          curl -sSL https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz | tar xJ
+          curl -fsSL --retry 6 --retry-delay 15 --retry-all-errors -o postgrest.tar.xz https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz && tar xJf postgrest.tar.xz && rm postgrest.tar.xz
           echo "POSTGREST=$PWD/postgrest" >> "$GITHUB_ENV"
       - run: e2e/run.sh
       - name: Backup round trip (Apps Script + restore)

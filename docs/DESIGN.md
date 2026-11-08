@@ -472,6 +472,7 @@ The baby's name and birth date are entered in the app at first run.
 
 | Risk | Mitigation |
 |---|---|
+| CI can't download PostgREST from GitHub releases (seen 2026-11-08: "502 upstream request failed", twice) | Not the app; no test runs. The download now retries 6 times, 15 s apart, and fails with a clear HTTP error. If GitHub releases stay down, push again later. |
 | GitHub Pages publish times out (seen 2026-11-05: `deploy-pages` stuck at "updating_pages" for 10 min, then cancelled) | Tests are unaffected. Re-running the job doesn't help: the deployment is keyed by the commit, which is now marked cancelled. Push the next commit (any change) and it publishes normally. |
 | Supabase free project pauses after 7 days idle | Daily use prevents it; the nightly Drive backup signs in every day as a backstop. |
 | Vendor dependency | Plain Postgres schema; `pg_dump` migrates to any Postgres or self-host. |
