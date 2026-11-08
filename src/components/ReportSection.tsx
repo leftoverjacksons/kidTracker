@@ -26,7 +26,10 @@ export default function ReportSection({ id, title, icon, summary, defaultOpen = 
         <TypeIcon type={icon} />
         <span className="report-section-title">{title}</span>
         {summary && <span className="report-section-summary">{summary}</span>}
-        <span className="report-section-chevron" aria-hidden="true">{open ? '▴' : '▾'}</span>
+        <span className="report-section-state">{open ? 'Hide' : 'Show'}</span>
+        <span className="report-section-chevron" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
       </button>
       {open && <div className="report-section-body">{children}</div>}
     </section>

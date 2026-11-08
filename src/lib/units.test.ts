@@ -23,6 +23,12 @@ describe('ageLabel', () => {
     expect(ageLabel('2026-10-10', now)).toBe('1 day');
     expect(ageLabel('2026-09-20', now)).toBe('3 weeks');
     expect(ageLabel('2026-06-11', now)).toBe('4 months');
-    expect(ageLabel('2026-06-12', now)).toBe('3 months');
+    expect(ageLabel('2026-06-12', now)).toBe('3 months 29 days');
+  });
+  it('adds the days to weeks and months', () => {
+    expect(ageLabel('2026-09-16', now)).toBe('3 weeks 4 days');
+    expect(ageLabel('2026-09-19', now)).toBe('3 weeks 1 day');
+    expect(ageLabel('2026-05-30', now)).toBe('4 months 11 days');
+    expect(ageLabel('2024-07-11', now)).toBe('2 years 3 months');
   });
 });

@@ -889,6 +889,10 @@ Research (2026-11-01) behind "at least 8": CDC — breastfed babies feed about 8
 - **Not done (owner: later, worked out by the family):** assigning night feeds to a person, feed alarms to that person's phone.
 - **Open, for the consultant:** when he can drop below 8 feeds a day; whether mom can skip pumping at the 3 AM feed (11 PM to ~5:50 AM is about 7 h without pumping).
 
+### Z. Age down to the day — built 2026-11-08 (app-only)
+
+The age by his name (Home header, pediatrician summary) now includes the days: "5 days", "3 weeks 4 days" (to 8 weeks), "4 months 11 days" (days since this month's birthday, to 2 years), then "2 years 3 months" (`ageLabel`).
+
 ### Y. Two night gaps from week 3 — built 2026-11-07 (app and push-tick; push-tick needs re-pasting)
 
 The consultant (meeting, 2026-11-07): the only change is to start aiming for **two 5-hour sleeps at night**, with feeds **every 2½–3 hours** the rest of the time. Owner: keep the logic as is until week 3; after that, a second night gap setting; stop working to a feed count and fill the time to the next anchor in 2½–3 h gaps.
@@ -919,6 +923,8 @@ The consultant (meeting, 2026-11-07): the only change is to start aiming for **t
   - **Tummy time** ("15m a day"), only when there's tummy time in the range.
   - **Growth** (latest weight and date): weight vs. birth weight, WHO charts.
 - Feeding starts open, the others closed; each phone remembers its choices (`kt.reportsOpen`). Charts are only drawn while their section is open.
+
+- **Clearer open/closed (2026-11-08, owner request):** each header has a 34 px round button with a chevron that turns (filled in the accent colour when open) and a "Show"/"Hide" word; an open section's header is tinted and outlined in the accent colour with a thicker left edge, and a matching bar runs down the left of its charts.
 
 ### V. Bottles tab: choose which bottles to compare — built 2026-10-26 (app-only)
 
