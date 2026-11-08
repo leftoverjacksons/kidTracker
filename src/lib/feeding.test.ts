@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageTarget, aimAt, anchoredGap, anchorShape, pickGaps, slotKind, anchoredGapMin, anchoredAim, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
+import { ageTarget, dayProfiles, aimAt, anchoredGap, anchorShape, pickGaps, slotKind, anchoredGapMin, anchoredAim, anchorsAround, feedsPerDay, intakeLast24, planAim, planSlots, feedEveryMin, medianFeedByDay, dailyTargetAt, openFeed, schedule, topUp, DEFAULT_PLAN, feeds, nextFeed, pumpsWithFeeds, readPlan, targetAt } from './feeding';
 
 const at = (hhmm: string) => `2026-10-24T${hhmm}:00`;
 const bottle = (start: string, ml: number) => ({ type: 'bottle', started_at: at(start), ended_at: at(start), bottle_ml: ml });
@@ -310,5 +310,33 @@ describe('two night gaps (from day 21)', () => {
   });
   it('the amount per feed follows the planned feeds (daily target ÷ 7), within the top value', () => {
     expect(planAim(plan, null, t)).toEqual({ min: 109, max: 110 }); // 800 ÷ 7 ≈ 114, capped at 110
+  });
+});
+
+describe('feeds across the day', () => {
+  const anchor = { bedtime_min: 23 * 60, night_min: 300, tz: 'America/New_York', night2_min: 300, day_gap_min: 150, day_gap_max: 180 };
+  const plan = readPlan({ target: { min_ml: 90, max_ml: 110 }, nursing_ml_per_min: 3, every_min: 180, anchor, min_feeds: 8 });
+  const b = (iso: string, ml: number) => ({ type: 'bottle', started_at: iso, ended_at: iso, bottle_ml: ml });
+  const evs = [b('2026-11-07T04:10:00Z', 120), b('2026-11-07T09:00:00Z', 110), b('2026-11-07T14:00:00Z', 90), // yesterday's day
+    b('2026-11-08T04:05:00Z', 130), b('2026-11-08T09:10:00Z', 100), b('2026-11-08T14:00:00Z', 80)]; // today's, so far
+  const now = new Date('2026-11-08T17:00:00Z'); // noon EST
+
+  it('one window per day from the bedtime moment, newest first, today still filling', () => {
+    const d = dayProfiles(feeds(evs, plan), plan, 3, now);
+    expect(d.map((x) => x.start.toISOString())).toEqual(['2026-11-08T04:00:00.000Z', '2026-11-07T04:00:00.000Z', '2026-11-06T04:00:00.000Z']);
+    expect(d[0].points.map((p) => [p.x, p.y])).toEqual([[5, 130], [310, 100], [600, 80]]);
+    expect(d[1].points).toHaveLength(3);
+    expect(d[2].points).toHaveLength(0);
+  });
+  it('the smooth line runs between the first and last feed and stays within their amounts', () => {
+    const s = dayProfiles(feeds(evs, plan), plan, 1, now)[0].smooth;
+    expect(s[0].x).toBe(5);
+    expect(s[s.length - 1].x).toBe(600);
+    expect(Math.max(...s.map((p) => p.y))).toBeLessThanOrEqual(130);
+    expect(Math.min(...s.map((p) => p.y))).toBeGreaterThanOrEqual(80);
+  });
+  it('without an anchor, days run midnight to midnight', () => {
+    const d = dayProfiles(feeds(evs, readPlan({ ...plan, anchor: null })), readPlan({ ...plan, anchor: null }), 1, now);
+    expect(d[0].start.getHours()).toBe(0);
   });
 });

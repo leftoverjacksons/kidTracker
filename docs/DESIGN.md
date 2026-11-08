@@ -890,6 +890,16 @@ Research (2026-11-01) behind "at least 8": CDC — breastfed babies feed about 8
 - **Not done (owner: later, worked out by the family):** assigning night feeds to a person, feed alarms to that person's phone.
 - **Open, for the consultant:** when he can drop below 8 feeds a day; whether mom can skip pumping at the 3 AM feed (11 PM to ~5:50 AM is about 7 h without pumping).
 
+### AA. Feeds across the day — built 2026-11-08 (app-only)
+
+Owner: a chart under feeding showing the distribution of his intake over a day, from the anchor time to the same time the next day, with today partial, plus the previous days the same way, 1–7 selectable; today in the app's teal, older days fading.
+
+- **Reports → Overview → Feeding → "Feeds across the day"**, after Typical feed. x: time of day from the day's start (the bedtime-feed moment on the anchored schedule, e.g. 11 PM → 11 PM; midnight on the flexible schedule), labelled every 3 h. y: each feed's estimated amount (bottles plus nursing), at the time it started.
+- **Series:** today (still filling) and the previous days, newest first (`dayProfiles`). **Days shown** picker, 1–7 (default 3), remembered per phone (`kt.profileDays`).
+- **Each day:** dots, plus a smoothed line through them: at each quarter hour, a Gaussian-weighted average of that day's feeds (bandwidth 90 min, `PROFILE_BANDWIDTH_MIN`), drawn only between the day's first and last feed. A kernel average rather than a fitted curve: it can't overshoot the feeds' amounts and shows where in the day he takes more or less.
+- **Colours:** all teal; today at full strength with larger, outlined dots and a thicker line; older days fade from 75% to about 20%. Tapping a day in the legend hides its dots and line; tooltips show the day, time and amount.
+- Day windows follow the anchor through DST (`anchorsAround`). A bedtime feed taken early (e.g. 9:50 PM with an 11 PM anchor) sits at the end of the previous window.
+
 ### Z. Age down to the day — built 2026-11-08 (app-only)
 
 The age by his name (Home header, pediatrician summary) now includes the days: "5 days", "3 weeks 4 days" (to 8 weeks), "4 months 11 days" (days since this month's birthday, to 2 years), then "2 years 3 months" (`ageLabel`).

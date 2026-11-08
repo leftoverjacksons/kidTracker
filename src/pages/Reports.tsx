@@ -1,6 +1,6 @@
 import {
   IonButton, IonContent, IonHeader, IonItem, IonLabel, IonList, IonListHeader, IonPage, IonRefresher,
-  IonRefresherContent, IonSegment, IonSegmentButton, IonSpinner, IonTitle, IonToolbar, useIonToast,
+  IonRefresherContent, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonTitle, IonToolbar, useIonToast,
 } from '@ionic/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import BarChart from '../components/charts/BarChart';
@@ -8,7 +8,8 @@ import LineChart from '../components/charts/LineChart';
 import GrowthChart from '../components/charts/GrowthChart';
 import WeightChangeChart from '../components/charts/WeightChangeChart';
 import { weightChange } from '../lib/weight';
-import { dailyTargetAt, feedsPerDay, feedTarget, medianFeedByDay, feeds, pumpsWithFeeds, readPlan } from '../lib/feeding';
+import { dailyTargetAt, dayProfiles, feedsPerDay, feedTarget, medianFeedByDay, feeds, pumpsWithFeeds, readPlan } from '../lib/feeding';
+import DayProfileChart from '../components/charts/DayProfileChart';
 import { useData } from '../lib/data';
 import { formatDuration, formatLength, formatVolume, formatWeight, startOfDay } from '../lib/format';
 import { useHousehold } from '../lib/household';
@@ -84,6 +85,11 @@ export default function Reports() {
 
   // Typical (median) feed vs. the target (design doc §8a Q), and pump sessions paired with a feed.
   const plan = useMemo(() => readPlan(settings.feeding_plan), [settings.feeding_plan]);
+  // Feeds across the day (design doc §8a AA): how many days to overlay, remembered per phone.
+  const [profileDays, setProfileDays] = useState<number>(() => { try { return Number(localStorage.getItem('kt.profileDays')) || 3; } catch { return 3; } });
+  const pickProfileDays = (n: number) => { setProfileDays(n); try { localStorage.setItem('kt.profileDays', String(n)); } catch { /* private mode */ } };
+  const profiles = useMemo(() => dayProfiles(feeds(data.events, plan), plan, profileDays), [data.events, plan, profileDays]);
+  const toVolRaw = useCallback((ml: number) => (settings.volume_unit === 'oz' ? mlToOz(ml) : ml), [settings.volume_unit]);
   const feedView = useMemo(() => {
     if (!rows) return null;
     const fd = feeds(data.events, plan);
@@ -168,6 +174,17 @@ export default function Reports() {
                   format={fmtVolAxis} hues={['teal']} band={feedView.band}
                   note={`The middle-sized feed of each day (median), so an odd snack doesn't pull it down. A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
               )}
+                {profiles.some((d) => d.points.length) && (
+                <DayProfileChart title={`Feeds across the day (${volUnit}, estimated)`} days={profiles} toDisplay={toVolRaw} format={fmtVolAxis}
+                  controls={
+                    <IonItem lines="none" className="profile-days">
+                      <IonSelect label="Days shown" value={profileDays} interface="popover" onIonChange={(e) => pickProfileDays(Number(e.detail.value))}>
+                        {[1, 2, 3, 4, 5, 6, 7].map((n) => <IonSelectOption key={n} value={n}>{n === 1 ? 'Today' : `${n} days`}</IonSelectOption>)}
+                      </IonSelect>
+                    </IonItem>
+                  }
+                  note={`Each dot is a feed at the time it started, from ${plan.anchor ? 'the bedtime feed' : 'midnight'} to the same time the next day; the line is a smoothed amount through the day (a moving average about 1½ h wide). Today is the brightest; older days fade. Tap a day in the legend to hide it.`} />
+                )}
                 <LineChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} hues={['coral']}
                 note="Entries less than 20 minutes apart count as one feed." />
                 {view.has('longest_feed_interval_min') && (

@@ -561,3 +561,52 @@ export function anchoredAim(events: (FeedEvent & { deleted_at?: string | null })
   const max = Math.round(Math.min(top, c * 1.05));
   return { min: Math.min(max, Math.round(c * 0.95)), max, catchUp: c > planned * 1.02 };
 }
+
+// ───────────── Feeds across the day (design doc §8a AA) ─────────────
+
+export interface DayProfile {
+  /** Start of this day's window (the bedtime feed's moment on the anchored schedule, else midnight). */
+  start: Date;
+  /** Feeds in the window: minutes after `start` and estimated ml. */
+  points: { x: number; y: number; at: Date }[];
+  /** Smoothed amount through the day (kernel-weighted average), only across the feeds' own span. */
+  smooth: { x: number; y: number }[];
+}
+
+/** Width (standard deviation, minutes) of the smoothing on the feeds-across-the-day chart. */
+export const PROFILE_BANDWIDTH_MIN = 90;
+
+/**
+ * The last `days` day-windows, newest first: each from the bedtime-feed moment (anchored
+ * schedule) or midnight to the same time the next day; the newest is today's, still filling.
+ * Each has its feeds as points and a smooth line through them: at each quarter hour, the
+ * average of the feeds weighted by a bell curve 1½ h wide around that time, so it shows where
+ * in the day he takes more or less without jumping from feed to feed.
+ */
+export function dayProfiles(all: Feed[], plan: FeedingPlan, days: number, now: Date = new Date()): DayProfile[] {
+  const starts: number[] = [];
+  if (plan.anchor) {
+    let s = anchorsAround(now.getTime(), plan.anchor).prev;
+    for (let k = 0; k < days; k++) { starts.push(s); s = anchorsAround(s - 1, plan.anchor).prev; }
+  } else {
+    for (let k = 0; k < days; k++) starts.push(new Date(now.getFullYear(), now.getMonth(), now.getDate() - k).getTime());
+  }
+  return starts.map((s, k) => {
+    const end = k === 0 ? now.getTime() : starts[k - 1];
+    const points = all.filter((f) => f.start.getTime() >= s && f.start.getTime() < end && f.estMl > 0)
+      .map((f) => ({ x: (f.start.getTime() - s) / 60_000, y: f.estMl, at: f.start }));
+    const smooth: { x: number; y: number }[] = [];
+    if (points.length > 1) {
+      const lo = points[0].x, hi = points[points.length - 1].x, b2 = 2 * PROFILE_BANDWIDTH_MIN ** 2;
+      const xs: number[] = [];
+      for (let x = lo; x < hi; x += 15) xs.push(x);
+      xs.push(hi);
+      for (const x of xs) {
+        let w = 0, sum = 0;
+        for (const p of points) { const k2 = Math.exp(-((x - p.x) ** 2) / b2); w += k2; sum += k2 * p.y; }
+        smooth.push({ x, y: sum / w });
+      }
+    }
+    return { start: new Date(s), points, smooth };
+  });
+}
