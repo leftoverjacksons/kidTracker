@@ -2,7 +2,7 @@ import {
   CategoryScale, Chart, Filler, LinearScale, LineController, LineElement, PointElement, ScatterController, Tooltip,
   type ChartConfiguration,
 } from 'chart.js';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { CURVES, DAYS_PER_MONTH, lmsAt, valueAtZ, type Measure, type Sex } from '../../lib/who';
 import { useChartTheme } from './theme';
 
@@ -16,11 +16,11 @@ const WEEK = 7 / DAYS_PER_MONTH; // one week, in months
  * `band`: a shaded channel between two z-scores (the rapid-gain guard on weight, design doc §8a AB).
  * Up to 3 months the age axis is in weeks.
  */
-export default function GrowthChart({ title, sex, measure, points, toDisplay, format, maxMonths, band, note }: {
+export default function GrowthChart({ title, sex, measure, points, toDisplay, format, maxMonths, band, note, controls }: {
   title: string; sex: Sex; measure: Measure;
   points: { months: number; value: number }[]; // value in WHO units
   toDisplay: (v: number) => number; format: (v: number) => string; maxMonths: number;
-  band?: { lo: number; hi: number }; note?: string;
+  band?: { lo: number; hi: number }; note?: string; controls?: ReactNode;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const theme = useChartTheme();
@@ -93,6 +93,7 @@ export default function GrowthChart({ title, sex, measure, points, toDisplay, fo
   return (
     <figure className="chart-card">
       <figcaption className="chart-title">{title}</figcaption>
+      {controls}
       <div className="chart-box chart-box-tall"><canvas ref={canvas} role="img" aria-label={`${title} with WHO percentiles`} /></div>
       <div className="chart-note">{['Gray lines: WHO 3rd, 15th, 50th, 85th, 97th percentiles.', note].filter(Boolean).join(' ')}</div>
     </figure>

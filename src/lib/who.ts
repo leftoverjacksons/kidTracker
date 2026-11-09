@@ -53,19 +53,33 @@ export function ageInMonths(birthDate: string, at: Date): number {
 /** The rapid-gain threshold: an upward change in weight-for-age z of more than this (Ong 2000; Zheng 2017). */
 export const RAPID_GAIN_Z = 0.67;
 
+export type GuardBaseline = 'birth' | '24h' | '2w';
+
 /**
- * Rapid-gain guard for weight (design doc §8a AB): his weight-for-age z at birth (the first
- * weight, if taken within 2 days of birth) ± 0.67. Gaining above the top edge is "rapid infant
- * weight gain", which studies link with later overweight; dropping below the bottom edge is a
- * fall in percentile worth asking about too. Also his latest z and its change since birth.
- * Points are { months, value (kg) }, oldest first.
+ * Rapid-gain guard for weight (design doc §8a AB): a reference weight's weight-for-age z ± 0.67.
+ * Gaining above the top edge is "rapid infant weight gain", which studies link with later
+ * overweight; dropping below the bottom edge is a fall in percentile worth asking about too.
+ * The reference (`baseline`):
+ * - 'birth': the first weight, if logged within 2 days of the birth date;
+ * - '24h': the weight closest to 24 h after the birth weight, 12–48 h after it (newborns whose
+ *   mothers had IV fluids can be born carrying extra fluid; Noel-Weiss et al. 2011 suggest the
+ *   24-hour weight as the baseline instead);
+ * - '2w': the weight closest to 14 days old, 10–21 days (after the newborn dip).
+ * Points are { months, value (kg) }, oldest first. Returns which weight is missing if there isn't one.
  */
-export function weightGuard(sex: Sex, points: { months: number; value: number }[]): { z0: number; lo: number; hi: number; zNow: number; change: number } | null {
-  if (points.length < 1 || points[0].months > 2 / DAYS_PER_MONTH) return null;
+export function weightGuard(sex: Sex, points: { months: number; value: number }[], baseline: GuardBaseline = 'birth'):
+  { z0: number; lo: number; hi: number; zNow: number; change: number; ref: { months: number; value: number } } | { missing: GuardBaseline } {
+  const day = 1 / DAYS_PER_MONTH;
+  const closest = (target: number, from: number, to: number) => points.filter((p) => p.months >= from && p.months <= to)
+    .sort((a, b) => Math.abs(a.months - target) - Math.abs(b.months - target))[0];
+  const birth = points[0] && points[0].months <= 2 * day ? points[0] : undefined;
+  const ref = baseline === 'birth' ? birth
+    : baseline === '24h' ? (birth && closest(birth.months + day, birth.months + 0.5 * day, birth.months + 2 * day))
+    : closest(14 * day, 10 * day, 21 * day);
   const z = (p: { months: number; value: number }) => { const lms = lmsAt(sex, 'weight', p.months); return lms ? zScore(lms, p.value) : null; };
-  const z0 = z(points[0]), zNow = z(points[points.length - 1]);
-  if (z0 == null || zNow == null) return null;
-  return { z0, lo: z0 - RAPID_GAIN_Z, hi: z0 + RAPID_GAIN_Z, zNow, change: zNow - z0 };
+  const z0 = ref && z(ref), zNow = points.length ? z(points[points.length - 1]) : null;
+  if (!ref || z0 == null || zNow == null) return { missing: baseline };
+  return { z0, lo: z0 - RAPID_GAIN_Z, hi: z0 + RAPID_GAIN_Z, zNow, change: zNow - z0, ref };
 }
 
 /** Width of the WHO chart (months) so that `age` sits three quarters of the way across. */

@@ -20,7 +20,7 @@ import { bottleByContents, dailyCharts, fillDays, isoDay, trimLeading, type Dail
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
 import { cmToIn, mlToOz } from '../lib/units';
-import { ageInMonths, chartMonths, normalCdf, ordinal, percentile, RAPID_GAIN_Z, weightGuard, type Measure } from '../lib/who';
+import { ageInMonths, chartMonths, normalCdf, ordinal, percentile, RAPID_GAIN_Z, weightGuard, type GuardBaseline, type Measure } from '../lib/who';
 
 export interface GrowthRow { started_at: string; weight_g: number | null; length_cm: number | null; head_cm: number | null }
 
@@ -264,8 +264,19 @@ export default function Reports() {
   );
 }
 
+const BASELINES: { value: GuardBaseline; label: string; long: string }[] = [
+  { value: '24h', label: '24-hour weight', long: 'his 24-hour weight' },
+  { value: 'birth', label: 'Birth weight', long: 'his birth weight' },
+  { value: '2w', label: '2-week weight', long: 'his weight at about 2 weeks' },
+];
+
 function GrowthSection({ rows, heading = true }: { rows: GrowthRow[]; heading?: boolean }) {
   const { baby, settings } = useHousehold();
+  // Where the rapid-gain band starts (design doc §8a AB), per phone; default the 24-hour weight.
+  const [baseline, setBaseline] = useState<GuardBaseline>(() => {
+    try { const v = localStorage.getItem('kt.growthBaseline'); return v === 'birth' || v === '2w' ? v : '24h'; } catch { return '24h'; }
+  });
+  const pickBaseline = (v: GuardBaseline) => { setBaseline(v); try { localStorage.setItem('kt.growthBaseline', v); } catch { /* private mode */ } };
   const toLb = useCallback((kg: number) => (settings.weight_unit === 'lb_oz' ? kg * 2.20462262 : kg), [settings.weight_unit]);
   const toLen = useCallback((cm: number) => (settings.length_unit === 'in' ? cmToIn(cm) : cm), [settings.length_unit]);
   const fmtW = useCallback((v: number) => (settings.weight_unit === 'lb_oz' ? `${Math.round(v * 10) / 10} lb` : `${Math.round(v * 10) / 10} kg`), [settings.weight_unit]);
@@ -311,12 +322,23 @@ function GrowthSection({ rows, heading = true }: { rows: GrowthRow[]; heading?: 
   };
   const last = rows[rows.length - 1];
   const lastAge = ageInMonths(baby.birth_date, new Date(last.started_at));
-  // Rapid-gain guard (design doc §8a AB): birth percentile ± 0.67 SD.
-  const guard = weightGuard(sex, series.weight);
+  // Rapid-gain guard (design doc §8a AB): the chosen reference weight's percentile ± 0.67 SD.
+  const guardResult = weightGuard(sex, series.weight, baseline);
+  const guard = 'missing' in guardResult ? null : guardResult;
+  const base = BASELINES.find((b) => b.value === baseline)!;
   const p = (z: number) => ordinal(Math.max(1, Math.min(99, Math.round(normalCdf(z) * 100))));
   const guardNote = guard
-    ? `Teal band: within ${RAPID_GAIN_Z} SD of his birth percentile (${p(guard.z0)}), so the ${p(guard.lo)}–${p(guard.hi)}. Climbing above it counts as rapid weight gain, which studies link with later overweight; dropping below it is worth asking about too. Now ${p(guard.zNow)} (${guard.change >= 0 ? '+' : '−'}${Math.abs(guard.change).toFixed(2)} SD since birth).`
-    : undefined;
+    ? `Teal band: within ${RAPID_GAIN_Z} SD of ${base.long}'s percentile (${p(guard.z0)}), so the ${p(guard.lo)}–${p(guard.hi)}. Climbing above it counts as rapid weight gain, which studies link with later overweight; dropping below it is worth asking about too. Now ${p(guard.zNow)} (${guard.change >= 0 ? '+' : '−'}${Math.abs(guard.change).toFixed(2)} SD since then).`
+    : baseline === '24h' ? 'No band: no weight logged 12–48 hours after his birth weight. Add the hospital\'s 24-hour weight (Growth, with its date and time), or pick another starting point.'
+    : baseline === 'birth' ? 'No band: no weight logged in his first 2 days.'
+    : 'No band: no weight logged between 10 and 21 days old.';
+  const baselinePicker = (
+    <IonItem lines="none" className="profile-days">
+      <IonSelect label="Band from" value={baseline} interface="popover" onIonChange={(e) => pickBaseline(e.detail.value as GuardBaseline)}>
+        {BASELINES.map((b) => <IonSelectOption key={b.value} value={b.value}>{b.label}</IonSelectOption>)}
+      </IonSelect>
+    </IonItem>
+  );
 
   return (
     <>
@@ -331,7 +353,7 @@ function GrowthSection({ rows, heading = true }: { rows: GrowthRow[]; heading?: 
       </p>
       {weightCard}
       {series.weight.length > 0 && <GrowthChart title="Weight" sex={sex} measure="weight" points={series.weight} toDisplay={toLb} format={fmtW} maxMonths={maxMonths}
-        band={guard ? { lo: guard.lo, hi: guard.hi } : undefined} note={guardNote} />}
+        band={guard ? { lo: guard.lo, hi: guard.hi } : undefined} note={guardNote} controls={baselinePicker} />}
       {series.length.length > 0 && <GrowthChart title="Length" sex={sex} measure="length" points={series.length} toDisplay={toLen} format={fmtL} maxMonths={maxMonths} />}
       {series.head.length > 0 && <GrowthChart title="Head circumference" sex={sex} measure="head" points={series.head} toDisplay={toLen} format={fmtL} maxMonths={maxMonths} />}
     </>

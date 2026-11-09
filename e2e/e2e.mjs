@@ -597,14 +597,18 @@ await expectText(A, 'Sleep per day');
 }
 { // WHO weight chart: today 3/4 of the way across, and the rapid-gain band from a birth-day weight
   psql(`insert into events (baby_id, type, started_at, weight_g) select id, 'growth', birth_date + time '12:00', 3600 from babies`);
+  psql(`insert into events (baby_id, type, started_at, weight_g) select id, 'growth', birth_date + interval '1 day 12 hours', 3480 from babies`); // the 24-hour weight
   await refresh(A); await wait(A, 1500); await openReportSections(A);
   const who = A.locator('.chart-card', { hasText: 'Gray lines: WHO' }).first();
   if (!(await who.count())) problems.push('no WHO weight chart');
   else {
     await who.scrollIntoViewIfNeeded(); await wait(A, 300);
     const t = await who.innerText();
-    if (!/Teal band: within 0\.67 SD of his birth percentile/.test(t)) problems.push(`no rapid-gain band note: ${t.slice(-240)}`);
+    if (!/Teal band: within 0\.67 SD of his 24-hour weight's percentile/.test(t)) problems.push(`band not from the 24-hour weight by default: ${t.slice(-260)}`);
     await who.screenshot({ path: `${OUT}/who-weight-band.png` });
+    await who.locator('ion-select', { hasText: 'Band from' }).click(); await wait(A, 600);
+    await A.locator('ion-popover ion-radio, ion-popover ion-item', { hasText: 'Birth weight' }).first().click(); await wait(A, 800);
+    if (!/of his birth weight's percentile/.test(await who.innerText())) problems.push('"Band from: Birth weight" did not move the band');
   }
 }
 

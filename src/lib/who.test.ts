@@ -26,13 +26,25 @@ describe('growth chart window and rapid-gain guard', () => {
     expect(chartMonths(0.9)).toBeCloseTo(1.2);
     expect(chartMonths(30)).toBe(24);
   });
-  it('band is birth z ± 0.67; needs a weight from the first 2 days', () => {
-    const birth = { months: 0, value: 3.74 }; // 8 lb 4 oz
-    const g = weightGuard('male', [birth, { months: 0.85, value: 4.34 }])!;
+  const D = 1 / 30.4375;
+  const pts = [{ months: 0.6 * D, value: 3.74 }, { months: 1.6 * D, value: 3.55 }, { months: 3 * D, value: 3.43 }, { months: 14 * D, value: 3.75 }, { months: 25 * D, value: 4.34 }];
+  it('band is the reference weight z ± 0.67', () => {
+    const g = weightGuard('male', pts, 'birth');
+    if ('missing' in g) throw new Error('missing');
     expect(g.hi - g.lo).toBeCloseTo(1.34);
     expect(g.z0).toBeGreaterThan(0.5); // he was born near the 78th percentile
     expect(g.change).toBeLessThan(0); // now lower on the chart than at birth
-    expect(weightGuard('male', [{ months: 0.5, value: 4 }])).toBeNull();
+  });
+  it('24-hour weight: closest to a day after the birth weight; 2 weeks: closest to day 14', () => {
+    const h = weightGuard('male', pts, '24h'), w = weightGuard('male', pts, '2w');
+    if ('missing' in h || 'missing' in w) throw new Error('missing');
+    expect(h.ref.value).toBe(3.55);
+    expect(w.ref.value).toBe(3.75);
+    expect(h.z0).toBeLessThan((weightGuard('male', pts, 'birth') as { z0: number }).z0); // the fluid-inflated birth weight sits higher
+  });
+  it('says which weight is missing', () => {
+    expect(weightGuard('male', [pts[0], pts[2]], '24h')).toEqual({ missing: '24h' }); // nothing 12–48 h after birth
+    expect(weightGuard('male', [{ months: 0.5, value: 4 }], 'birth')).toEqual({ missing: 'birth' });
   });
 });
 
