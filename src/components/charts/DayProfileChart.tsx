@@ -94,7 +94,12 @@ export default function DayProfileChart({ title, days, toDisplay, format, contro
     <figure className="chart-card">
       <figcaption className="chart-title">{title}</figcaption>
       {controls}
-      <div className="chart-box chart-box-tall"><canvas ref={canvas} role="img" aria-label={title} /></div>
+      <div className="chart-box chart-box-tall">
+        <canvas ref={canvas} role="img" aria-label={title} />
+        {!days.some((d) => d.points.length) && (
+          <div className="chart-empty">No feeds yet {days.length === 1 ? 'today' : `in the last ${days.length} days`}. Pick more days above.</div>
+        )}
+      </div>
       {note && <div className="chart-note">{note}</div>}
     </figure>
   );

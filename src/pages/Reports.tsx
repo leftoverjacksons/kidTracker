@@ -176,7 +176,7 @@ export default function Reports() {
                   format={fmtVolAxis} hues={['teal']} band={feedView.band}
                   note={`The middle-sized feed of each day (median), so an odd snack doesn't pull it down. A feed is the bottles and nursing less than 20 minutes apart; nursing counts as ${plan.nursing_ml_per_min} ml per minute (Settings → Feeding plan).`} />
               )}
-                {profiles.some((d) => d.points.length) && (
+                {/* Always shown, so the pickers stay reachable even when the chosen days have no feeds yet. */}
                 <DayProfileChart title={`Feeds across the day (${volUnit}, estimated)`} days={profiles} toDisplay={toVolRaw} format={fmtVolAxis} smooth={profileSmooth}
                   controls={<>
                     <IonItem lines="none" className="profile-days">
@@ -192,7 +192,6 @@ export default function Reports() {
                     </IonItem>
                   </>}
                   note={`Each dot is a feed at the time it started, from ${plan.anchor ? 'the bedtime feed' : 'midnight'} to the same time the next day; the line is ${profileSmooth ? 'a smoothed amount through the day (a moving average about 1½ h wide)' : 'drawn straight from feed to feed'}. Today is teal; earlier days are blue, fading into the past. Tap a day in the legend to hide it.`} />
-                )}
                 <LineChart partialLast={view.partial} integer title="Feeds per day (nursing + bottle)" labels={view.labels} series={view.feeds} format={fmtCount} hues={['coral']}
                 note="Entries less than 20 minutes apart count as one feed." />
                 {view.has('longest_feed_interval_min') && (

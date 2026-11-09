@@ -428,3 +428,4 @@ body.print-mode { position: static; overflow: auto; height: auto; max-height: no
 .report-section.open .report-section-body { border-left: 4px solid var(--ion-color-primary); padding-left: 8px; margin-left: 2px; }
 .report-section-body > .chart-card:first-child { margin-top: 10px; }
 .profile-days { --background: transparent; --padding-start: 0; --min-height: 36px; font-size: 14px; margin: -4px 0 2px; }
+.chart-empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 0 24px; font-size: 14px; opacity: 0.7; pointer-events: none; }

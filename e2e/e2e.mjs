@@ -646,6 +646,10 @@ for (const t of ['Sleep per day', 'Longest sleep stretch', 'Feeds per day', 'Tim
     if (saved !== '7') problems.push(`days picker not saved: ${saved}`);
     await card.scrollIntoViewIfNeeded(); await wait(A, 300);
     await card.screenshot({ path: `${OUT}/feeds-across-day.png` });
+    // Choosing "Today" keeps the chart and its pickers (a day with no feeds yet once hid them for good).
+    await card.locator('ion-select', { hasText: 'Days shown' }).click(); await wait(A, 600);
+    await A.locator('ion-popover ion-radio, ion-popover ion-item', { hasText: 'Today' }).first().click(); await wait(A, 800);
+    if (!(await A.locator('.chart-card', { hasText: 'Feeds across the day' }).locator('ion-select', { hasText: 'Days shown' }).count())) problems.push('"Today" hid the Feeds across the day chart');
     await card.locator('ion-select', { hasText: 'Line' }).click(); await wait(A, 600);
     await A.locator('ion-popover ion-radio, ion-popover ion-item', { hasText: 'Dot to dot' }).first().click(); await wait(A, 800);
     if ((await A.evaluate(() => localStorage.getItem('kt.profileLine'))) !== 'straight') problems.push('line toggle not saved');
