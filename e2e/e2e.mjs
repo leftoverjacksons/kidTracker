@@ -542,7 +542,7 @@ await expectText(A, 'Sleep per day');
 if (await reports.getByText('Sleep map').count()) problems.push('sleep map should have moved to History → Timeline');
 const canvases = await reports.locator('canvas').count();
 if (canvases < 5) problems.push(`expected >= 5 charts on Reports, saw ${canvases}`);
-await expectText(A, 'th pct');
+await expectText(A, ' pct)'); // e.g. "(3rd pct)"
 await expectText(A, 'Weight vs.');
 await expectText(A, 'Longest sleep stretch');
 await expectText(A, 'today so far'); // the only day with data is today → partial
@@ -594,6 +594,18 @@ await expectText(A, 'Sleep per day');
   const wt = await wcard.innerText();
   if (!/trend since then [+−]\d+ g\/day/.test(wt)) problems.push(`weight chart has no g/day trend: ${wt.slice(-200)}`);
   await wcard.scrollIntoViewIfNeeded(); await wcard.screenshot({ path: `${OUT}/weight-trend.png` });
+}
+{ // WHO weight chart: today 3/4 of the way across, and the rapid-gain band from a birth-day weight
+  psql(`insert into events (baby_id, type, started_at, weight_g) select id, 'growth', birth_date + time '12:00', 3600 from babies`);
+  await refresh(A); await wait(A, 1500); await openReportSections(A);
+  const who = A.locator('.chart-card', { hasText: 'Gray lines: WHO' }).first();
+  if (!(await who.count())) problems.push('no WHO weight chart');
+  else {
+    await who.scrollIntoViewIfNeeded(); await wait(A, 300);
+    const t = await who.innerText();
+    if (!/Teal band: within 0\.67 SD of his birth percentile/.test(t)) problems.push(`no rapid-gain band note: ${t.slice(-240)}`);
+    await who.screenshot({ path: `${OUT}/who-weight-band.png` });
+  }
 }
 
 // Milk pumped per breast: add five earlier days of pumping, then look at the line chart

@@ -9,7 +9,7 @@ import { averages, completeDays, dailyCharts, daysOld, fillDays, isoDay, localSt
 import { supabase } from '../lib/supabase';
 import { ageLabel, mlToOz } from '../lib/units';
 import { formatPct, weightChange } from '../lib/weight';
-import { ageInMonths, percentile, type Measure } from '../lib/who';
+import { ageInMonths, percentile, type Measure, ordinal } from '../lib/who';
 
 type Row = Record<string, unknown>;
 type Sleep = { start_date: string; duration_min: number };
@@ -90,7 +90,7 @@ export default function PrintReport({ days }: { days: number }) {
   const pct = (m: Measure, at: string, v: number) => {
     if (!baby.birth_date || !baby.sex) return '';
     const p = percentile(baby.sex, m, ageInMonths(baby.birth_date, new Date(at)), v);
-    return p == null ? '' : ` (${p < 1 ? '<1' : p > 99 ? '>99' : Math.round(p)}th)`;
+    return p == null ? '' : ` (${p < 1 ? '<1st' : p > 99 ? '>99th' : ordinal(Math.round(p))})`;
   };
   const first = daily[0].day, last = daily[daily.length - 1].day;
   const bd = baby.birth_date;

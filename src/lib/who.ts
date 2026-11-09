@@ -49,3 +49,32 @@ export function ageInMonths(birthDate: string, at: Date): number {
   const [y, m, d] = birthDate.split('-').map(Number);
   return (at.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000 / DAYS_PER_MONTH;
 }
+
+/** The rapid-gain threshold: an upward change in weight-for-age z of more than this (Ong 2000; Zheng 2017). */
+export const RAPID_GAIN_Z = 0.67;
+
+/**
+ * Rapid-gain guard for weight (design doc §8a AB): his weight-for-age z at birth (the first
+ * weight, if taken within 2 days of birth) ± 0.67. Gaining above the top edge is "rapid infant
+ * weight gain", which studies link with later overweight; dropping below the bottom edge is a
+ * fall in percentile worth asking about too. Also his latest z and its change since birth.
+ * Points are { months, value (kg) }, oldest first.
+ */
+export function weightGuard(sex: Sex, points: { months: number; value: number }[]): { z0: number; lo: number; hi: number; zNow: number; change: number } | null {
+  if (points.length < 1 || points[0].months > 2 / DAYS_PER_MONTH) return null;
+  const z = (p: { months: number; value: number }) => { const lms = lmsAt(sex, 'weight', p.months); return lms ? zScore(lms, p.value) : null; };
+  const z0 = z(points[0]), zNow = z(points[points.length - 1]);
+  if (z0 == null || zNow == null) return null;
+  return { z0, lo: z0 - RAPID_GAIN_Z, hi: z0 + RAPID_GAIN_Z, zNow, change: zNow - z0 };
+}
+
+/** Width of the WHO chart (months) so that `age` sits three quarters of the way across. */
+export function chartMonths(age: number): number {
+  return Math.min(24, Math.max(7 / DAYS_PER_MONTH, age / 0.75));
+}
+
+/** 1 → "1st", 2 → "2nd", 3 → "3rd", 11 → "11th", 22 → "22nd". */
+export function ordinal(n: number): string {
+  const t = n % 100, u = n % 10;
+  return `${n}${t >= 11 && t <= 13 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th'}`;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lmsAt, percentile, valueAtZ } from './who';
+import { lmsAt, percentile, valueAtZ, chartMonths, ordinal, weightGuard } from './who';
 
 describe('WHO growth standards', () => {
   it('median boy weight at birth is 3.3464 kg (published M)', () => {
@@ -19,4 +19,23 @@ describe('WHO growth standards', () => {
     expect(percentile('male', 'head', 25, 45)).toBeNull();
     expect(percentile('male', 'head', -0.1, 35)).toBeNull();
   });
+});
+
+describe('growth chart window and rapid-gain guard', () => {
+  it('puts today three quarters of the way across', () => {
+    expect(chartMonths(0.9)).toBeCloseTo(1.2);
+    expect(chartMonths(30)).toBe(24);
+  });
+  it('band is birth z ± 0.67; needs a weight from the first 2 days', () => {
+    const birth = { months: 0, value: 3.74 }; // 8 lb 4 oz
+    const g = weightGuard('male', [birth, { months: 0.85, value: 4.34 }])!;
+    expect(g.hi - g.lo).toBeCloseTo(1.34);
+    expect(g.z0).toBeGreaterThan(0.5); // he was born near the 78th percentile
+    expect(g.change).toBeLessThan(0); // now lower on the chart than at birth
+    expect(weightGuard('male', [{ months: 0.5, value: 4 }])).toBeNull();
+  });
+});
+
+it('ordinals', () => {
+  expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 50, 97].map(ordinal)).toEqual(['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd', '50th', '97th']);
 });

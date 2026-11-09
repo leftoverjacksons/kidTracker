@@ -20,7 +20,7 @@ import { bottleByContents, dailyCharts, fillDays, isoDay, trimLeading, type Dail
 import { EXPORTS, runExport } from '../lib/exports';
 import { supabase } from '../lib/supabase';
 import { cmToIn, mlToOz } from '../lib/units';
-import { ageInMonths, percentile, type Measure } from '../lib/who';
+import { ageInMonths, chartMonths, normalCdf, ordinal, percentile, RAPID_GAIN_Z, weightGuard, type Measure } from '../lib/who';
 
 export interface GrowthRow { started_at: string; weight_g: number | null; length_cm: number | null; head_cm: number | null }
 
@@ -303,14 +303,20 @@ function GrowthSection({ rows, heading = true }: { rows: GrowthRow[]; heading?: 
     );
   }
   const age = ageInMonths(baby.birth_date, new Date());
-  const maxMonths = Math.min(24, Math.max(3, Math.ceil(age + 1)));
+  const maxMonths = chartMonths(age); // today three quarters of the way across, the rest is the weeks ahead
   const sex = baby.sex;
   const pct = (m: Measure, months: number, v: number) => {
     const p = percentile(sex, m, months, v);
-    return p == null ? '' : ` (${p < 1 ? '<1' : p > 99 ? '>99' : Math.round(p)}th pct)`;
+    return p == null ? '' : ` (${p < 1 ? '<1st' : p > 99 ? '>99th' : ordinal(Math.round(p))} pct)`;
   };
   const last = rows[rows.length - 1];
   const lastAge = ageInMonths(baby.birth_date, new Date(last.started_at));
+  // Rapid-gain guard (design doc §8a AB): birth percentile ± 0.67 SD.
+  const guard = weightGuard(sex, series.weight);
+  const p = (z: number) => ordinal(Math.max(1, Math.min(99, Math.round(normalCdf(z) * 100))));
+  const guardNote = guard
+    ? `Teal band: within ${RAPID_GAIN_Z} SD of his birth percentile (${p(guard.z0)}), so the ${p(guard.lo)}–${p(guard.hi)}. Climbing above it counts as rapid weight gain, which studies link with later overweight; dropping below it is worth asking about too. Now ${p(guard.zNow)} (${guard.change >= 0 ? '+' : '−'}${Math.abs(guard.change).toFixed(2)} SD since birth).`
+    : undefined;
 
   return (
     <>
@@ -324,7 +330,8 @@ function GrowthSection({ rows, heading = true }: { rows: GrowthRow[]; heading?: 
         ].filter(Boolean).join(' · ')}
       </p>
       {weightCard}
-      {series.weight.length > 0 && <GrowthChart title="Weight" sex={sex} measure="weight" points={series.weight} toDisplay={toLb} format={fmtW} maxMonths={maxMonths} />}
+      {series.weight.length > 0 && <GrowthChart title="Weight" sex={sex} measure="weight" points={series.weight} toDisplay={toLb} format={fmtW} maxMonths={maxMonths}
+        band={guard ? { lo: guard.lo, hi: guard.hi } : undefined} note={guardNote} />}
       {series.length.length > 0 && <GrowthChart title="Length" sex={sex} measure="length" points={series.length} toDisplay={toLen} format={fmtL} maxMonths={maxMonths} />}
       {series.head.length > 0 && <GrowthChart title="Head circumference" sex={sex} measure="head" points={series.head} toDisplay={toLen} format={fmtL} maxMonths={maxMonths} />}
     </>

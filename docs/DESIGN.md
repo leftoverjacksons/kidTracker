@@ -890,6 +890,19 @@ Research (2026-11-01) behind "at least 8": CDC — breastfed babies feed about 8
 - **Not done (owner: later, worked out by the family):** assigning night feeds to a person, feed alarms to that person's phone.
 - **Open, for the consultant:** when he can drop below 8 feeds a day; whether mom can skip pumping at the 3 AM feed (11 PM to ~5:50 AM is about 7 h without pumping).
 
+### AB. Growth charts: today at ¾, and a rapid-gain guard band — built 2026-11-09 (app-only)
+
+Owner: show the WHO charts so the current moment is 75% across (the last quarter is the weeks ahead); and, given concern about overfeeding on an intensive feeding plan, a band showing the boundaries his weight gain should stay within, based on research on infant overfeeding and later obesity.
+
+- **Window (`chartMonths`):** chart width = age ÷ 0.75 (at least a week, at most the WHO tables' 24 months). Up to 3 months the axis is in weeks; tooltips say "4.2 weeks".
+- **Percentile lines vs. SD:** the drawn WHO curves are the 3rd, 15th, 50th, 85th and 97th percentiles, i.e. z = −1.88, −1.04, 0, +1.04, +1.88 — about 1 SD apart in the middle, 0.84 SD apart at the edges (`CURVES`).
+- **Research (2026-11-09):**
+  - "Rapid infant weight gain" is defined as an upward change in weight-for-age z-score of more than **0.67** (the spacing of the major centile lines on UK/CDC-style charts: crossing one line). Zheng et al. 2017 (*Obesity Reviews*, systematic review and meta-analysis, 17 studies): rapid gain in infancy associated with overweight/obesity from childhood into adulthood, pooled OR 3.66 (95% CI 2.59–5.17), stronger for gain from birth to 1 year; high heterogeneity. A 2022 pooled analysis of seven Australian/NZ cohorts used the same ≥0.67 definition (breastfeeding ≥6 months associated with lower risk).
+  - Feeding mode matters as well as milk: in the Infant Feeding Practices Study II (Li, Magadia, Fein, Grummer-Strawn 2012), bottle-fed infants gained more per month than infants fed only at the breast, even when the bottle held expressed breast milk (about 89 g/month more); a 2018 *Pediatrics* study similarly linked bottles of expressed milk with higher infant BMI. Observational associations, not proof of cause.
+  - Practical prevention is responsive feeding: feed on early hunger cues, pace the bottle with pauses, stop at fullness cues (turning away, closing the mouth), and don't push him to finish the bottle (AAP HealthyChildren; San Francisco DPH; Harvard obesity-prevention summary).
+- **The band (`weightGuard`):** on the WHO weight chart, a teal band from his birth weight's z − 0.67 to z + 0.67 (needs a weight logged within 2 days of birth). Above the top edge = rapid gain by the definition above; below the bottom edge = falling percentiles, also worth raising. The note gives his birth percentile, the band's percentiles and his current percentile with the z change since birth. Birth is the baseline because the studies measure from birth, and catching back up toward his birth percentile after the newborn dip is expected, not rapid gain.
+- **Ordinals** fixed ("3rd", "21st", not "3th") on the Growth section and the pediatrician summary (`ordinal`).
+
 ### AA. Feeds across the day — built 2026-11-08 (app-only)
 
 Owner: a chart under feeding showing the distribution of his intake over a day, from the anchor time to the same time the next day, with today partial, plus the previous days the same way, 1–7 selectable; today in the app's teal, older days fading.
