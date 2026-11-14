@@ -472,6 +472,7 @@ The baby's name and birth date are entered in the app at first run.
 
 | Risk | Mitigation |
 |---|---|
+| Entries just past the app's 30-day load window | Fixed 2026-11-13: the extra query for timers started before the window (no end time) also caught instant entries (diaper, growth, temperature, medicine have no end time), so on day 30 the birthday's diapers and weight were prepended and shown as the latest on the Home tiles and at the top of History. Now that query is limited to timer types and the combined list is sorted newest first. An e2e check inserts a 31-day-old diaper. |
 | CI can't download PostgREST from GitHub releases (seen 2026-11-08: "502 upstream request failed", twice) | Not the app; no test runs. The download now retries 6 times, 15 s apart, and fails with a clear HTTP error. If GitHub releases stay down, push again later. |
 | GitHub Pages publish times out (seen 2026-11-05: `deploy-pages` stuck at "updating_pages" for 10 min, then cancelled) | Tests are unaffected. Re-running the job doesn't help: the deployment is keyed by the commit, which is now marked cancelled. Push the next commit (any change) and it publishes normally. |
 | Supabase free project pauses after 7 days idle | Daily use prevents it; the nightly Drive backup signs in every day as a backstop. |

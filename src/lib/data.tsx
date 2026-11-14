@@ -75,14 +75,19 @@ export function DataProvider({ children, onError }: { children: ReactNode; onErr
       supabase.from(source).select(cols)
         .eq('baby_id', babyId).is('deleted_at', null).gte('started_at', sinceIso)
         .order('started_at', { ascending: false }),
-      // Timers started before the window (unlikely) still need to show.
+      // Timers started before the window (unlikely) still need to show. Only timer types: instant
+      // entries (diaper, growth, temperature, medicine) have no end time either, and once they
+      // passed the 30-day edge they were pulled in here and shown as the newest (2026-11-13).
       supabase.from(source).select(cols)
-        .eq('baby_id', babyId).is('deleted_at', null).is('ended_at', null).lt('started_at', sinceIso),
+        .eq('baby_id', babyId).is('deleted_at', null).is('ended_at', null).lt('started_at', sinceIso)
+        .in('type', ['sleep', 'nursing', 'pump', 'tummy_time', 'bottle']),
       supabase.from('medications').select('*').order('name'),
       supabase.from('caregivers').select('id, display_name'),
     ]);
     if (ev.error) return void err.current(ev.error.message);
-    let rows = [...(running.data ?? []), ...(ev.data ?? [])] as unknown as EventRow[];
+    // Newest first, always: `latest`, History and the Today list rely on it.
+    let rows = ([...(running.data ?? []), ...(ev.data ?? [])] as unknown as EventRow[])
+      .sort((a, b) => b.started_at.localeCompare(a.started_at));
     if (viewer) {
       const ids = rows.filter((e) => e.type === 'nursing').map((e) => e.id);
       const segs = ids.length ? (await supabase.from('nursing_segments').select('*').in('event_id', ids).order('started_at')).data ?? [] : [];

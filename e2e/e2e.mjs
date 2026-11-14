@@ -475,6 +475,15 @@ const tummyMin = psql(`select round(extract(epoch from ended_at - started_at) / 
 if (!['19', '20', '21'].includes(tummyMin)) problems.push(`"It ended at" saved ${tummyMin} min of tummy time, expected ~20`);
 if (await B.locator('.still-running').count()) problems.push('check still showing after saving an end time');
 
+// Entries older than the 30-day window with no end time (a diaper here) must not come back as the newest
+// (2026-11-13: the birthday's diapers and weight showed on the tiles and topped History once 30 days passed).
+psql(`insert into events (baby_id, type, started_at, diaper_wet, diaper_dirty) select id, 'diaper', now() - interval '31 days', true, false from babies`);
+await refresh(A); await wait(A, 1500);
+await A.locator('ion-tab-button[tab="home"]').click(); await wait(A, 800);
+{
+  const diaperTile = await A.locator('.tile', { hasText: 'Diaper' }).first().innerText();
+  if (/31d ago/.test(diaperTile)) problems.push(`a 31-day-old diaper shows as the latest: ${diaperTile}`);
+}
 // ── Settings: set sex for growth percentiles
 await A.locator('ion-tab-button[tab="settings"]').click(); await wait(A, 800);
 await A.locator('ion-select', { hasText: 'Sex' }).click(); await wait(A, 600);
